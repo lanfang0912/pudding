@@ -197,7 +197,7 @@ tr.done-row td{opacity:.45;}
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>編號</th><th>姓名</th><th>電話</th><th>收貨日期</th><th>品項</th>
+          <th>編號</th><th>姓名</th><th>電話</th><th>Email</th><th>收貨日期</th><th>品項</th>
           <th>配送</th><th>地址</th><th>末五碼</th><th>金額</th><th>備註</th><th>狀態</th><th>操作</th>
         </tr></thead>
         <tbody id="order-tbody"></tbody>
@@ -517,6 +517,7 @@ function renderTable(){
       <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
       <td><strong>${o.name}</strong>${warn}</td>
       <td>${o.phone}</td>
+      <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}</td>
       <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
       <td>${fhtml(o)}</td>
       <td>${db}</td>
