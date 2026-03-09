@@ -233,25 +233,30 @@ tr.done-row td{opacity:.45;}
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">設定每天各口味的最大接單數量，即時同步到訂購頁</div>
 
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:16px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:14px">預設上限（套用到所有開放日期）</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">每日上限設定</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end">
           <div>
-            <label class="form-label" style="color:var(--caramel)">原味（盒）</label>
-            <input class="form-ctrl" id="inv-default-orig" type="number" min="0" max="99" value="3">
+            <label class="form-label" style="color:var(--caramel)">原味上限（盒）</label>
+            <input class="form-ctrl" id="inv-default-orig" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
           </div>
           <div>
-            <label class="form-label" style="color:var(--matcha)">抹茶（盒）</label>
-            <input class="form-ctrl" id="inv-default-matcha" type="number" min="0" max="99" value="3">
+            <label class="form-label" style="color:var(--matcha)">抹茶上限（盒）</label>
+            <input class="form-ctrl" id="inv-default-matcha" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
           </div>
           <div>
-            <label class="form-label" style="color:var(--cocoa)">可可（盒）</label>
-            <input class="form-ctrl" id="inv-default-cocoa" type="number" min="0" max="99" value="3">
+            <label class="form-label" style="color:var(--cocoa)">可可上限（盒）</label>
+            <input class="form-ctrl" id="inv-default-cocoa" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--blue)">每日總上限（盒）</label>
+            <input class="form-ctrl" id="inv-default-total" type="number" min="0" max="99" value="9">
           </div>
         </div>
-        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存預設上限</button>
+        <div id="inv-preview" style="margin-top:10px;font-size:12px;color:var(--ink-soft)">各口味加總 = 9 盒</div>
+        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存設定</button>
       </div>
 
-      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">儲存後訂購頁會立即更新，顧客超過上限的日期將無法選擇</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">儲存後訂購頁會立即更新。超過任一口味上限或每日總上限，顧客無法選擇該日期</div>
     </div>
   </div>
 
@@ -471,7 +476,7 @@ async function seedIfEmpty(){
 async function seedSettings(){
   const snap = await db.ref('settings/maxPerDay').once('value');
   if(!snap.exists()){
-    await db.ref('settings/maxPerDay').set({orig:3, matcha:3, cocoa:3});
+    await db.ref('settings/maxPerDay').set({orig:3, matcha:3, cocoa:3, total:9});
   }
 }
 
@@ -539,19 +544,30 @@ function loadInvSettings(){
   db.ref('settings/maxPerDay').once('value').then(snap => {
     const v = snap.val();
     if(v){
-      document.getElementById('inv-default-orig').value  = v.orig  ?? 3;
-      document.getElementById('inv-default-matcha').value= v.matcha?? 3;
-      document.getElementById('inv-default-cocoa').value = v.cocoa ?? 3;
+      document.getElementById('inv-default-orig').value   = v.orig   ?? 3;
+      document.getElementById('inv-default-matcha').value = v.matcha ?? 3;
+      document.getElementById('inv-default-cocoa').value  = v.cocoa  ?? 3;
+      document.getElementById('inv-default-total').value  = v.total  ?? 9;
     }
+    updateTotalPreview();
   });
+}
+
+function updateTotalPreview(){
+  const o = +document.getElementById('inv-default-orig').value||0;
+  const m = +document.getElementById('inv-default-matcha').value||0;
+  const c = +document.getElementById('inv-default-cocoa').value||0;
+  const sum = o+m+c;
+  document.getElementById('inv-preview').textContent = `各口味加總 = ${sum} 盒`;
 }
 
 function saveDefaultInv(){
   const orig   = +document.getElementById('inv-default-orig').value  || 0;
   const matcha = +document.getElementById('inv-default-matcha').value || 0;
   const cocoa  = +document.getElementById('inv-default-cocoa').value  || 0;
-  db.ref('settings/maxPerDay').set({orig, matcha, cocoa}).then(()=>{
-    showToast(`✅ 已更新：原味${orig} / 抹茶${matcha} / 可可${cocoa} 盒`);
+  const total  = +document.getElementById('inv-default-total').value  || 9;
+  db.ref('settings/maxPerDay').set({orig, matcha, cocoa, total}).then(()=>{
+    showToast(`✅ 原味${orig} / 抹茶${matcha} / 可可${cocoa} / 總計上限${total}盒`);
   });
 }
 
@@ -581,6 +597,7 @@ function renderTable(){
   const maxO = maxPerDay?.orig   ?? 3;
   const maxM = maxPerDay?.matcha ?? 3;
   const maxC = maxPerDay?.cocoa  ?? 3;
+  const maxT = maxPerDay?.total  ?? 9;
   [...orders].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).forEach(o => {
     if(!o.date || o.status === 'cancelled') return;
     const k = o.date;
@@ -598,6 +615,8 @@ function renderTable(){
       dayCount[k].cocoa += o.cocoa;
       if(dayCount[k].cocoa > maxC) over = true;
     }
+    const dayTotal = dayCount[k].orig + dayCount[k].matcha + dayCount[k].cocoa;
+    if(dayTotal > maxT) over = true;
     if(over) overLimit.add(o.id);
   });
 
@@ -1005,6 +1024,7 @@ function renderSchedule(){
 
     const prodHtml = make ? `<div>
       <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
+      ${(()=>{const t=make.orig+make.matcha+make.cocoa,mt=maxPerDay.total??9,over=t>mt;return`<div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${over?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${over?'var(--red)':'var(--ink-soft)'}">合計 <strong>${t}／${mt} 盒</strong>${over?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}</div>`;})()}
       ${make.orig?(()=>{const o=make.orig,m=maxPerDay.orig,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
       ${make.matcha?(()=>{const o=make.matcha,m=maxPerDay.matcha,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
       ${make.cocoa?(()=>{const o=make.cocoa,m=maxPerDay.cocoa,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
