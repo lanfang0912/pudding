@@ -1005,9 +1005,9 @@ function renderSchedule(){
 
     const prodHtml = make ? `<div>
       <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
-      ${make.orig?`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${Math.round(make.orig*6/MAX*100)}%"></div></div><span class="prod-num">${make.orig*6}杯（${make.orig}盒）</span></div>`:''}
-      ${make.matcha?`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${Math.round(make.matcha*6/MAX*100)}%"></div></div><span class="prod-num">${make.matcha*6}杯（${make.matcha}盒）</span></div>`:''}
-      ${make.cocoa?`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${Math.round(make.cocoa*6/MAX*100)}%"></div></div><span class="prod-num">${make.cocoa*6}杯（${make.cocoa}盒）</span></div>`:''}
+      ${make.orig?(()=>{const o=make.orig,m=maxPerDay.orig,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
+      ${make.matcha?(()=>{const o=make.matcha,m=maxPerDay.matcha,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
+      ${make.cocoa?(()=>{const o=make.cocoa,m=maxPerDay.cocoa,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
       ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
         <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">點擊打勾確認製作完成</li>
         ${makeOrderRows}
