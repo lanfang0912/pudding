@@ -1233,8 +1233,8 @@ footer {
   // 4. 把三個代碼填進來
   const EMAILJS_PUBLIC_KEY  = 'EJcHADtYD8o4NPA3T';
   const EMAILJS_SERVICE_ID  = 'service_iig5un9';
-  const EMAILJS_TEMPLATE_SHOP     = 'template_v68621t';
-  const EMAILJS_TEMPLATE_CUSTOMER = 'template_j3nl8y3';
+  const EMAILJS_TEMPLATE_SHOP     = 'template_j3nl8y3';
+  const EMAILJS_TEMPLATE_CUSTOMER = 'template_v68621t';
   // ══════════════════════════════════════════
   emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 </script>
@@ -1594,10 +1594,6 @@ function submitOrder(){
   };
 
   Promise.all([
-    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SHOP, {
-      ...commonParams,
-      to_email: 'yourland543@gmail.com',
-    }),
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_CUSTOMER, {
       ...commonParams,
       to_email: order.email,
