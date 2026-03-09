@@ -1,10 +1,13 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>white dessert 後台管理</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -164,6 +167,7 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 1 訂單 -->
+
   <div class="tab-panel active" id="tab-orders">
     <div class="filters">
       <span class="filter-label">篩選：</span>
@@ -196,6 +200,7 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 2 每日出貨 -->
+
   <div class="tab-panel" id="tab-daily">
     <div class="filters">
       <span class="filter-label">日期：</span>
@@ -211,12 +216,14 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 3 排程 -->
+
   <div class="tab-panel" id="tab-schedule">
     <div class="schedule-wrap" id="sch-content"></div>
   </div>
 </div>
 
 <!-- EDIT MODAL -->
+
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-hdr">
@@ -278,7 +285,9 @@ tr.done-row td{opacity:.45;}
 <script>
 const PW='pudding2026';
 
-let orders=[
+let orders=[];
+
+const SEED_ORDERS=[
   {id:'WD-OLD-001',ts:'2026-03-05 23:01',name:'謝強民',phone:'0922753230',date:'2026-03-14',time:'10:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'74505',total:360,status:'paid'},
   {id:'WD-OLD-002',ts:'2026-03-05 23:24',name:'Irene Chen怡如',phone:'0983542685',date:'2026-03-13',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台北市文山區羅斯福路六段142巷9號14樓之2',note:'',code:'53685',total:1140,status:'paid'},
   {id:'WD-OLD-003',ts:'2026-03-05 23:30',name:'陳彥潔',phone:'0939164957',date:'2026-03-13',time:'未指定',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'105台北市松山區八德路三段158巷20弄25號3樓',note:'',code:'41082',total:1110,status:'paid'},
@@ -348,13 +357,36 @@ const schedule=[
    meet:[{name:'方虹云',time:'15:00',place:'凱旋國小',warn:'⚠️ 帶餐具'},{name:'潘倩玉',time:'待定',place:'凱旋國小',warn:'或3/31(二)'}],ship:[]},
 ];
 
+// ── Firebase ──
+firebase.initializeApp({ databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' });
+const db = firebase.database();
+
 // ── persist ──
-function load(){
-  try{const s=localStorage.getItem('wd_data');if(s){const m=JSON.parse(s);orders.forEach(o=>{if(m[o.id])Object.assign(o,m[o.id]);});}}catch(e){}
-}
 function save(){
-  const m={};orders.forEach(o=>m[o.id]={status:o.status,name:o.name,phone:o.phone,date:o.date,time:o.time,orig:o.orig,matcha:o.matcha,cocoa:o.cocoa,delivery:o.delivery,address:o.address,code:o.code,note:o.note,total:o.total});
-  localStorage.setItem('wd_data',JSON.stringify(m));
+  // 不需要了，直接寫 Firebase
+}
+function load(){
+  // 不需要了，用 Firebase listener
+}
+
+// 把現有 33 筆訂單寫入 Firebase（只在第一次空的時候）
+async function seedIfEmpty(){
+  const snap = await db.ref('orders').once('value');
+  if(snap.exists()) return; // 已有資料，不覆蓋
+  const updates = {};
+  SEED_ORDERS.forEach(o => { updates['orders/'+o.id] = o; });
+  await db.ref().update(updates);
+  showToast('✓ 現有訂單已匯入 Firebase');
+}
+
+// 啟動 Firebase 即時監聽
+function startFirebaseListener(){
+  db.ref('orders').on('value', snap => {
+    orders = [];
+    snap.forEach(child => { orders.push(child.val()); });
+    orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+    renderStats(); renderTable(); renderDaily();
+  });
 }
 
 // ── login ──
@@ -362,11 +394,14 @@ function doLogin(){
   if(document.getElementById('pw-input').value===PW){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-screen').style.display='block';
-    load();initFilters();renderStats();renderTable();renderDaily();renderSchedule();
+    initFilters();
     document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('zh-TW');
+    seedIfEmpty().then(()=> startFirebaseListener());
+    renderSchedule();
   }else{document.getElementById('login-err').textContent='密碼錯誤';}
 }
 function logout(){
+  db.ref('orders').off(); // 停止監聽
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-screen').style.display='none';
   document.getElementById('pw-input').value='';
@@ -444,8 +479,7 @@ function renderTable(){
 }
 
 function setS(id,status){
-  const o=orders.find(x=>x.id===id);if(!o)return;
-  o.status=status;save();renderStats();renderTable();renderDaily();
+  db.ref('orders/'+id).update({status});
   showToast({paid:'✓ 已確認匯款',shipped:'📦 已出貨',pending:'↩ 重置'}[status]);
 }
 
@@ -482,21 +516,23 @@ function recalc(){
   return total;
 }
 function saveEdit(){
-  const o=orders.find(x=>x.id===eid);if(!o)return;
-  o.name=document.getElementById('e-name').value;
-  o.phone=document.getElementById('e-phone').value;
-  o.date=document.getElementById('e-date').value;
-  o.time=document.getElementById('e-time').value;
-  o.orig=+document.getElementById('e-orig').value||0;
-  o.matcha=+document.getElementById('e-matcha').value||0;
-  o.cocoa=+document.getElementById('e-cocoa').value||0;
-  o.delivery=document.getElementById('e-delivery').value;
-  o.address=document.getElementById('e-addr').value;
-  o.code=document.getElementById('e-code').value;
-  o.note=document.getElementById('e-note').value;
-  o.status=document.getElementById('e-status').value;
-  o.total=recalc();
-  closeModal();save();renderStats();renderTable();renderDaily();
+  const updates = {
+    name:     document.getElementById('e-name').value,
+    phone:    document.getElementById('e-phone').value,
+    date:     document.getElementById('e-date').value,
+    time:     document.getElementById('e-time').value,
+    orig:     +document.getElementById('e-orig').value||0,
+    matcha:   +document.getElementById('e-matcha').value||0,
+    cocoa:    +document.getElementById('e-cocoa').value||0,
+    delivery: document.getElementById('e-delivery').value,
+    address:  document.getElementById('e-addr').value,
+    code:     document.getElementById('e-code').value,
+    note:     document.getElementById('e-note').value,
+    status:   document.getElementById('e-status').value,
+    total:    recalc(),
+  };
+  db.ref('orders/'+eid).update(updates);
+  closeModal();
   showToast('✓ 訂單已儲存');
 }
 
@@ -598,5 +634,6 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2600);
 }
 </script>
+
 </body>
 </html>
