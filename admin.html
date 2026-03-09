@@ -757,14 +757,26 @@ function renderSchedule(){
     const isPickup = o.delivery === '面交';
 
     if(isPickup){
-      // 面交：當天直接面交
+      // 面交：當天面交，前一天晚上製作
       if(!meetMap[receiveDate]) meetMap[receiveDate] = [];
       meetMap[receiveDate].push({
+        id: o.id,
         name: o.name,
         address: o.address || '凱旋國小',
         note: o.note || '',
         status: o.status,
+        orig:   o.orig   || 0,
+        matcha: o.matcha || 0,
+        cocoa:  o.cocoa  || 0,
       });
+      // 製作日 = 面交日前一天
+      const makeDate = addDays(receiveDate, -1);
+      if(makeDate){
+        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
+        makeMap[makeDate].orig   += o.orig   || 0;
+        makeMap[makeDate].matcha += o.matcha || 0;
+        makeMap[makeDate].cocoa  += o.cocoa  || 0;
+      }
     } else {
       // 宅配：出貨日 = receiveDate-1，製作日 = receiveDate-2
       const shipDate = addDays(receiveDate, -1);
@@ -825,7 +837,10 @@ function renderSchedule(){
 
     // 生產區 - 對應訂單明細（含 checkbox）
     const makeOrderRows = make ? active
-      .filter(o => o.delivery !== '面交' && addDays(o.date, -2) === date)
+      .filter(o => {
+        if(o.delivery === '面交') return addDays(o.date, -1) === date;
+        return addDays(o.date, -2) === date;
+      })
       .map(o => {
         const items = [];
         if(o.orig)   items.push(`原×${o.orig}`);
@@ -839,8 +854,14 @@ function renderSchedule(){
         </li>`;
       }).join('') : '';
 
-    const doneCount = make ? active.filter(o => o.delivery !== '面交' && addDays(o.date,-2) === date && o.made).length : 0;
-    const totalCount = make ? active.filter(o => o.delivery !== '面交' && addDays(o.date,-2) === date).length : 0;
+    const doneCount = make ? active.filter(o => {
+      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
+      return mDate === date && o.made;
+    }).length : 0;
+    const totalCount = make ? active.filter(o => {
+      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
+      return mDate === date;
+    }).length : 0;
 
     const prodHtml = make ? `<div>
       <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
@@ -859,6 +880,7 @@ function renderSchedule(){
           <span class="pill pill-meet">面交</span>
           <div>
             <div style="font-weight:500">${m.name} ${m.status==='shipped'?'✅':''}</div>
+            <div style="font-size:10px;color:var(--caramel)">${[m.orig?`原×${m.orig}`:'',m.matcha?`抹×${m.matcha}`:'',m.cocoa?`可×${m.cocoa}`:''].filter(Boolean).join(' ')}</div>
             <div style="font-size:10px;color:var(--ink-soft)">${m.address}${m.note?' ・'+m.note:''}</div>
           </div>
         </li>`).join('')}</ul>`
