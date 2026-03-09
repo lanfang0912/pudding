@@ -172,6 +172,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn active" onclick="switchTab('orders',this)">📋 訂單總覽</button>
     <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
     <button class="tab-btn" onclick="switchTab('schedule',this)">🏭 生產排程</button>
+    <button class="tab-btn" onclick="switchTab('inventory',this)">⚙️ 庫存設定</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -225,7 +226,34 @@ tr.done-row td{opacity:.45;}
   <div class="tab-panel" id="tab-schedule">
     <div class="schedule-wrap" id="sch-content"></div>
   </div>
-</div>
+
+  <div class="tab-panel" id="tab-inventory">
+    <div style="max-width:600px;margin:0 auto;padding:24px 0">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px">庫存設定</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">設定每天各口味的最大接單數量，即時同步到訂購頁</div>
+
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">預設上限（套用到所有開放日期）</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div>
+            <label class="form-label" style="color:var(--caramel)">原味（盒）</label>
+            <input class="form-ctrl" id="inv-default-orig" type="number" min="0" max="99" value="3">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--matcha)">抹茶（盒）</label>
+            <input class="form-ctrl" id="inv-default-matcha" type="number" min="0" max="99" value="3">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--cocoa)">可可（盒）</label>
+            <input class="form-ctrl" id="inv-default-cocoa" type="number" min="0" max="99" value="3">
+          </div>
+        </div>
+        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存預設上限</button>
+      </div>
+
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">儲存後訂購頁會立即更新，顧客超過上限的日期將無法選擇</div>
+    </div>
+  </div>
 
 <!-- NEW MODAL -->
 <div class="modal-overlay" id="new-modal" onclick="if(event.target===this)closeNewModal()">
@@ -491,6 +519,27 @@ function switchTab(n,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('tab-'+n).classList.add('active');
+  if(n==='inventory') loadInvSettings();
+}
+
+function loadInvSettings(){
+  db.ref('settings/maxPerDay').once('value').then(snap => {
+    const v = snap.val();
+    if(v){
+      document.getElementById('inv-default-orig').value  = v.orig  ?? 3;
+      document.getElementById('inv-default-matcha').value= v.matcha?? 3;
+      document.getElementById('inv-default-cocoa').value = v.cocoa ?? 3;
+    }
+  });
+}
+
+function saveDefaultInv(){
+  const orig   = +document.getElementById('inv-default-orig').value  || 0;
+  const matcha = +document.getElementById('inv-default-matcha').value || 0;
+  const cocoa  = +document.getElementById('inv-default-cocoa').value  || 0;
+  db.ref('settings/maxPerDay').set({orig, matcha, cocoa}).then(()=>{
+    showToast(`✅ 已更新：原味${orig} / 抹茶${matcha} / 可可${cocoa} 盒`);
+  });
 }
 
 // ── helpers ──

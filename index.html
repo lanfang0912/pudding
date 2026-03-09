@@ -1030,7 +1030,10 @@ footer {
 <section class="order-section" id="order">
   <div class="order-header">
     <div class="order-header-label">立即預訂</div>
-    <h2 class="order-header-title">手工限量<br><em>每日各口味 11 盒</em></h2>
+    <h2 class="order-header-title">手工限量<br><em>每日數量有限</em></h2>
+    <p class="order-header-sub" style="margin-top:8px;font-size:13px;color:var(--ink-soft)">
+      為了不影響孩子的日常生活<br>我們會視情況調整每日出貨量，售完為止
+    </p>
     <p class="order-header-sub">
       無添加 · 冷藏保存 5 天 · 滿 3 盒免運<br>
       宜蘭可面交 · 外縣市冷藏宅配
@@ -1277,7 +1280,8 @@ footer {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 // ─── CONFIG ───
-const MAX = 3;
+const MAX = 11; // fallback，實際值從 Firebase settings 讀取
+let maxPerDay = { orig: 3, matcha: 3, cocoa: 3 };
 const FLAVORS = [
   { id:'original', zh:'原味', en:'Original', icon:'🍮', price:360, cls:'original' },
   { id:'matcha',   zh:'抹茶', en:'Matcha',   icon:'🍵', price:390, cls:'matcha' },
@@ -1306,6 +1310,13 @@ let db = null;
 try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
+
+  // 讀取庫存設定
+  db.ref('settings/maxPerDay').on('value', snap => {
+    const v = snap.val();
+    if(v) maxPerDay = v;
+  });
+
   // 即時監聽 Firebase，更新進度條 + 庫存
   db.ref('orders').on('value', snap => {
     let sold = 0;
@@ -1443,7 +1454,11 @@ function fmtDisplay(s){
   return `${y} 年 ${parseInt(m)} 月 ${parseInt(d)} 日（週${ws[new Date(s).getDay()]}）`;
 }
 
-function getStock(ds,fid){ return MAX-(inv[ds+'_'+fid]||0); }
+function getStock(ds,fid){
+  const flavorKey = fid==='original'?'orig': fid==='matcha'?'matcha':'cocoa';
+  const max = maxPerDay[flavorKey] ?? MAX;
+  return max-(inv[ds+'_'+fid]||0);
+}
 function reserve(ds,fid,q){ inv[ds+'_'+fid]=(inv[ds+'_'+fid]||0)+q; }
 
 function selDate(s){ order.date=s; renderCal(); }
