@@ -695,12 +695,29 @@ function renderSchedule(){
     if(meets.length) labels.push(`面交 ${meets.length} 筆`);
     const label = labels.join('・');
 
-    // 生產區
+    // 生產區 - 對應訂單明細
+    const makeOrderRows = make ? active
+      .filter(o => o.delivery !== '面交' && addDays(o.date, -2) === date)
+      .map(o => {
+        const items = [];
+        if(o.orig)   items.push(`原×${o.orig}`);
+        if(o.matcha) items.push(`抹×${o.matcha}`);
+        if(o.cocoa)  items.push(`可×${o.cocoa}`);
+        return `<li style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:500">${o.name}</span>
+          <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${items.join(' ')}</span>
+        </li>`;
+      }).join('') : '';
+
     const prodHtml = make ? `<div>
       <h4>今晚製作・供明日出貨</h4>
       ${make.orig?`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${Math.round(make.orig*6/MAX*100)}%"></div></div><span class="prod-num">${make.orig*6}杯（${make.orig}盒）</span></div>`:''}
       ${make.matcha?`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${Math.round(make.matcha*6/MAX*100)}%"></div></div><span class="prod-num">${make.matcha*6}杯（${make.matcha}盒）</span></div>`:''}
       ${make.cocoa?`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${Math.round(make.cocoa*6/MAX*100)}%"></div></div><span class="prod-num">${make.cocoa*6}杯（${make.cocoa}盒）</span></div>`:''}
+      ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
+        <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">對應訂單</li>
+        ${makeOrderRows}
+      </ul>` : ''}
     </div>` : `<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">今天不需製作</div></div>`;
 
     // 面交區
