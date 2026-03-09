@@ -487,6 +487,11 @@ function delOrder(id, name){
   showToast('🗑 訂單已刪除');
 }
 
+function toggleMade(id, currentDone){
+  db.ref('orders/'+id).update({made: !currentDone});
+  showToast(!currentDone ? '✅ 已標記製作完成' : '↩ 取消製作完成');
+}
+
 // ── edit modal ──
 let eid=null;
 function openEdit(id){
@@ -695,7 +700,7 @@ function renderSchedule(){
     if(meets.length) labels.push(`面交 ${meets.length} 筆`);
     const label = labels.join('・');
 
-    // 生產區 - 對應訂單明細
+    // 生產區 - 對應訂單明細（含 checkbox）
     const makeOrderRows = make ? active
       .filter(o => o.delivery !== '面交' && addDays(o.date, -2) === date)
       .map(o => {
@@ -703,19 +708,24 @@ function renderSchedule(){
         if(o.orig)   items.push(`原×${o.orig}`);
         if(o.matcha) items.push(`抹×${o.matcha}`);
         if(o.cocoa)  items.push(`可×${o.cocoa}`);
-        return `<li style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:500">${o.name}</span>
+        const done = o.made === true;
+        return `<li style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;cursor:pointer;${done?'opacity:.45;text-decoration:line-through':''}" onclick="toggleMade('${o.id}',${done})">
+          <span style="font-size:16px;flex-shrink:0">${done ? '✅' : '⬜'}</span>
+          <span style="font-weight:500;flex:1">${o.name}</span>
           <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${items.join(' ')}</span>
         </li>`;
       }).join('') : '';
 
+    const doneCount = make ? active.filter(o => o.delivery !== '面交' && addDays(o.date,-2) === date && o.made).length : 0;
+    const totalCount = make ? active.filter(o => o.delivery !== '面交' && addDays(o.date,-2) === date).length : 0;
+
     const prodHtml = make ? `<div>
-      <h4>今晚製作・供明日出貨</h4>
+      <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
       ${make.orig?`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${Math.round(make.orig*6/MAX*100)}%"></div></div><span class="prod-num">${make.orig*6}杯（${make.orig}盒）</span></div>`:''}
       ${make.matcha?`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${Math.round(make.matcha*6/MAX*100)}%"></div></div><span class="prod-num">${make.matcha*6}杯（${make.matcha}盒）</span></div>`:''}
       ${make.cocoa?`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${Math.round(make.cocoa*6/MAX*100)}%"></div></div><span class="prod-num">${make.cocoa*6}杯（${make.cocoa}盒）</span></div>`:''}
       ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
-        <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">對應訂單</li>
+        <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">點擊打勾確認製作完成</li>
         ${makeOrderRows}
       </ul>` : ''}
     </div>` : `<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">今天不需製作</div></div>`;
