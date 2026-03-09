@@ -1290,6 +1290,30 @@ transition: opacity 0.2s, transform 0.2s;
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+// ─── CONFIG ───
+const MAX = 11;
+const FLAVORS = [
+  { id:'original', zh:'原味', en:'Original', icon:'🍮', price:360, cls:'original' },
+  { id:'matcha',   zh:'抹茶', en:'Matcha',   icon:'🍵', price:390, cls:'matcha' },
+  { id:'cocoa',    zh:'可可', en:'Cocoa',    icon:'🍫', price:390, cls:'cocoa' },
+];
+
+// ── 初始庫存（從現有訂單計算）──
+const inv = {
+  '2026-03-07_original': 1,  '2026-03-07_cocoa': 1,  '2026-03-07_matcha': 1,
+  '2026-03-10_original': 1,  '2026-03-10_cocoa': 1,  '2026-03-10_matcha': 1,
+  '2026-03-11_original': 13, '2026-03-11_cocoa': 3,  '2026-03-11_matcha': 2,
+  '2026-03-12_original': 1,  '2026-03-12_cocoa': 1,  '2026-03-12_matcha': 1,
+  '2026-03-13_original': 8,  '2026-03-13_cocoa': 3,  '2026-03-13_matcha': 1,
+  '2026-03-14_original': 8,  '2026-03-14_cocoa': 1,  '2026-03-14_matcha': 2,
+  '2026-03-15_original': 1,
+  '2026-03-17_original': 3,
+  '2026-03-19_original': 1,  '2026-03-19_cocoa': 1,
+  '2026-03-26_original': 1,  '2026-03-26_cocoa': 1,  '2026-03-26_matcha': 1,
+  '2026-03-29_original': 2,  '2026-03-29_cocoa': 1,  '2026-03-29_matcha': 1,
+};
+let totalSold = 77;
+
 // ─── FIREBASE ───
 const FB_CONFIG = { databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' };
 firebase.initializeApp(FB_CONFIG);
@@ -1313,31 +1337,6 @@ db.ref('orders').on('value', snap => {
   Object.assign(inv, newInv);
   animateProgress();
 });
-
-// ─── CONFIG ───
-const MAX = 11;
-const FLAVORS = [
-  { id:'original', zh:'原味', en:'Original', icon:'🍮', price:360, cls:'original' },
-  { id:'matcha',   zh:'抹茶', en:'Matcha',   icon:'🍵', price:390, cls:'matcha' },
-  { id:'cocoa',    zh:'可可', en:'Cocoa',    icon:'🍫', price:390, cls:'cocoa' },
-];
-
-// Simulated inventory (in production: fetch from server)
-// ── 已匯入現有訂單（截至 2026-03-09）──
-const inv = {
-  '2026-03-07_original': 1,  '2026-03-07_cocoa': 1,  '2026-03-07_matcha': 1,
-  '2026-03-10_original': 1,  '2026-03-10_cocoa': 1,  '2026-03-10_matcha': 1,
-  '2026-03-11_original': 13, '2026-03-11_cocoa': 3,  '2026-03-11_matcha': 2,
-  '2026-03-12_original': 1,  '2026-03-12_cocoa': 1,  '2026-03-12_matcha': 1,
-  '2026-03-13_original': 8,  '2026-03-13_cocoa': 3,  '2026-03-13_matcha': 1,
-  '2026-03-14_original': 8,  '2026-03-14_cocoa': 1,  '2026-03-14_matcha': 2,
-  '2026-03-15_original': 1,
-  '2026-03-17_original': 3,
-  '2026-03-19_original': 1,  '2026-03-19_cocoa': 1,
-  '2026-03-26_original': 1,  '2026-03-26_cocoa': 1,  '2026-03-26_matcha': 1,
-  '2026-03-29_original': 2,  '2026-03-29_cocoa': 1,  '2026-03-29_matcha': 1,
-};
-let totalSold = 77;
 
 const order = { flavors:{}, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
 
