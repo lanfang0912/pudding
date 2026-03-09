@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -69,6 +68,8 @@ tr.done-row td{opacity:.45;}
 .act-btn.edit:hover{background:var(--caramel);color:white;}
 .act-btn.reset{border-color:var(--rule);color:var(--ink-soft);}
 .act-btn.reset:hover{border-color:var(--red);color:var(--red);}
+.act-btn.del{border-color:transparent;color:#ccc;}
+.act-btn.del:hover{border-color:var(--red);color:var(--red);background:rgba(180,60,60,.07);}
 /* daily */
 .day-section{padding:20px 28px 0;}
 .day-header{display:flex;align-items:center;gap:14px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
@@ -167,7 +168,6 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 1 訂單 -->
-
   <div class="tab-panel active" id="tab-orders">
     <div class="filters">
       <span class="filter-label">篩選：</span>
@@ -200,7 +200,6 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 2 每日出貨 -->
-
   <div class="tab-panel" id="tab-daily">
     <div class="filters">
       <span class="filter-label">日期：</span>
@@ -216,14 +215,12 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 3 排程 -->
-
   <div class="tab-panel" id="tab-schedule">
     <div class="schedule-wrap" id="sch-content"></div>
   </div>
 </div>
 
 <!-- EDIT MODAL -->
-
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-hdr">
@@ -473,6 +470,7 @@ function renderTable(){
         ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
         ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
         ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
+        <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -481,6 +479,12 @@ function renderTable(){
 function setS(id,status){
   db.ref('orders/'+id).update({status});
   showToast({paid:'✓ 已確認匯款',shipped:'📦 已出貨',pending:'↩ 重置'}[status]);
+}
+
+function delOrder(id, name){
+  if(!confirm(`確定要刪除「${name}」的訂單嗎？\n此操作無法復原。`)) return;
+  db.ref('orders/'+id).remove();
+  showToast('🗑 訂單已刪除');
 }
 
 // ── edit modal ──
@@ -634,6 +638,5 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2600);
 }
 </script>
-
 </body>
 </html>
