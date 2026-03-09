@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>white dessert 後台管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);min-height:100vh;}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--paper-warm);}
+.login-box{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:40px 48px;text-align:center;width:340px;}
+.login-title{font-family:'DM Serif Display',serif;font-size:26px;margin-bottom:6px;}
+.login-sub{font-size:12px;color:var(--ink-soft);margin-bottom:28px;letter-spacing:1px;}
+.login-input{width:100%;padding:11px 14px;border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:14px;outline:none;margin-bottom:14px;background:var(--paper-warm);letter-spacing:3px;}
+.login-input:focus{border-color:var(--caramel);}
+.login-btn{width:100%;padding:13px;background:var(--ink);color:var(--paper);border:none;border-radius:2px;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:3px;cursor:pointer;transition:background .2s;}
+.login-btn:hover{background:var(--caramel);}
+.login-err{color:var(--red);font-size:12px;margin-top:8px;}
+#main-screen{display:none;}
+.topbar{background:var(--ink);color:var(--paper);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+.topbar-brand{font-family:'DM Serif Display',serif;font-size:18px;}
+.topbar-brand span{color:var(--caramel);font-style:italic;}
+.topbar-right{display:flex;align-items:center;gap:16px;font-size:12px;color:rgba(255,255,255,.6);}
+.logout-btn{padding:6px 14px;border:1px solid rgba(255,255,255,.2);border-radius:2px;background:transparent;color:rgba(255,255,255,.7);cursor:pointer;font-size:11px;letter-spacing:1px;transition:all .2s;}
+.logout-btn:hover{border-color:white;color:white;}
+.stats-bar{background:var(--paper-dark);border-bottom:1px solid var(--rule);padding:14px 28px;display:flex;gap:28px;flex-wrap:wrap;}
+.stat-item{display:flex;flex-direction:column;gap:2px;}
+.stat-value{font-family:'DM Serif Display',serif;font-size:22px;}
+.stat-label{font-size:10px;letter-spacing:2px;color:var(--ink-soft);text-transform:uppercase;}
+.tabs{display:flex;border-bottom:2px solid var(--rule);background:var(--paper-warm);padding:0 28px;}
+.tab-btn{padding:12px 22px;font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1.5px;background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;color:var(--ink-soft);transition:all .2s;}
+.tab-btn.active{color:var(--caramel);border-bottom-color:var(--caramel);}
+.tab-btn:hover{color:var(--ink);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.filters{padding:14px 28px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--rule);background:var(--paper-warm);}
+.filter-select,.filter-input{padding:7px 11px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);font-family:'Noto Serif TC',serif;font-size:12px;color:var(--ink);outline:none;}
+.filter-select:focus,.filter-input:focus{border-color:var(--caramel);}
+.filter-label{font-size:11px;letter-spacing:1px;color:var(--ink-soft);}
+.table-wrap{padding:18px 28px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px;}
+thead tr{background:var(--paper-dark);}
+th{padding:9px 11px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--rule);white-space:nowrap;}
+td{padding:9px 11px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-mid);}
+tr:hover td{background:rgba(196,131,42,.04);}
+tr.done-row td{opacity:.45;}
+.badge{display:inline-block;padding:3px 8px;border-radius:2px;font-size:10px;letter-spacing:1px;font-weight:500;white-space:nowrap;}
+.badge-pending{background:rgba(184,50,50,.1);color:var(--red);}
+.badge-paid{background:rgba(90,122,72,.12);color:var(--matcha);}
+.badge-shipped{background:rgba(42,92,138,.12);color:var(--blue);}
+.badge-delivery{background:rgba(107,62,38,.1);color:var(--cocoa);}
+.badge-pickup{background:rgba(90,122,72,.1);color:var(--matcha);}
+.flavor-tag{display:inline-block;padding:2px 6px;border-radius:2px;font-size:10px;margin:1px;}
+.tag-original{background:rgba(196,131,42,.1);color:var(--caramel);}
+.tag-cocoa{background:rgba(107,62,38,.1);color:var(--cocoa);}
+.tag-matcha{background:rgba(90,122,72,.1);color:var(--matcha);}
+.action-btns{display:flex;gap:4px;flex-wrap:wrap;}
+.act-btn{padding:4px 9px;border:1px solid var(--rule);border-radius:2px;background:transparent;font-size:10px;cursor:pointer;letter-spacing:.5px;transition:all .2s;white-space:nowrap;font-family:'Noto Serif TC',serif;}
+.act-btn.paid{border-color:var(--matcha);color:var(--matcha);}
+.act-btn.paid:hover{background:var(--matcha);color:white;}
+.act-btn.ship{border-color:var(--blue);color:var(--blue);}
+.act-btn.ship:hover{background:var(--blue);color:white;}
+.act-btn.edit{border-color:var(--caramel);color:var(--caramel);}
+.act-btn.edit:hover{background:var(--caramel);color:white;}
+.act-btn.reset{border-color:var(--rule);color:var(--ink-soft);}
+.act-btn.reset:hover{border-color:var(--red);color:var(--red);}
+/* daily */
+.day-section{padding:20px 28px 0;}
+.day-header{display:flex;align-items:center;gap:14px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
+.day-title{font-family:'DM Serif Display',serif;font-size:20px;}
+.day-meta{font-size:11px;color:var(--ink-soft);letter-spacing:1px;}
+.day-prog{flex:1;height:5px;background:var(--paper-dark);border-radius:3px;overflow:hidden;min-width:60px;max-width:140px;}
+.day-prog-bar{height:100%;background:var(--blue);border-radius:3px;transition:width .4s;}
+.shipping-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-bottom:28px;}
+.s-card{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:15px;transition:box-shadow .2s;}
+.s-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.07);}
+.s-card.done{opacity:.48;background:var(--paper-warm);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.card-name{font-size:14px;font-weight:500;}
+.card-meta{font-size:10px;color:var(--ink-soft);margin-top:2px;}
+.card-addr{font-size:11px;color:var(--ink-soft);margin:6px 0;line-height:1.5;}
+.card-warn{font-size:11px;color:var(--red);margin-top:4px;}
+.card-actions{display:flex;gap:6px;margin-top:10px;}
+.ship-btn{flex:1;padding:8px;background:var(--blue);color:white;border:none;border-radius:2px;font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Noto Serif TC',serif;transition:background .2s;}
+.ship-btn:hover{background:#1e4670;}
+.ship-btn.done{background:var(--paper-dark);color:var(--ink-soft);cursor:default;}
+/* schedule */
+.schedule-wrap{padding:20px 28px;}
+.sch-day{margin-bottom:20px;border:1px solid var(--rule);border-radius:4px;overflow:hidden;}
+.sch-hdr{background:var(--paper-dark);padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none;}
+.sch-title{font-family:'DM Serif Display',serif;font-size:17px;}
+.stag{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:1px;}
+.stag-make{background:rgba(196,131,42,.15);color:var(--caramel);}
+.stag-ship{background:rgba(42,92,138,.12);color:var(--blue);}
+.stag-meet{background:rgba(90,122,72,.12);color:var(--matcha);}
+.sch-body{padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.sch-body h4{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;}
+.sch-list{list-style:none;}
+.sch-list li{font-size:12px;padding:5px 0;border-bottom:1px solid var(--paper-dark);display:flex;align-items:flex-start;gap:6px;}
+.sch-list li:last-child{border:none;}
+.pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;white-space:nowrap;}
+.pill-meet{background:rgba(90,122,72,.12);color:var(--matcha);}
+.pill-ship{background:rgba(42,92,138,.1);color:var(--blue);}
+.prod-row{display:flex;gap:8px;align-items:center;font-size:12px;margin-bottom:5px;}
+.prod-label{color:var(--ink-soft);width:48px;}
+.prod-bar{flex:1;height:13px;background:var(--paper-dark);border-radius:2px;overflow:hidden;}
+.prod-fill{height:100%;border-radius:2px;}
+.pf-orig{background:var(--caramel);}
+.pf-matcha{background:var(--matcha);}
+.pf-cocoa{background:var(--cocoa);}
+.prod-num{width:38px;text-align:right;color:var(--ink-mid);}
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--paper);border-radius:4px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);}
+.modal-hdr{padding:20px 24px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center;}
+.modal-title{font-family:'DM Serif Display',serif;font-size:18px;}
+.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-soft);padding:4px 8px;line-height:1;}
+.modal-body{padding:20px 24px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.form-row.full{grid-template-columns:1fr;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);}
+.form-ctrl{padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:13px;color:var(--ink);outline:none;background:var(--paper-warm);}
+.form-ctrl:focus{border-color:var(--caramel);}
+.flavor-inputs{display:flex;gap:10px;}
+.fi-group{flex:1;display:flex;flex-direction:column;gap:4px;}
+.modal-footer{padding:14px 24px 20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--rule);margin-top:4px;}
+.btn-save{padding:10px 24px;background:var(--caramel);color:white;border:none;border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1px;cursor:pointer;}
+.btn-save:hover{background:#a8701f;}
+.btn-cancel{padding:10px 20px;background:transparent;border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer;color:var(--ink-soft);}
+.btn-cancel:hover{border-color:var(--ink);color:var(--ink);}
+.no-results{text-align:center;padding:48px;color:var(--ink-soft);font-size:14px;}
+.note-cell{max-width:150px;font-size:11px;color:var(--ink-soft);word-break:break-all;}
+.addr-cell{max-width:165px;font-size:11px;word-break:break-all;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--matcha);color:white;padding:10px 22px;border-radius:2px;font-size:12px;letter-spacing:1px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-title">white <span style="color:var(--caramel);font-style:italic">dessert</span></div>
+    <div class="login-sub">後台管理系統</div>
+    <input class="login-input" id="pw-input" type="password" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">進入後台</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="main-screen">
+  <div class="topbar">
+    <div class="topbar-brand">white <span>dessert</span> 後台</div>
+    <div class="topbar-right"><span id="topbar-date"></span><button class="logout-btn" onclick="logout()">登出</button></div>
+  </div>
+  <div class="stats-bar" id="stats-bar"></div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('orders',this)">📋 訂單總覽</button>
+    <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
+    <button class="tab-btn" onclick="switchTab('schedule',this)">🏭 生產排程</button>
+  </div>
+
+  <!-- TAB 1 訂單 -->
+  <div class="tab-panel active" id="tab-orders">
+    <div class="filters">
+      <span class="filter-label">篩選：</span>
+      <select class="filter-select" id="f-status" onchange="renderTable()">
+        <option value="">全部狀態</option>
+        <option value="pending">待確認匯款</option>
+        <option value="paid">已確認匯款</option>
+        <option value="shipped">已出貨</option>
+      </select>
+      <select class="filter-select" id="f-delivery" onchange="renderTable()">
+        <option value="">宅配＋面交</option>
+        <option value="宅配">宅配</option>
+        <option value="面交">面交</option>
+      </select>
+      <select class="filter-select" id="f-date" onchange="renderTable()">
+        <option value="">全部日期</option>
+      </select>
+      <input class="filter-input" id="f-search" placeholder="搜尋姓名 / 電話 / 末五碼" oninput="renderTable()" style="min-width:190px;">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>編號</th><th>姓名</th><th>電話</th><th>收貨日期</th><th>品項</th>
+          <th>配送</th><th>地址</th><th>末五碼</th><th>金額</th><th>備註</th><th>狀態</th><th>操作</th>
+        </tr></thead>
+        <tbody id="order-tbody"></tbody>
+      </table>
+      <div class="no-results" id="no-results" style="display:none">沒有符合的訂單</div>
+    </div>
+  </div>
+
+  <!-- TAB 2 每日出貨 -->
+  <div class="tab-panel" id="tab-daily">
+    <div class="filters">
+      <span class="filter-label">日期：</span>
+      <select class="filter-select" id="dd-date" onchange="renderDaily()"><option value="">全部日期</option></select>
+      <select class="filter-select" id="dd-type" onchange="renderDaily()">
+        <option value="">宅配＋面交</option><option value="宅配">🚚 宅配</option><option value="面交">🤝 面交</option>
+      </select>
+      <select class="filter-select" id="dd-status" onchange="renderDaily()">
+        <option value="todo">只看待出貨</option><option value="">全部</option><option value="done">已出貨</option>
+      </select>
+    </div>
+    <div id="daily-content"></div>
+  </div>
+
+  <!-- TAB 3 排程 -->
+  <div class="tab-panel" id="tab-schedule">
+    <div class="schedule-wrap" id="sch-content"></div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">編輯訂單</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="e-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">姓名</label><input class="form-ctrl" id="e-name"></div>
+        <div class="form-group"><label class="form-label">電話</label><input class="form-ctrl" id="e-phone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">收貨日期</label><input class="form-ctrl" id="e-date" type="date"></div>
+        <div class="form-group"><label class="form-label">時間</label><input class="form-ctrl" id="e-time" placeholder="如 14:00 或 未指定"></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label class="form-label">品項數量（盒）</label>
+          <div class="flavor-inputs">
+            <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味</label><input class="form-ctrl" id="e-orig" type="number" min="0" oninput="recalc()"></div>
+            <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶</label><input class="form-ctrl" id="e-matcha" type="number" min="0" oninput="recalc()"></div>
+            <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可</label><input class="form-ctrl" id="e-cocoa" type="number" min="0" oninput="recalc()"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">配送方式</label>
+          <select class="form-ctrl" id="e-delivery" onchange="recalc()"><option value="宅配">宅配</option><option value="面交">面交</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">金額（自動）</label><input class="form-ctrl" id="e-total" readonly style="background:var(--paper-dark)"></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label class="form-label">地址</label><input class="form-ctrl" id="e-addr"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">匯款末五碼</label><input class="form-ctrl" id="e-code"></div>
+        <div class="form-group"><label class="form-label">狀態</label>
+          <select class="form-ctrl" id="e-status">
+            <option value="pending">待確認匯款</option>
+            <option value="paid">已確認匯款</option>
+            <option value="shipped">已出貨</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label class="form-label">備註</label><textarea class="form-ctrl" id="e-note" rows="2" style="resize:vertical"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" onclick="saveEdit()">儲存修改</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PW='pudding2026';
+
+let orders=[
+  {id:'WD-OLD-001',ts:'2026-03-05 23:01',name:'謝強民',phone:'0922753230',date:'2026-03-14',time:'10:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'74505',total:360,status:'paid'},
+  {id:'WD-OLD-002',ts:'2026-03-05 23:24',name:'Irene Chen怡如',phone:'0983542685',date:'2026-03-13',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台北市文山區羅斯福路六段142巷9號14樓之2',note:'',code:'53685',total:1140,status:'paid'},
+  {id:'WD-OLD-003',ts:'2026-03-05 23:30',name:'陳彥潔',phone:'0939164957',date:'2026-03-13',time:'未指定',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'105台北市松山區八德路三段158巷20弄25號3樓',note:'',code:'41082',total:1110,status:'paid'},
+  // WD-OLD-004 林嘉涵 已取消
+  {id:'WD-OLD-005',ts:'2026-03-06 08:38',name:'方虹云',phone:'0963250867',date:'2026-03-29',time:'15:00',orig:1,cocoa:1,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'⚠️ 需附餐具（4歲+5歲男孩慶生）',code:'53584',total:1140,status:'paid'},
+  {id:'WD-OLD-006',ts:'2026-03-06 08:53',name:'陳展儀',phone:'0963575592',date:'2026-03-11',time:'10:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'新北市新店區永業路81巷60號5樓',note:'',code:'19188',total:1080,status:'paid'},
+  {id:'WD-OLD-007',ts:'2026-03-06 08:59',name:'潘雨柔',phone:'0972871230',date:'2026-03-11',time:'09:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'桃園市大園區環區西路567號11-1',note:'',code:'49165',total:1080,status:'paid'},
+  {id:'WD-OLD-008',ts:'2026-03-06 09:01',name:'文北辰',phone:'0910420205',date:'',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台南市永康區中山南路296號3樓',note:'',code:'27916',total:1140,status:'paid'},
+  {id:'WD-OLD-009',ts:'2026-03-06 13:36',name:'游玉萍',phone:'0911895597',date:'2026-03-14',time:'15:00',orig:1,cocoa:0,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'⚠️ 抹茶可可各半→整為1盒混裝（共2盒）',code:'02885',total:750,status:'pending'},
+  {id:'WD-OLD-010',ts:'2026-03-06 13:51',name:'王信欽',phone:'0932715154',date:'2026-03-13',time:'14:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'台中市西區英才路530號15F-6',note:'',code:'67810',total:1080,status:'paid'},
+  {id:'WD-OLD-011',ts:'2026-03-06 13:56',name:'游唯溱',phone:'0981333711',date:'2026-03-14',time:'11:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'52608',total:360,status:'paid'},
+  {id:'WD-OLD-012',ts:'2026-03-06 14:04',name:'李靜緹',phone:'0930825665',date:'2026-03-11',time:'未指定',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'新北市土城區亞洲路11巷1弄32號',note:'',code:'60045',total:1080,status:'paid'},
+  {id:'WD-OLD-013',ts:'2026-03-06 14:41',name:'邱書庭',phone:'0912523011',date:'2026-03-12',time:'12:00',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'97049花蓮市節約街2號',note:'日期已修正：5/12→3/12',code:'06261',total:1140,status:'paid'},
+  {id:'WD-OLD-014',ts:'2026-03-06 14:53',name:'葉怡孜',phone:'0988143807',date:'2026-03-17',time:'10:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'台中市南屯區五權西路二段8號六樓之16',note:'',code:'50592',total:1080,status:'paid'},
+  {id:'WD-OLD-015',ts:'2026-03-06 19:02',name:'林佳慧',phone:'0922307301',date:'2026-03-13',time:'18:00',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'新北市新店區二十張路28巷2號1樓',note:'',code:'04428',total:1110,status:'paid'},
+  {id:'WD-OLD-016',ts:'2026-03-06 21:21',name:'潘倩玉',phone:'0920271116',date:'2026-03-29',time:'未指定',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'3/29或3/31皆可',code:'39901',total:360,status:'paid'},
+  {id:'WD-OLD-017',ts:'2026-03-06 23:27',name:'李佳珊',phone:'0986211698',date:'2026-03-10',time:'10:00',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'新北市板橋區縣民大道二段68號22樓（#3750）',note:'',code:'49057',total:1140,status:'shipped'},
+  {id:'WD-OLD-018',ts:'2026-03-07 11:47',name:'章荃溱',phone:'0926313443',date:'2026-03-11',time:'未指定',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'桃園市龜山區萬壽路二段48號',note:'',code:'72827',total:1110,status:'paid'},
+  {id:'WD-OLD-019',ts:'2026-03-07 17:41',name:'王金玫',phone:'0919319396',date:'2026-03-19',time:'未指定',orig:1,cocoa:1,matcha:0,delivery:'宅配',address:'桃園市桃園區中華路7-11德友極門市',note:'⚠️ 兩筆重複已合併；7-11店到店',code:'81705',total:750,status:'paid'},
+  {id:'WD-OLD-021',ts:'2026-03-07 20:15',name:'張寶珠',phone:'0929200099',date:'2026-03-26',time:'15:00',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'502彰化縣芬園鄉嘉東街785巷80號',note:'',code:'11245',total:1140,status:'paid'},
+  {id:'WD-OLD-022',ts:'2026-03-08 22:10',name:'林庭竹',phone:'0928075472',date:'2026-03-14',time:'14:00',orig:1,cocoa:0,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'00186',total:750,status:'paid'},
+  {id:'WD-OLD-023',ts:'2026-03-09 00:53',name:'翔媽',phone:'未填',date:'2026-03-14',time:'未指定',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'面交',total:360,status:'pending'},
+  {id:'WD-OLD-024',ts:'2026-03-09 00:55',name:'潘可荃',phone:'0932020630',date:'2026-03-11',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'200基隆市仁愛區港西街6號4樓（海港大樓）海技科',note:'',code:'待確認',total:1140,status:'paid'},
+  {id:'WD-OLD-025',ts:'2026-03-09 01:50',name:'Jianing/佳寧',phone:'0921077853',date:'2026-03-11',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台北市中正區羅斯福路二段2號13樓',note:'週一到週三',code:'待確認',total:1140,status:'paid'},
+  {id:'WD-OLD-026',ts:'2026-03-09 01:51',name:'胡雅涵',phone:'0928081092',date:'',time:'避開週三週日',orig:1,cocoa:0,matcha:1,delivery:'宅配',address:'花蓮市重慶路486號6樓之六',note:'避開週三週日',code:'待確認',total:750,status:'paid'},
+  {id:'WD-OLD-027',ts:'2026-03-09 01:52',name:'黃乙純',phone:'未填',date:'2026-03-15',time:'14:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭全家（詳見備註）',note:'宜運全家',code:'待確認',total:360,status:'pending'},
+  {id:'WD-NEW-001',ts:'2026-03-07',name:'charlene lee',phone:'未填',date:'2026-03-07',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'已完成面交 ✅',code:'已收',total:1140,status:'shipped'},
+  {id:'WD-NEW-002',ts:'2026-03-09',name:'呂智恩',phone:'0953588510',date:'',time:'未指定',orig:1,cocoa:0,matcha:1,delivery:'宅配',address:'台北市大安區臥龍街170號（東區特教中心）',note:'',code:'待確認',total:750,status:'paid'},
+  {id:'WD-NEW-003',ts:'2026-03-09',name:'廖怡婷',phone:'0921891563',date:'',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'新竹縣竹北市勝利十三路82號2樓',note:'',code:'待確認',total:1140,status:'paid'},
+  {id:'WD-NEW-004',ts:'2026-03-09',name:'Kay',phone:'未填',date:'2026-03-14',time:'未指定',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'待補',note:'',code:'待確認',total:1080,status:'paid'},
+  {id:'WD-NEW-005',ts:'2026-03-09',name:'王欣棣(sandy)',phone:'未填',date:'2026-03-14',time:'未指定',orig:0,cocoa:1,matcha:0,delivery:'宅配',address:'待補',note:'',code:'待確認',total:390,status:'paid'},
+  {id:'WD-NEW-006',ts:'2026-03-09',name:'藍美惠',phone:'未填',date:'',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'面交',address:'台北（待約）',note:'混裝成3盒，3/10或3/13',code:'待確認',total:1140,status:'paid'},
+  {id:'WD-NEW-007',ts:'2026-03-09',name:'郭雅玲',phone:'未填',date:'',time:'未指定',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'台北（待約）',note:'',code:'未收款',total:360,status:'pending'},
+];
+
+const schedule=[
+  {date:'3/9 (日)',label:'製作日（供明天出貨）',tags:['make'],orig:18,matcha:6,cocoa:6,furnace:'3爐',
+   meet:[],ship:['📦 明天 3/10 寄出 → 客戶 3/11 收到']},
+  {date:'3/10 (一)',label:'出貨日（客戶 3/11 收到）',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
+   meet:[],ship:['陳展儀（新北新店）','潘雨柔（桃園）','李靜緹（新北土城）','潘可荃（基隆）','Jianing/佳寧（台北中正）','章荃溱（桃園龜山）','李佳珊（新北板橋）✅']},
+  {date:'3/11 (二)',label:'客戶到貨・製作下一批',tags:['make'],orig:12,matcha:12,cocoa:6,furnace:'3爐',
+   meet:[{name:'翔媽',time:'待約',place:'凱旋國小'}],
+   ship:[]},
+  {date:'3/11 (二)',label:'客戶到貨・製作下一批',tags:['make'],orig:12,matcha:12,cocoa:6,furnace:'3爐',
+   meet:[{name:'翔媽',time:'待約',place:'凱旋國小'}],
+   ship:[]},
+  {date:'3/12 (三)',label:'製作＋出貨',tags:['make','ship'],orig:6,matcha:6,cocoa:6,furnace:'2爐',
+   meet:[],ship:['邱書庭（花蓮）','文北辰（台南）']},
+  {date:'3/13 (四)',label:'出貨日',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
+   meet:[],ship:['Irene Chen怡如（台北文山）','陳彥潔（台北松山）','王信欽（台中）','林佳慧（新北新店）','胡雅涵（花蓮）']},
+  {date:'3/14 (五)',label:'面交＋出貨',tags:['meet','ship'],orig:6,matcha:3,cocoa:3,furnace:'2爐',
+   meet:[
+     {name:'謝強民',time:'10:00',place:'凱旋國小'},
+     {name:'游玉萍',time:'15:00',place:'凱旋國小',warn:'⚠️ 混裝盒確認'},
+     {name:'游唯溱',time:'11:00',place:'凱旋國小'},
+     {name:'翔媽',time:'待約',place:'凱旋國小'},
+     {name:'林庭竹',time:'14:00',place:'凱旋國小'},
+   ],
+   ship:['Kay（待地址補全）','王欣棣 sandy（待地址補全）']},
+  {date:'3/15 (六)',label:'面交',tags:['meet'],orig:0,matcha:0,cocoa:0,furnace:'—',
+   meet:[{name:'黃乙純',time:'14:00',place:'宜運全家',warn:'⚠️ 確認地點'}],ship:[]},
+  {date:'3/19 (三)',label:'出貨',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
+   meet:[],ship:['王金玫（桃園7-11德友極）']},
+  {date:'3/26 (四)',label:'出貨',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
+   meet:[],ship:['張寶珠（彰化芬園）']},
+  {date:'3/29 (六)',label:'面交',tags:['meet'],orig:0,matcha:0,cocoa:0,furnace:'—',
+   meet:[{name:'方虹云',time:'15:00',place:'凱旋國小',warn:'⚠️ 帶餐具'},{name:'潘倩玉',time:'待定',place:'凱旋國小',warn:'或3/31(二)'}],ship:[]},
+];
+
+// ── persist ──
+function load(){
+  try{const s=localStorage.getItem('wd_data');if(s){const m=JSON.parse(s);orders.forEach(o=>{if(m[o.id])Object.assign(o,m[o.id]);});}}catch(e){}
+}
+function save(){
+  const m={};orders.forEach(o=>m[o.id]={status:o.status,name:o.name,phone:o.phone,date:o.date,time:o.time,orig:o.orig,matcha:o.matcha,cocoa:o.cocoa,delivery:o.delivery,address:o.address,code:o.code,note:o.note,total:o.total});
+  localStorage.setItem('wd_data',JSON.stringify(m));
+}
+
+// ── login ──
+function doLogin(){
+  if(document.getElementById('pw-input').value===PW){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('main-screen').style.display='block';
+    load();initFilters();renderStats();renderTable();renderDaily();renderSchedule();
+    document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('zh-TW');
+  }else{document.getElementById('login-err').textContent='密碼錯誤';}
+}
+function logout(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('main-screen').style.display='none';
+  document.getElementById('pw-input').value='';
+}
+
+// ── stats ──
+function renderStats(){
+  const t=orders.length,p=orders.filter(o=>o.status==='pending').length,pd=orders.filter(o=>o.status==='paid').length,sh=orders.filter(o=>o.status==='shipped').length;
+  const rev=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
+  const boxes=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.orig+o.matcha+o.cocoa,0);
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat-item"><div class="stat-value">${t}</div><div class="stat-label">總訂單</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:var(--red)">${p}</div><div class="stat-label">待確認匯款</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:var(--matcha)">${pd}</div><div class="stat-label">已確認匯款</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:var(--blue)">${sh}</div><div class="stat-label">已出貨</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:var(--caramel)">NT$${rev.toLocaleString()}</div><div class="stat-label">已確認金額</div></div>
+    <div class="stat-item"><div class="stat-value">${boxes}</div><div class="stat-label">確認盒數</div></div>`;
+}
+
+function initFilters(){
+  const dates=[...new Set(orders.map(o=>o.date).filter(Boolean))].sort();
+  [document.getElementById('f-date'),document.getElementById('dd-date')].forEach(sel=>{
+    dates.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
+  });
+}
+function switchTab(n,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+n).classList.add('active');
+}
+
+// ── helpers ──
+function fhtml(o){
+  return[o.orig?`<span class="flavor-tag tag-original">原味×${o.orig}</span>`:'',
+         o.matcha?`<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>`:'',
+         o.cocoa?`<span class="flavor-tag tag-cocoa">可可×${o.cocoa}</span>`:''].filter(Boolean).join('');
+}
+const SB={pending:'<span class="badge badge-pending">待確認匯款</span>',paid:'<span class="badge badge-paid">已確認匯款</span>',shipped:'<span class="badge badge-shipped">已出貨</span>'};
+
+// ── table ──
+function renderTable(){
+  const fs=document.getElementById('f-status').value,fd=document.getElementById('f-delivery').value,
+        fdt=document.getElementById('f-date').value,fq=document.getElementById('f-search').value.toLowerCase();
+  const list=orders.filter(o=>{
+    if(fs&&o.status!==fs)return false;
+    if(fd&&o.delivery!==fd)return false;
+    if(fdt&&o.date!==fdt)return false;
+    if(fq&&![o.name,o.phone,o.code].some(v=>v.toLowerCase().includes(fq)))return false;
+    return true;
+  });
+  document.getElementById('no-results').style.display=list.length?'none':'block';
+  document.getElementById('order-tbody').innerHTML=list.map(o=>{
+    const db=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
+    const warn=o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
+    return`<tr class="${o.status==='shipped'?'done-row':''}">
+      <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
+      <td><strong>${o.name}</strong>${warn}</td>
+      <td>${o.phone}</td>
+      <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
+      <td>${fhtml(o)}</td>
+      <td>${db}</td>
+      <td class="addr-cell">${o.address}</td>
+      <td style="font-family:monospace">${o.code}</td>
+      <td style="color:var(--caramel);font-weight:500;white-space:nowrap">NT$${o.total.toLocaleString()}</td>
+      <td class="note-cell">${o.note||'—'}</td>
+      <td>${SB[o.status]}</td>
+      <td><div class="action-btns">
+        <button class="act-btn edit" onclick="openEdit('${o.id}')">✏️ 編輯</button>
+        ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
+        ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
+        ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function setS(id,status){
+  const o=orders.find(x=>x.id===id);if(!o)return;
+  o.status=status;save();renderStats();renderTable();renderDaily();
+  showToast({paid:'✓ 已確認匯款',shipped:'📦 已出貨',pending:'↩ 重置'}[status]);
+}
+
+// ── edit modal ──
+let eid=null;
+function openEdit(id){
+  const o=orders.find(x=>x.id===id);if(!o)return;eid=id;
+  document.getElementById('e-id').value=id;
+  document.getElementById('e-name').value=o.name;
+  document.getElementById('e-phone').value=o.phone;
+  document.getElementById('e-date').value=o.date;
+  document.getElementById('e-time').value=o.time;
+  document.getElementById('e-orig').value=o.orig;
+  document.getElementById('e-matcha').value=o.matcha;
+  document.getElementById('e-cocoa').value=o.cocoa;
+  document.getElementById('e-delivery').value=o.delivery;
+  document.getElementById('e-addr').value=o.address;
+  document.getElementById('e-code').value=o.code;
+  document.getElementById('e-note').value=o.note;
+  document.getElementById('e-status').value=o.status;
+  recalc();
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('edit-modal').classList.remove('open');}
+function recalc(){
+  const orig=+document.getElementById('e-orig').value||0;
+  const matcha=+document.getElementById('e-matcha').value||0;
+  const cocoa=+document.getElementById('e-cocoa').value||0;
+  const deliv=document.getElementById('e-delivery').value;
+  const boxes=orig+matcha+cocoa;
+  const ship=(deliv==='面交'||boxes>=3)?0:160;
+  const total=orig*360+matcha*390+cocoa*390+ship;
+  document.getElementById('e-total').value=`NT$ ${total.toLocaleString()}${ship?' (含運$160)':''}`;
+  return total;
+}
+function saveEdit(){
+  const o=orders.find(x=>x.id===eid);if(!o)return;
+  o.name=document.getElementById('e-name').value;
+  o.phone=document.getElementById('e-phone').value;
+  o.date=document.getElementById('e-date').value;
+  o.time=document.getElementById('e-time').value;
+  o.orig=+document.getElementById('e-orig').value||0;
+  o.matcha=+document.getElementById('e-matcha').value||0;
+  o.cocoa=+document.getElementById('e-cocoa').value||0;
+  o.delivery=document.getElementById('e-delivery').value;
+  o.address=document.getElementById('e-addr').value;
+  o.code=document.getElementById('e-code').value;
+  o.note=document.getElementById('e-note').value;
+  o.status=document.getElementById('e-status').value;
+  o.total=recalc();
+  closeModal();save();renderStats();renderTable();renderDaily();
+  showToast('✓ 訂單已儲存');
+}
+
+// ── daily ──
+function renderDaily(){
+  const fDate=document.getElementById('dd-date').value;
+  const fType=document.getElementById('dd-type').value;
+  const fStatus=document.getElementById('dd-status').value;
+  let pool=orders.filter(o=>o.date);
+  if(fDate)pool=pool.filter(o=>o.date===fDate);
+  if(fType)pool=pool.filter(o=>o.delivery===fType);
+  if(fStatus==='todo')pool=pool.filter(o=>o.status!=='shipped');
+  else if(fStatus==='done')pool=pool.filter(o=>o.status==='shipped');
+  const byDate={};
+  pool.forEach(o=>{if(!byDate[o.date])byDate[o.date]=[];byDate[o.date].push(o);});
+  const dates=Object.keys(byDate).sort();
+  if(!dates.length){document.getElementById('daily-content').innerHTML='<div class="no-results">沒有符合的訂單</div>';return;}
+  const wd=['日','一','二','三','四','五','六'];
+  document.getElementById('daily-content').innerHTML=dates.map(date=>{
+    const list=byDate[date];
+    const shipped=list.filter(o=>o.status==='shipped').length;
+    const pct=list.length?Math.round(shipped/list.length*100):0;
+    const d=new Date(date);
+    const cards=list.map(o=>{
+      const done=o.status==='shipped';
+      const boxes=o.orig+o.matcha+o.cocoa;
+      return`<div class="s-card ${done?'done':''}">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${o.name} ${o.note.startsWith('⚠️')?'<span style="font-size:11px;color:var(--red)">⚠️</span>':''}</div>
+            <div class="card-meta">${o.id} · ${o.phone}</div>
+          </div>
+          <div style="text-align:right">
+            ${o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>'}
+            <div style="font-size:10px;color:var(--ink-soft);margin-top:3px">${o.time}</div>
+          </div>
+        </div>
+        <div style="margin:8px 0">${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${boxes}盒</span></div>
+        <div class="card-addr">${o.address}</div>
+        ${o.note?`<div class="card-warn">${o.note}</div>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <span style="font-weight:500;color:var(--caramel)">NT$${o.total.toLocaleString()}</span>
+          <span style="font-size:10px;color:var(--ink-soft)">末五碼：${o.code}</span>
+        </div>
+        <div class="card-actions">
+          <button class="act-btn edit" onclick="openEdit('${o.id}')" style="flex:0 0 auto">✏️</button>
+          ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
+          ${done?`<button class="ship-btn done">✓ 已出貨</button>`:
+                 `<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
+        </div>
+      </div>`;
+    }).join('');
+    return`<div class="day-section">
+      <div class="day-header">
+        <div class="day-title">${date} <span style="font-size:13px;color:var(--ink-soft)">週${wd[d.getDay()]}</span></div>
+        <div class="day-meta">${list.length}筆・${list.reduce((a,o)=>a+o.orig+o.matcha+o.cocoa,0)}盒</div>
+        <div class="day-prog"><div class="day-prog-bar" style="width:${pct}%"></div></div>
+        <div class="day-meta">${shipped}/${list.length} 完成</div>
+      </div>
+      <div class="shipping-cards">${cards}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── schedule ──
+function renderSchedule(){
+  const MAX=36;
+  document.getElementById('sch-content').innerHTML=schedule.map(day=>{
+    const tagHtml=day.tags.map(t=>({make:'<span class="stag stag-make">🔥製作</span>',ship:'<span class="stag stag-ship">📦出貨</span>',meet:'<span class="stag stag-meet">🤝面交</span>'}[t]||'')).join(' ');
+    const hasP=day.orig||day.matcha||day.cocoa;
+    const prodHtml=hasP?`<div>
+      <h4>生產（杯）・${day.furnace}</h4>
+      ${day.orig?`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${Math.round(day.orig/MAX*100)}%"></div></div><span class="prod-num">${day.orig}杯</span></div>`:''}
+      ${day.matcha?`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${Math.round(day.matcha/MAX*100)}%"></div></div><span class="prod-num">${day.matcha}杯</span></div>`:''}
+      ${day.cocoa?`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${Math.round(day.cocoa/MAX*100)}%"></div></div><span class="prod-num">${day.cocoa}杯</span></div>`:''}
+    </div>`:`<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">不需製作</div></div>`;
+    const mHtml=day.meet&&day.meet.length?`<ul class="sch-list">${day.meet.map(m=>`<li><span class="pill pill-meet">面交</span><div><div style="font-weight:500">${m.name}${m.done?' ✅':''}</div><div style="font-size:10px;color:var(--ink-soft)">${m.time}・${m.place} ${m.warn||''}</div></div></li>`).join('')}</ul>`:`<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
+    const sHtml=day.ship&&day.ship.length?`<ul class="sch-list">${day.ship.map(s=>`<li><span class="pill pill-ship">寄出</span>${s}</li>`).join('')}</ul>`:`<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
+    return`<div class="sch-day">
+      <div class="sch-hdr" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'grid':'none'">
+        <div class="sch-title">${day.date}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">${day.label}</div>
+        <div style="display:flex;gap:6px">${tagHtml}</div>
+      </div>
+      <div class="sch-body">
+        ${prodHtml}
+        <div>
+          <h4>面交安排</h4>${mHtml}
+          <h4 style="margin-top:12px">宅配出貨</h4>${sHtml}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;void t.offsetWidth;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+</script>
+</body>
+</html>
