@@ -530,6 +530,7 @@ function renderTable(){
         ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
         ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
         ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
+        <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
         <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
       </div></td>
     </tr>`;
@@ -552,34 +553,41 @@ function toggleMade(id, currentDone){
   showToast(!currentDone ? '✅ 已標記製作完成' : '↩ 取消製作完成');
 }
 
+function sendShipNotify(id){
+  const o = orders.find(x => x.id === id);
+  if(!o){ showToast('找不到訂單'); return; }
+  if(!o.email || o.email === '未填' || !o.email.includes('@')){
+    showToast('⚠️ 此訂單沒有 email，無法寄信');
+    return;
+  }
+  const items = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+  const ws = ['日','一','二','三','四','五','六'];
+  const dateDisplay = o.date ? (() => { const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '明日';
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SHIP, {
+    customer_name:  o.name,
+    order_num:      o.id,
+    flavor_lines:   items,
+    shipping_fee:   (o.total - (o.orig||0)*360 - (o.matcha||0)*390 - (o.cocoa||0)*390) > 0 ? 'NT$160' : 'NT$0（免運）',
+    total_amount:   `NT$${o.total}`,
+    delivery_mode:  '🚚 宅配到府',
+    delivery_date:  dateDisplay,
+    address:        o.address || '',
+    transfer_date:  o.transferDate || '—',
+    transfer_code:  o.code || '—',
+    to_email:       o.email,
+  }).then(()=>{
+    showToast(`✉️ 出貨通知已寄給 ${o.name}`);
+  }).catch((err)=>{
+    console.error('EmailJS error:', err);
+    showToast('⚠️ 寄信失敗，請確認 EmailJS 設定');
+  });
+}
+
 function togglePacked(id, currentPacked){
   const newPacked = !currentPacked;
   db.ref('orders/'+id).update({packed: newPacked});
   if(newPacked){
-    // 打包完成 → 自動寄出貨通知
-    const o = orders.find(x => x.id === id);
-    if(o && o.email && o.email !== '未填' && o.email.includes('@')){
-      const items = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
-      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SHIP, {
-        customer_name:  o.name,
-        order_num:      o.id,
-        flavor_lines:   items,
-        shipping_fee:   o.total - (o.orig||0)*360 - (o.matcha||0)*390 - (o.cocoa||0)*390 > 0 ? 'NT$160' : 'NT$0（免運）',
-        total_amount:   `NT$${o.total}`,
-        delivery_mode:  '🚚 宅配到府（已交黑貓，明日送達）',
-        delivery_date:  o.date || '明日',
-        address:        o.address || '',
-        transfer_date:  o.transferDate || '—',
-        transfer_code:  o.code || '—',
-        to_email:       o.email,
-      }).then(()=>{
-        showToast('📦 打包完成・出貨通知已寄出 ✉️');
-      }).catch(()=>{
-        showToast('📦 打包完成（寄信失敗，請手動通知）');
-      });
-    } else {
-      showToast('📦 打包完成（無 email，請手動通知）');
-    }
+    sendShipNotify(id);
   } else {
     showToast('↩ 取消打包');
   }
