@@ -374,6 +374,7 @@ tr.done-row td{opacity:.45;}
 const PW='pudding2026';
 
 let orders=[];
+let maxPerDay = {orig:3, matcha:3, cocoa:3};
 
 const SEED_ORDERS=[
   {id:'WD-OLD-001',ts:'2026-03-05 23:01',name:'謝強民',phone:'0922753230',date:'2026-03-14',time:'10:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'74505',total:360,status:'paid'},
@@ -467,8 +468,19 @@ async function seedIfEmpty(){
   showToast('✓ 現有訂單已匯入 Firebase');
 }
 
+async function seedSettings(){
+  const snap = await db.ref('settings/maxPerDay').once('value');
+  if(!snap.exists()){
+    await db.ref('settings/maxPerDay').set({orig:3, matcha:3, cocoa:3});
+  }
+}
+
 // 啟動 Firebase 即時監聽
 function startFirebaseListener(){
+  db.ref('settings/maxPerDay').on('value', snap => {
+    if(snap.val()) maxPerDay = snap.val();
+    renderTable();
+  });
   db.ref('orders').on('value', snap => {
     orders = [];
     snap.forEach(child => { orders.push(child.val()); });
@@ -485,6 +497,7 @@ function doLogin(){
     initFilters();
     document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('zh-TW');
     seedIfEmpty().then(()=> startFirebaseListener());
+    seedSettings();
     renderSchedule();
   }else{document.getElementById('login-err').textContent='密碼錯誤';}
 }
@@ -558,21 +571,50 @@ function renderTable(){
     if(fs&&o.status!==fs)return false;
     if(fd&&o.delivery!==fd)return false;
     if(fdt&&o.date!==fdt)return false;
-    if(fq&&![o.name,o.phone,o.code].some(v=>v.toLowerCase().includes(fq)))return false;
+    if(fq&&![o.name,o.phone,o.code].some(v=>v&&v.toLowerCase().includes(fq)))return false;
     return true;
   });
+
+  // 計算每天每口味累計（按時間戳排序，超過上限的標出來）
+  const dayCount = {}; // date_flavor → 累計盒數
+  const overLimit = new Set(); // 超過上限的訂單 id
+  const maxO = maxPerDay?.orig   ?? 3;
+  const maxM = maxPerDay?.matcha ?? 3;
+  const maxC = maxPerDay?.cocoa  ?? 3;
+  [...orders].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).forEach(o => {
+    if(!o.date || o.status === 'cancelled') return;
+    const k = o.date;
+    dayCount[k] = dayCount[k] || {orig:0,matcha:0,cocoa:0};
+    let over = false;
+    if(o.orig){
+      dayCount[k].orig += o.orig;
+      if(dayCount[k].orig > maxO) over = true;
+    }
+    if(o.matcha){
+      dayCount[k].matcha += o.matcha;
+      if(dayCount[k].matcha > maxM) over = true;
+    }
+    if(o.cocoa){
+      dayCount[k].cocoa += o.cocoa;
+      if(dayCount[k].cocoa > maxC) over = true;
+    }
+    if(over) overLimit.add(o.id);
+  });
+
   document.getElementById('no-results').style.display=list.length?'none':'block';
   document.getElementById('order-tbody').innerHTML=list.map(o=>{
-    const db=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
-    const warn=o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
-    return`<tr class="${o.status==='shipped'?'done-row':''}">
+    const isOver = overLimit.has(o.id);
+    const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
+    const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
+    const overWarn = isOver ? '<div style="font-size:10px;color:var(--red);font-weight:600">⚠️ 超過當日上限</div>' : '';
+    return`<tr class="${o.status==='shipped'?'done-row':''}${isOver?' style="background:rgba(180,60,60,.06)"':''}">
       <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
-      <td><strong>${o.name}</strong>${warn}</td>
+      <td><strong>${o.name}</strong>${warn}${overWarn}</td>
       <td>${o.phone}</td>
       <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}</td>
       <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
       <td>${fhtml(o)}</td>
-      <td>${db}</td>
+      <td>${dbadge}</td>
       <td class="addr-cell">${o.address}</td>
       <td style="font-family:monospace">${o.code}</td>
       <td style="color:var(--caramel);font-weight:500;white-space:nowrap">NT$${o.total.toLocaleString()}</td>
