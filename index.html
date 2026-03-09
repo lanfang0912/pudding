@@ -1378,7 +1378,7 @@ function setDelivery(mode){
   document.getElementById('opt-pickup').classList.toggle('selected', mode==='pickup');
 }
 
-
+function toggleFlavor(id){
   if(order.flavors[id]) delete order.flavors[id]; else order.flavors[id]=1;
   renderFlavors();
 }
