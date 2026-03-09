@@ -1580,6 +1580,7 @@ function submitOrder(){
     ts: new Date().toISOString(),
     name: order.name,
     phone: order.phone,
+    email: order.email || '',
     date: order.date,
     time: '未指定',
     orig:   order.flavors['original'] || 0,
@@ -1593,18 +1594,24 @@ function submitOrder(){
     status: 'pending',
   };
 
+  // 先寫入 Firebase（不等信寄出）
+  if(db){
+    db.ref('orders/' + num).set(firebaseOrder)
+      .then(() => console.log('✅ Firebase 寫入成功:', num))
+      .catch(err => console.error('❌ Firebase 寫入失敗:', err));
+  } else {
+    console.error('❌ db 是 null，Firebase 未初始化');
+  }
+
   Promise.all([
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_CUSTOMER, {
       ...commonParams,
       to_email: order.email,
     }),
-    db ? db.ref('orders/' + num).set(firebaseOrder) : Promise.resolve(),
   ]).then(() => {
     showSuccess(num);
   }).catch((err) => {
     console.warn('error:', err);
-    // 即使寄信失敗也寫入 Firebase 並完成訂單
-    if(db) db.ref('orders/' + num).set(firebaseOrder);
     showSuccess(num);
   });
 }
