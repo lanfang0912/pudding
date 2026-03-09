@@ -158,7 +158,7 @@ tr.done-row td{opacity:.45;}
 <div id="main-screen">
   <div class="topbar">
     <div class="topbar-brand">white <span>dessert</span> 後台</div>
-    <div class="topbar-right"><span id="topbar-date"></span><button class="logout-btn" onclick="logout()">登出</button></div>
+    <div class="topbar-right"><span id="topbar-date"></span><button class="act-btn" onclick="openNew()" style="border-color:var(--caramel);color:var(--caramel);padding:6px 14px;font-size:11px;">＋ 新增訂單</button><button class="logout-btn" onclick="logout()">登出</button></div>
   </div>
   <div class="stats-bar" id="stats-bar"></div>
   <div class="tabs">
@@ -217,6 +217,59 @@ tr.done-row td{opacity:.45;}
   <!-- TAB 3 排程 -->
   <div class="tab-panel" id="tab-schedule">
     <div class="schedule-wrap" id="sch-content"></div>
+  </div>
+</div>
+
+<!-- NEW MODAL -->
+<div class="modal-overlay" id="new-modal" onclick="if(event.target===this)closeNewModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">＋ 新增訂單</div>
+      <button class="modal-close" onclick="closeNewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">姓名 *</label><input class="form-ctrl" id="n-name" placeholder="顧客姓名"></div>
+        <div class="form-group"><label class="form-label">電話</label><input class="form-ctrl" id="n-phone" placeholder="選填"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">收貨日期 *</label><input class="form-ctrl" id="n-date" type="date"></div>
+        <div class="form-group"><label class="form-label">配送方式</label>
+          <select class="form-ctrl" id="n-delivery" onchange="nrecalc()"><option value="宅配">宅配</option><option value="面交">面交</option></select>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label class="form-label">品項數量（盒）</label>
+          <div class="flavor-inputs">
+            <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味</label><input class="form-ctrl" id="n-orig" type="number" min="0" value="0" oninput="nrecalc()"></div>
+            <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶</label><input class="form-ctrl" id="n-matcha" type="number" min="0" value="0" oninput="nrecalc()"></div>
+            <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可</label><input class="form-ctrl" id="n-cocoa" type="number" min="0" value="0" oninput="nrecalc()"></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">地址</label><input class="form-ctrl" id="n-addr" placeholder="宅配必填"></div>
+        <div class="form-group"><label class="form-label">金額（自動）</label><input class="form-ctrl" id="n-total" readonly style="background:var(--paper-dark)"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">匯款末五碼</label><input class="form-ctrl" id="n-code" placeholder="選填"></div>
+        <div class="form-group"><label class="form-label">狀態</label>
+          <select class="form-ctrl" id="n-status">
+            <option value="pending">待確認匯款</option>
+            <option value="paid">已確認匯款</option>
+            <option value="shipped">已出貨</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label class="form-label">備註</label><textarea class="form-ctrl" id="n-note" rows="2" style="resize:vertical" placeholder="選填"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeNewModal()">取消</button>
+      <button class="btn-save" onclick="saveNew()">新增訂單</button>
+    </div>
   </div>
 </div>
 
@@ -495,6 +548,66 @@ function toggleMade(id, currentDone){
 function togglePacked(id, currentPacked){
   db.ref('orders/'+id).update({packed: !currentPacked});
   showToast(!currentPacked ? '📦 已標記打包完成' : '↩ 取消打包');
+}
+
+// ── 新增訂單 ──
+function openNew(){
+  document.getElementById('n-name').value='';
+  document.getElementById('n-phone').value='';
+  document.getElementById('n-date').value='';
+  document.getElementById('n-orig').value=0;
+  document.getElementById('n-matcha').value=0;
+  document.getElementById('n-cocoa').value=0;
+  document.getElementById('n-delivery').value='宅配';
+  document.getElementById('n-addr').value='';
+  document.getElementById('n-code').value='';
+  document.getElementById('n-note').value='';
+  document.getElementById('n-status').value='paid';
+  document.getElementById('n-total').value='';
+  document.getElementById('new-modal').classList.add('open');
+}
+function closeNewModal(){
+  document.getElementById('new-modal').classList.remove('open');
+}
+function nrecalc(){
+  const orig=+document.getElementById('n-orig').value||0;
+  const matcha=+document.getElementById('n-matcha').value||0;
+  const cocoa=+document.getElementById('n-cocoa').value||0;
+  const boxes=orig+matcha+cocoa;
+  const isPickup=document.getElementById('n-delivery').value==='面交';
+  const ship=isPickup?0:(boxes>=3?0:160);
+  const total=orig*360+matcha*390+cocoa*390+ship;
+  document.getElementById('n-total').value=`NT$${total}`;
+  return total;
+}
+function saveNew(){
+  const name=document.getElementById('n-name').value.trim();
+  const date=document.getElementById('n-date').value;
+  if(!name){ alert('請填寫姓名'); return; }
+  if(!date){ alert('請填寫收貨日期'); return; }
+  const orig=+document.getElementById('n-orig').value||0;
+  const matcha=+document.getElementById('n-matcha').value||0;
+  const cocoa=+document.getElementById('n-cocoa').value||0;
+  if(orig+matcha+cocoa===0){ alert('請填寫品項數量'); return; }
+  const id='WD-M-'+Date.now().toString().slice(-8);
+  const newOrder={
+    id,
+    ts: new Date().toISOString(),
+    name,
+    phone: document.getElementById('n-phone').value||'未填',
+    date,
+    time: '未指定',
+    orig, matcha, cocoa,
+    delivery: document.getElementById('n-delivery').value,
+    address: document.getElementById('n-addr').value||'',
+    code: document.getElementById('n-code').value||'待確認',
+    note: document.getElementById('n-note').value||'',
+    status: document.getElementById('n-status').value,
+    total: nrecalc(),
+  };
+  db.ref('orders/'+id).set(newOrder);
+  closeNewModal();
+  showToast('✅ 訂單已新增');
 }
 
 // ── edit modal ──
