@@ -966,11 +966,16 @@ function renderSchedule(){
   });
 
   // 合併所有日期
+  const today = new Date().toISOString().slice(0,10);
   const allDates = [...new Set([
     ...Object.keys(makeMap),
     ...Object.keys(shipMap),
     ...Object.keys(meetMap),
-  ])].sort();
+  ])].sort((a,b) => {
+    const aPast = a < today, bPast = b < today;
+    if(aPast !== bPast) return aPast ? 1 : -1; // 過去的排後面
+    return a.localeCompare(b);
+  });
 
   if(!allDates.length){
     document.getElementById('sch-content').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-soft)">目前沒有訂單</div>';
@@ -1069,10 +1074,11 @@ function renderSchedule(){
         </li>`).join('')}</ul>`
       : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
 
-    return `<div class="sch-day">
+    const isPast = date < today;
+    return `<div class="sch-day" ${isPast?'style="opacity:.5"':''}>
       <div class="sch-hdr" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'grid':'none'">
         <div class="sch-title">${fmt(date)}</div>
-        <div style="font-size:12px;color:var(--ink-soft)">${label}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">${isPast?'<span style="color:var(--ink-soft)">已完成</span> · ':''} ${label}</div>
         <div style="display:flex;gap:6px">${tags.join('')}</div>
       </div>
       <div class="sch-body">
