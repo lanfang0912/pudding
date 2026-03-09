@@ -1413,8 +1413,8 @@ function renderCal(){
     const dt=new Date(calY,calM,d);
     const ds=fmt(dt);
     const past=dt<minD;
-    const isSunday = dt.getDay() === 0 && order.deliveryMode === 'delivery';
-    let canBook=!past&&!isSunday&&sel.length>0;
+    const isBlocked = order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1);
+    let canBook=!past&&!isBlocked&&sel.length>0;
     let dots=[];
 
     if(!past&&sel.length>0){
@@ -1426,7 +1426,7 @@ function renderCal(){
     }
 
     const isS=order.date===ds;
-    const cls=['cal-day',past||isSunday?'past':(!canBook?'disabled':''),isS?'selected':''].filter(Boolean).join(' ');
+    const cls=['cal-day',past||isBlocked?'past':(!canBook?'disabled':''),isS?'selected':''].filter(Boolean).join(' ');
     const click=(!past&&canBook)?`onclick="selDate('${ds}')"` : '';
     h+=`<div class="${cls}" ${click}>${d}${dots.length?`<div class="cal-dots">${dots.join('')}</div>`:''}</div>`;
   }

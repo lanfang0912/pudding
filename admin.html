@@ -888,6 +888,9 @@ function renderSchedule(){
 
     // 出貨區（含打包 checkbox）
     const shipDoneCount = ships.filter(s => s.packed).length;
+    const sundayWarn = ships.length && new Date(date).getDay() === 0
+      ? `<div style="font-size:11px;color:var(--red);background:rgba(180,60,60,.08);padding:6px 10px;border-radius:3px;margin-bottom:8px">⚠️ 今天是週日，黑貓不收件！請改前一天（週六）出貨。</div>`
+      : '';
     const sHtml = ships.length
       ? `<div style="margin-bottom:6px;font-size:10px;color:${shipDoneCount===ships.length?'var(--matcha)':'var(--ink-soft)'};letter-spacing:.5px">
           點擊確認打包完成・${shipDoneCount}／${ships.length} 已打包
@@ -916,7 +919,7 @@ function renderSchedule(){
         ${prodHtml}
         <div>
           <h4>面交安排</h4>${mHtml}
-          <h4 style="margin-top:12px">宅配出貨</h4>${sHtml}
+          <h4 style="margin-top:12px">宅配出貨</h4>${sundayWarn}${sHtml}
         </div>
       </div>
     </div>`;
