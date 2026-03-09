@@ -327,6 +327,9 @@ tr.done-row td{opacity:.45;}
         </div>
       </div>
       <div class="form-row full">
+        <div class="form-group"><label class="form-label">Email（寄出貨通知用）</label><input class="form-ctrl" id="e-email" type="email" placeholder="選填"></div>
+      </div>
+      <div class="form-row full">
         <div class="form-group"><label class="form-label">備註</label><textarea class="form-ctrl" id="e-note" rows="2" style="resize:vertical"></textarea></div>
       </div>
     </div>
@@ -671,6 +674,7 @@ function openEdit(id){
   document.getElementById('e-code').value=o.code;
   document.getElementById('e-note').value=o.note;
   document.getElementById('e-status').value=o.status;
+  document.getElementById('e-email').value=o.email||'';
   recalc();
   document.getElementById('edit-modal').classList.add('open');
 }
@@ -700,6 +704,7 @@ function saveEdit(){
     code:     document.getElementById('e-code').value,
     note:     document.getElementById('e-note').value,
     status:   document.getElementById('e-status').value,
+    email:    document.getElementById('e-email').value,
     total:    recalc(),
   };
   db.ref('orders/'+eid).update(updates);
