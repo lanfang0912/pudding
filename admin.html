@@ -492,6 +492,11 @@ function toggleMade(id, currentDone){
   showToast(!currentDone ? '✅ 已標記製作完成' : '↩ 取消製作完成');
 }
 
+function togglePacked(id, currentPacked){
+  db.ref('orders/'+id).update({packed: !currentPacked});
+  showToast(!currentPacked ? '📦 已標記打包完成' : '↩ 取消打包');
+}
+
 // ── edit modal ──
 let eid=null;
 function openEdit(id){
@@ -655,10 +660,15 @@ function renderSchedule(){
       if(shipDate){
         if(!shipMap[shipDate]) shipMap[shipDate] = [];
         shipMap[shipDate].push({
+          id: o.id,
           name: o.name,
           address: o.address || '',
           note: o.note || '',
+          orig:   o.orig   || 0,
+          matcha: o.matcha || 0,
+          cocoa:  o.cocoa  || 0,
           status: o.status,
+          packed: o.packed || false,
           receiveDate,
         });
       }
@@ -741,14 +751,22 @@ function renderSchedule(){
         </li>`).join('')}</ul>`
       : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
 
-    // 出貨區
+    // 出貨區（含打包 checkbox）
+    const shipDoneCount = ships.filter(s => s.packed).length;
     const sHtml = ships.length
-      ? `<ul class="sch-list">${ships.map(s=>`<li>
-          <span class="pill pill-ship">寄出</span>
-          <div>
-            <div style="font-weight:500">${s.name} ${s.status==='shipped'?'✅':''}</div>
-            <div style="font-size:10px;color:var(--ink-soft)">${s.address}${s.note?' ・'+s.note:''}</div>
-            <div style="font-size:10px;color:var(--caramel)">→ 客戶 ${fmt(s.receiveDate)} 收到</div>
+      ? `<div style="margin-bottom:6px;font-size:10px;color:${shipDoneCount===ships.length?'var(--matcha)':'var(--ink-soft)'};letter-spacing:.5px">
+          點擊確認打包完成・${shipDoneCount}／${ships.length} 已打包
+        </div>
+        <ul class="sch-list">${ships.map(s=>`<li style="cursor:pointer;${s.packed?'opacity:.45;text-decoration:line-through':''}" onclick="togglePacked('${s.id}',${!!s.packed})">
+          <span style="font-size:16px;flex-shrink:0">${s.packed?'✅':'⬜'}</span>
+          <div style="flex:1">
+            <div style="font-weight:500">${s.name}</div>
+            <div style="font-size:10px;color:var(--ink-soft)">${s.address}</div>
+            <div style="font-size:10px;color:var(--caramel)">
+              ${[s.orig?`原×${s.orig}`:'', s.matcha?`抹×${s.matcha}`:'', s.cocoa?`可×${s.cocoa}`:''].filter(Boolean).join(' ')}
+              &nbsp;→ 客戶 ${fmt(s.receiveDate)} 收到
+            </div>
+            ${s.note?`<div style="font-size:10px;color:var(--ink-soft)">備註：${s.note}</div>`:''}
           </div>
         </li>`).join('')}</ul>`
       : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
