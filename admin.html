@@ -382,7 +382,7 @@ function startFirebaseListener(){
     orders = [];
     snap.forEach(child => { orders.push(child.val()); });
     orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
-    renderStats(); renderTable(); renderDaily();
+    renderStats(); renderTable(); renderDaily(); renderSchedule();
   });
 }
 
@@ -603,23 +603,134 @@ function renderDaily(){
 
 // ── schedule ──
 function renderSchedule(){
-  const MAX=36;
-  document.getElementById('sch-content').innerHTML=schedule.map(day=>{
-    const tagHtml=day.tags.map(t=>({make:'<span class="stag stag-make">🔥製作</span>',ship:'<span class="stag stag-ship">📦出貨</span>',meet:'<span class="stag stag-meet">🤝面交</span>'}[t]||'')).join(' ');
-    const hasP=day.orig||day.matcha||day.cocoa;
-    const prodHtml=hasP?`<div>
-      <h4>生產（杯）・${day.furnace}</h4>
-      ${day.orig?`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${Math.round(day.orig/MAX*100)}%"></div></div><span class="prod-num">${day.orig}杯</span></div>`:''}
-      ${day.matcha?`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${Math.round(day.matcha/MAX*100)}%"></div></div><span class="prod-num">${day.matcha}杯</span></div>`:''}
-      ${day.cocoa?`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${Math.round(day.cocoa/MAX*100)}%"></div></div><span class="prod-num">${day.cocoa}杯</span></div>`:''}
-    </div>`:`<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">不需製作</div></div>`;
-    const mHtml=day.meet&&day.meet.length?`<ul class="sch-list">${day.meet.map(m=>`<li><span class="pill pill-meet">面交</span><div><div style="font-weight:500">${m.name}${m.done?' ✅':''}</div><div style="font-size:10px;color:var(--ink-soft)">${m.time}・${m.place} ${m.warn||''}</div></div></li>`).join('')}</ul>`:`<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
-    const sHtml=day.ship&&day.ship.length?`<ul class="sch-list">${day.ship.map(s=>`<li><span class="pill pill-ship">寄出</span>${s}</li>`).join('')}</ul>`:`<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
-    return`<div class="sch-day">
+  const MAX = 36;
+
+  // 從訂單動態建立排程
+  // 邏輯：客戶收到日(date) → 出貨日(date-1) → 製作日(date-2)
+  // 面交：直接在 date 當天面交，不需要出貨日/製作日
+
+  const makeMap = {};  // 製作日 → {orig, matcha, cocoa, shipNote}
+  const shipMap = {};  // 出貨日 → [顧客名稱+地址]
+  const meetMap = {};  // 面交日 → [{name, address, note}]
+
+  function addDays(dateStr, n){
+    if(!dateStr) return null;
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0,10);
+  }
+  function fmt(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr);
+    const days = ['(日)','(一)','(二)','(三)','(四)','(五)','(六)'];
+    return `${d.getMonth()+1}/${d.getDate()} ${days[d.getDay()]}`;
+  }
+
+  // 只算未取消的訂單
+  const active = orders.filter(o => o.status !== 'cancelled' && o.date);
+
+  active.forEach(o => {
+    const receiveDate = o.date;
+    const isPickup = o.delivery === '面交';
+
+    if(isPickup){
+      // 面交：當天直接面交
+      if(!meetMap[receiveDate]) meetMap[receiveDate] = [];
+      meetMap[receiveDate].push({
+        name: o.name,
+        address: o.address || '凱旋國小',
+        note: o.note || '',
+        status: o.status,
+      });
+    } else {
+      // 宅配：出貨日 = receiveDate-1，製作日 = receiveDate-2
+      const shipDate = addDays(receiveDate, -1);
+      const makeDate = addDays(receiveDate, -2);
+
+      if(shipDate){
+        if(!shipMap[shipDate]) shipMap[shipDate] = [];
+        shipMap[shipDate].push({
+          name: o.name,
+          address: o.address || '',
+          note: o.note || '',
+          status: o.status,
+          receiveDate,
+        });
+      }
+      if(makeDate){
+        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
+        makeMap[makeDate].orig   += o.orig   || 0;
+        makeMap[makeDate].matcha += o.matcha || 0;
+        makeMap[makeDate].cocoa  += o.cocoa  || 0;
+      }
+    }
+  });
+
+  // 合併所有日期
+  const allDates = [...new Set([
+    ...Object.keys(makeMap),
+    ...Object.keys(shipMap),
+    ...Object.keys(meetMap),
+  ])].sort();
+
+  if(!allDates.length){
+    document.getElementById('sch-content').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-soft)">目前沒有訂單</div>';
+    return;
+  }
+
+  document.getElementById('sch-content').innerHTML = allDates.map(date => {
+    const make = makeMap[date];
+    const ships = shipMap[date] || [];
+    const meets = meetMap[date] || [];
+
+    const tags = [];
+    if(make) tags.push('<span class="stag stag-make">🔥製作</span>');
+    if(ships.length) tags.push('<span class="stag stag-ship">📦出貨</span>');
+    if(meets.length) tags.push('<span class="stag stag-meet">🤝面交</span>');
+
+    // 判斷這天的標籤說明
+    const labels = [];
+    if(make) labels.push(`製作（供明天出貨）`);
+    if(ships.length) labels.push(`出貨 ${ships.length} 筆`);
+    if(meets.length) labels.push(`面交 ${meets.length} 筆`);
+    const label = labels.join('・');
+
+    // 生產區
+    const prodHtml = make ? `<div>
+      <h4>今晚製作・供明日出貨</h4>
+      ${make.orig?`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${Math.round(make.orig*6/MAX*100)}%"></div></div><span class="prod-num">${make.orig*6}杯（${make.orig}盒）</span></div>`:''}
+      ${make.matcha?`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${Math.round(make.matcha*6/MAX*100)}%"></div></div><span class="prod-num">${make.matcha*6}杯（${make.matcha}盒）</span></div>`:''}
+      ${make.cocoa?`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${Math.round(make.cocoa*6/MAX*100)}%"></div></div><span class="prod-num">${make.cocoa*6}杯（${make.cocoa}盒）</span></div>`:''}
+    </div>` : `<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">今天不需製作</div></div>`;
+
+    // 面交區
+    const mHtml = meets.length
+      ? `<ul class="sch-list">${meets.map(m=>`<li>
+          <span class="pill pill-meet">面交</span>
+          <div>
+            <div style="font-weight:500">${m.name} ${m.status==='shipped'?'✅':''}</div>
+            <div style="font-size:10px;color:var(--ink-soft)">${m.address}${m.note?' ・'+m.note:''}</div>
+          </div>
+        </li>`).join('')}</ul>`
+      : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
+
+    // 出貨區
+    const sHtml = ships.length
+      ? `<ul class="sch-list">${ships.map(s=>`<li>
+          <span class="pill pill-ship">寄出</span>
+          <div>
+            <div style="font-weight:500">${s.name} ${s.status==='shipped'?'✅':''}</div>
+            <div style="font-size:10px;color:var(--ink-soft)">${s.address}${s.note?' ・'+s.note:''}</div>
+            <div style="font-size:10px;color:var(--caramel)">→ 客戶 ${fmt(s.receiveDate)} 收到</div>
+          </div>
+        </li>`).join('')}</ul>`
+      : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
+
+    return `<div class="sch-day">
       <div class="sch-hdr" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'grid':'none'">
-        <div class="sch-title">${day.date}</div>
-        <div style="font-size:12px;color:var(--ink-soft)">${day.label}</div>
-        <div style="display:flex;gap:6px">${tagHtml}</div>
+        <div class="sch-title">${fmt(date)}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">${label}</div>
+        <div style="display:flex;gap:6px">${tags.join('')}</div>
       </div>
       <div class="sch-body">
         ${prodHtml}
