@@ -1280,29 +1280,24 @@ footer {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 // ─── CONFIG ───
-const MAX = 11; // fallback，實際值從 Firebase settings 讀取
-let maxPerDay = { orig: 3, matcha: 3, cocoa: 3 };
-let dateOverrides = {};
+const MAX = 3; // fallback
+let maxPerDay = { orig: 3, matcha: 3, cocoa: 3, total: 9 };
+let prodOverrides = {}; // 製作日單獨設定
 const FLAVORS = [
   { id:'original', zh:'原味', en:'Original', icon:'🍮', price:360, cls:'original' },
   { id:'matcha',   zh:'抹茶', en:'Matcha',   icon:'🍵', price:390, cls:'matcha' },
   { id:'cocoa',    zh:'可可', en:'Cocoa',    icon:'🍫', price:390, cls:'cocoa' },
 ];
 
-// ── 初始庫存（從現有訂單計算）──
-const inv = {
-  '2026-03-07_original': 1,  '2026-03-07_cocoa': 1,  '2026-03-07_matcha': 1,
-  '2026-03-10_original': 1,  '2026-03-10_cocoa': 1,  '2026-03-10_matcha': 1,
-  '2026-03-11_original': 13, '2026-03-11_cocoa': 3,  '2026-03-11_matcha': 2,
-  '2026-03-12_original': 1,  '2026-03-12_cocoa': 1,  '2026-03-12_matcha': 1,
-  '2026-03-13_original': 8,  '2026-03-13_cocoa': 3,  '2026-03-13_matcha': 1,
-  '2026-03-14_original': 8,  '2026-03-14_cocoa': 1,  '2026-03-14_matcha': 2,
-  '2026-03-15_original': 1,
-  '2026-03-17_original': 3,
-  '2026-03-19_original': 1,  '2026-03-19_cocoa': 1,
-  '2026-03-26_original': 1,  '2026-03-26_cocoa': 1,  '2026-03-26_matcha': 1,
-  '2026-03-29_original': 2,  '2026-03-29_cocoa': 1,  '2026-03-29_matcha': 1,
-};
+// ── 工具：日期加減 ──
+function addDaysToDate(dateStr, n){
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+
+// ── inv 按製作日累計（key = prodDate_flavor）──
+const inv = {};
 let totalSold = 77;
 
 // ─── FIREBASE ───
@@ -1312,20 +1307,20 @@ try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
 
-  // 讀取庫存設定
+  // 讀取製作日庫存設定
   db.ref('settings/maxPerDay').on('value', snap => {
     const v = snap.val();
     if(v) maxPerDay = v;
     renderCal && renderCal();
   });
 
-  // 讀取指定日期覆蓋
-  db.ref('settings/dateOverrides').on('value', snap => {
-    dateOverrides = snap.val() || {};
+  // 讀取製作日單獨設定
+  db.ref('settings/prodOverrides').on('value', snap => {
+    prodOverrides = snap.val() || {};
     renderCal && renderCal();
   });
 
-  // 即時監聽 Firebase，更新進度條 + 庫存
+  // 即時監聽訂單，按製作日累計庫存
   db.ref('orders').on('value', snap => {
     let sold = 0;
     const newInv = {};
@@ -1334,14 +1329,20 @@ try {
       const boxes = (o.orig||0)+(o.matcha||0)+(o.cocoa||0);
       sold += boxes;
       if(o.date){
-        if(o.orig)   newInv[o.date+'_original'] = (newInv[o.date+'_original']||0)+o.orig;
-        if(o.matcha) newInv[o.date+'_matcha']   = (newInv[o.date+'_matcha']||0)+o.matcha;
-        if(o.cocoa)  newInv[o.date+'_cocoa']    = (newInv[o.date+'_cocoa']||0)+o.cocoa;
+        // 製作日 = 收貨日 - 1（面交）或 - 2（宅配）
+        const isPickup = o.delivery === '面交';
+        const prodDate = addDaysToDate(o.date, isPickup ? -1 : -2);
+        if(o.orig)   newInv[prodDate+'_original'] = (newInv[prodDate+'_original']||0)+o.orig;
+        if(o.matcha) newInv[prodDate+'_matcha']   = (newInv[prodDate+'_matcha']||0)+o.matcha;
+        if(o.cocoa)  newInv[prodDate+'_cocoa']    = (newInv[prodDate+'_cocoa']||0)+o.cocoa;
       }
     });
     totalSold = sold;
+    // 清空重算
+    Object.keys(inv).forEach(k => delete inv[k]);
     Object.assign(inv, newInv);
     animateProgress();
+    renderCal && renderCal();
   });
 } catch(e) {
   console.warn('Firebase init error:', e);
@@ -1442,6 +1443,9 @@ function renderCal(){
         if(stock<(order.flavors[fid]||1)) canBook=false;
         dots.push(`<div class="cal-dot ${stock>0?fid:'full'}"></div>`);
       }
+      // 檢查製作日總量
+      const totalNeeded = Object.values(order.flavors).reduce((a,b)=>a+b,0);
+      if(getProdDayTotal(ds) < totalNeeded) canBook=false;
     }
 
     const isS=order.date===ds;
@@ -1462,11 +1466,28 @@ function fmtDisplay(s){
   return `${y} 年 ${parseInt(m)} 月 ${parseInt(d)} 日（週${ws[new Date(s).getDay()]}）`;
 }
 
-function getStock(ds,fid){
+function getStock(ds, fid){
+  // ds = 顧客收貨日，fid = 口味
+  // 製作日 = 收貨日 - 1（面交）或 - 2（宅配）
+  const isPickup = order.deliveryMode === 'pickup';
+  const prodDate = addDaysToDate(ds, isPickup ? -1 : -2);
   const flavorKey = fid==='original'?'orig': fid==='matcha'?'matcha':'cocoa';
-  const override = dateOverrides[ds];
+  // 查製作日的上限（單獨設定 > 預設）
+  const override = prodOverrides[prodDate];
   const dayMax = override && override[flavorKey] != null ? override[flavorKey] : (maxPerDay[flavorKey] ?? MAX);
-  return dayMax-(inv[ds+'_'+fid]||0);
+  // 已用量（該製作日所有訂單，包含面交+宅配）
+  const used = inv[prodDate+'_'+fid] || 0;
+  return dayMax - used;
+}
+
+// 總量檢查（製作日當天所有口味合計）
+function getProdDayTotal(ds){
+  const isPickup = order.deliveryMode === 'pickup';
+  const prodDate = addDaysToDate(ds, isPickup ? -1 : -2);
+  const override = prodOverrides[prodDate];
+  const maxTotal = override && override.total != null ? override.total : (maxPerDay.total ?? 9);
+  const used = (inv[prodDate+'_original']||0) + (inv[prodDate+'_matcha']||0) + (inv[prodDate+'_cocoa']||0);
+  return maxTotal - used;
 }
 function reserve(ds,fid,q){ inv[ds+'_'+fid]=(inv[ds+'_'+fid]||0)+q; }
 

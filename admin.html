@@ -258,12 +258,13 @@ tr.done-row td{opacity:.45;}
         <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存預設設定</button>
       </div>
 
-      <!-- 指定日期單獨調整 -->
+      <!-- 指定製作日單獨調整 -->
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:14px">指定日期單獨調整</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">指定製作日單獨調整</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">系統自動開放：製作日+1天（面交）、製作日+2天（宅配）</div>
         <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
           <div>
-            <label class="form-label">日期</label>
+            <label class="form-label">製作日</label>
             <input class="form-ctrl" id="inv-date" type="date">
           </div>
           <div>
@@ -286,7 +287,7 @@ tr.done-row td{opacity:.45;}
             <button class="btn-save" style="white-space:nowrap" onclick="saveDateInv()">儲存</button>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px">空白 = 沿用預設值。若要封鎖整天請全填 0。</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px">空白 = 沿用預設值。填 0 = 封鎖該製作日。</div>
       </div>
 
       <!-- 已設定的日期列表 -->
@@ -416,7 +417,8 @@ tr.done-row td{opacity:.45;}
 const PW='pudding2026';
 
 let orders=[];
-let maxPerDay = {orig:3, matcha:3, cocoa:3};
+let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
+let prodOverrides = {};
 
 const SEED_ORDERS=[
   {id:'WD-OLD-001',ts:'2026-03-05 23:01',name:'謝強民',phone:'0922753230',date:'2026-03-14',time:'10:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'74505',total:360,status:'paid'},
@@ -521,7 +523,11 @@ async function seedSettings(){
 function startFirebaseListener(){
   db.ref('settings/maxPerDay').on('value', snap => {
     if(snap.val()) maxPerDay = snap.val();
-    renderTable();
+    renderTable(); renderSchedule();
+  });
+  db.ref('settings/prodOverrides').on('value', snap => {
+    prodOverrides = snap.val() || {};
+    renderSchedule();
   });
   db.ref('orders').on('value', snap => {
     orders = [];
@@ -588,7 +594,7 @@ function loadInvSettings(){
     }
     updateTotalPreview();
   });
-  db.ref('settings/dateOverrides').once('value').then(snap => {
+  db.ref('settings/prodOverrides').once('value').then(snap => {
     renderInvOverrides(snap.val()||{});
   });
 }
@@ -623,7 +629,7 @@ function saveDateInv(){
   if(cocoa !=='') entry.cocoa  = +cocoa;
   if(total !=='') entry.total  = +total;
   if(!Object.keys(entry).length){ showToast('請至少填一個數值'); return; }
-  db.ref('settings/dateOverrides/'+date).set(entry).then(()=>{
+  db.ref('settings/prodOverrides/'+date).set(entry).then(()=>{
     showToast(`✅ ${date} 單獨設定已儲存`);
     ['inv-date','inv-date-orig','inv-date-matcha','inv-date-cocoa','inv-date-total'].forEach(id=>document.getElementById(id).value='');
     loadInvSettings();
@@ -631,7 +637,7 @@ function saveDateInv(){
 }
 
 function deleteDateInv(date){
-  db.ref('settings/dateOverrides/'+date).remove().then(()=>{
+  db.ref('settings/prodOverrides/'+date).remove().then(()=>{
     showToast(`🗑 ${date} 已移除單獨設定`);
     loadInvSettings();
   });
@@ -644,7 +650,7 @@ function renderInvOverrides(overrides){
   if(!keys.length){ el.innerHTML=''; return; }
   el.innerHTML = `
     <div style="background:var(--paper-dark);border-radius:4px;padding:16px 20px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:12px">已設定的指定日期</div>
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">已設定的指定製作日</div>
       ${keys.map(d => {
         const v = overrides[d];
         const parts = [
@@ -1120,10 +1126,24 @@ function renderSchedule(){
 
     const prodHtml = make ? `<div>
       <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
-      ${(()=>{const t=make.orig+make.matcha+make.cocoa,mt=maxPerDay.total??9,over=t>mt;return`<div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${over?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${over?'var(--red)':'var(--ink-soft)'}">合計 <strong>${t}／${mt} 盒</strong>${over?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}</div>`;})()}
-      ${make.orig?(()=>{const o=make.orig,m=maxPerDay.orig,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
-      ${make.matcha?(()=>{const o=make.matcha,m=maxPerDay.matcha,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
-      ${make.cocoa?(()=>{const o=make.cocoa,m=maxPerDay.cocoa,pct=Math.min(Math.round(o/m*100),100),over=o>m;return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%;${over?'background:var(--red)':''}"></div></div><span class="prod-num" style="${over?'color:var(--red);font-weight:600':''}">${o}／${m}盒${over?` ⚠️+${o-m}`:''}</span></div>`;})():''}
+      ${(()=>{
+        const ov=prodOverrides[date]||{};
+        const mo=ov.orig   !=null?ov.orig   :(maxPerDay.orig??3);
+        const mm=ov.matcha !=null?ov.matcha :(maxPerDay.matcha??3);
+        const mc=ov.cocoa  !=null?ov.cocoa  :(maxPerDay.cocoa??3);
+        const mt=ov.total  !=null?ov.total  :(maxPerDay.total??9);
+        const t=make.orig+make.matcha+make.cocoa;
+        const tOver=t>mt;
+        const origOver=make.orig>mo, matchaOver=make.matcha>mm, cocoaOver=make.cocoa>mc;
+        return `
+          <div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${tOver?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${tOver?'var(--red)':'var(--ink-soft)'}">
+            合計 <strong>${t}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}
+          </div>
+          ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mo*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%;${origOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${origOver?'color:var(--red);font-weight:600':''}">${make.orig}／${mo}盒${origOver?` ⚠️+${make.orig-mo}`:''}</span></div>`;})():''}
+          ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mm*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%;${matchaOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${matchaOver?'color:var(--red);font-weight:600':''}">${make.matcha}／${mm}盒${matchaOver?` ⚠️+${make.matcha-mm}`:''}</span></div>`;})():''}
+          ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mc*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%;${cocoaOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${cocoaOver?'color:var(--red);font-weight:600':''}">${make.cocoa}／${mc}盒${cocoaOver?` ⚠️+${make.cocoa-mc}`:''}</span></div>`;})():''}
+        `;
+      })()}
       ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
         <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">點擊打勾確認製作完成</li>
         ${makeOrderRows}
