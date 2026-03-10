@@ -228,23 +228,25 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <div class="tab-panel" id="tab-inventory">
-    <div style="max-width:600px;margin:0 auto;padding:24px 0">
+    <div style="max-width:640px;margin:0 auto;padding:24px 0">
       <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px">庫存設定</div>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">設定每天各口味的最大接單數量，即時同步到訂購頁</div>
 
-      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:16px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:14px">每日上限設定</div>
+      <!-- 全域預設 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">預設上限（所有日期套用）</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">指定日期有單獨設定時，以指定日期為準</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end">
           <div>
-            <label class="form-label" style="color:var(--caramel)">原味上限（盒）</label>
+            <label class="form-label" style="color:var(--caramel)">原味（盒）</label>
             <input class="form-ctrl" id="inv-default-orig" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
           </div>
           <div>
-            <label class="form-label" style="color:var(--matcha)">抹茶上限（盒）</label>
+            <label class="form-label" style="color:var(--matcha)">抹茶（盒）</label>
             <input class="form-ctrl" id="inv-default-matcha" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
           </div>
           <div>
-            <label class="form-label" style="color:var(--cocoa)">可可上限（盒）</label>
+            <label class="form-label" style="color:var(--cocoa)">可可（盒）</label>
             <input class="form-ctrl" id="inv-default-cocoa" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
           </div>
           <div>
@@ -253,11 +255,46 @@ tr.done-row td{opacity:.45;}
           </div>
         </div>
         <div id="inv-preview" style="margin-top:10px;font-size:12px;color:var(--ink-soft)">各口味加總 = 9 盒</div>
-        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存設定</button>
+        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存預設設定</button>
       </div>
 
-      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">儲存後訂購頁會立即更新。超過任一口味上限或每日總上限，顧客無法選擇該日期</div>
+      <!-- 指定日期單獨調整 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">指定日期單獨調整</div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
+          <div>
+            <label class="form-label">日期</label>
+            <input class="form-ctrl" id="inv-date" type="date">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--caramel)">原味</label>
+            <input class="form-ctrl" id="inv-date-orig" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--matcha)">抹茶</label>
+            <input class="form-ctrl" id="inv-date-matcha" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--cocoa)">可可</label>
+            <input class="form-ctrl" id="inv-date-cocoa" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--blue)">總上限</label>
+            <input class="form-ctrl" id="inv-date-total" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <button class="btn-save" style="white-space:nowrap" onclick="saveDateInv()">儲存</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px">空白 = 沿用預設值。若要封鎖整天請全填 0。</div>
+      </div>
+
+      <!-- 已設定的日期列表 -->
+      <div id="inv-overrides-list"></div>
+
+      <div style="font-size:12px;color:var(--ink-soft)">儲存後訂購頁會立即更新。超過任一上限，顧客無法選擇該日期。</div>
     </div>
+  </div>
   </div>
 
 <!-- NEW MODAL -->
@@ -551,14 +588,16 @@ function loadInvSettings(){
     }
     updateTotalPreview();
   });
+  db.ref('settings/dateOverrides').once('value').then(snap => {
+    renderInvOverrides(snap.val()||{});
+  });
 }
 
 function updateTotalPreview(){
   const o = +document.getElementById('inv-default-orig').value||0;
   const m = +document.getElementById('inv-default-matcha').value||0;
   const c = +document.getElementById('inv-default-cocoa').value||0;
-  const sum = o+m+c;
-  document.getElementById('inv-preview').textContent = `各口味加總 = ${sum} 盒`;
+  document.getElementById('inv-preview').textContent = `各口味加總 = ${o+m+c} 盒`;
 }
 
 function saveDefaultInv(){
@@ -569,6 +608,58 @@ function saveDefaultInv(){
   db.ref('settings/maxPerDay').set({orig, matcha, cocoa, total}).then(()=>{
     showToast(`✅ 原味${orig} / 抹茶${matcha} / 可可${cocoa} / 總計上限${total}盒`);
   });
+}
+
+function saveDateInv(){
+  const date = document.getElementById('inv-date').value;
+  if(!date){ showToast('請選擇日期'); return; }
+  const orig  = document.getElementById('inv-date-orig').value;
+  const matcha= document.getElementById('inv-date-matcha').value;
+  const cocoa = document.getElementById('inv-date-cocoa').value;
+  const total = document.getElementById('inv-date-total').value;
+  const entry = {};
+  if(orig  !=='') entry.orig   = +orig;
+  if(matcha!=='') entry.matcha = +matcha;
+  if(cocoa !=='') entry.cocoa  = +cocoa;
+  if(total !=='') entry.total  = +total;
+  if(!Object.keys(entry).length){ showToast('請至少填一個數值'); return; }
+  db.ref('settings/dateOverrides/'+date).set(entry).then(()=>{
+    showToast(`✅ ${date} 單獨設定已儲存`);
+    ['inv-date','inv-date-orig','inv-date-matcha','inv-date-cocoa','inv-date-total'].forEach(id=>document.getElementById(id).value='');
+    loadInvSettings();
+  });
+}
+
+function deleteDateInv(date){
+  db.ref('settings/dateOverrides/'+date).remove().then(()=>{
+    showToast(`🗑 ${date} 已移除單獨設定`);
+    loadInvSettings();
+  });
+}
+
+function renderInvOverrides(overrides){
+  const el = document.getElementById('inv-overrides-list');
+  if(!el) return;
+  const keys = Object.keys(overrides||{}).sort();
+  if(!keys.length){ el.innerHTML=''; return; }
+  el.innerHTML = `
+    <div style="background:var(--paper-dark);border-radius:4px;padding:16px 20px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:12px">已設定的指定日期</div>
+      ${keys.map(d => {
+        const v = overrides[d];
+        const parts = [
+          v.orig   != null ? `原味 ${v.orig} 盒`   : '',
+          v.matcha != null ? `抹茶 ${v.matcha} 盒` : '',
+          v.cocoa  != null ? `可可 ${v.cocoa} 盒`  : '',
+          v.total  != null ? `總上限 ${v.total} 盒`: '',
+        ].filter(Boolean).join('・');
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--rule);font-size:12px">
+          <span style="font-weight:500;min-width:90px">${d}</span>
+          <span style="color:var(--ink-soft);flex:1;padding:0 8px">${parts}</span>
+          <button class="act-btn del" onclick="deleteDateInv('${d}')">🗑</button>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 // ── helpers ──

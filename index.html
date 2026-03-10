@@ -1282,6 +1282,7 @@ footer {
 // ─── CONFIG ───
 const MAX = 11; // fallback，實際值從 Firebase settings 讀取
 let maxPerDay = { orig: 3, matcha: 3, cocoa: 3 };
+let dateOverrides = {};
 const FLAVORS = [
   { id:'original', zh:'原味', en:'Original', icon:'🍮', price:360, cls:'original' },
   { id:'matcha',   zh:'抹茶', en:'Matcha',   icon:'🍵', price:390, cls:'matcha' },
@@ -1315,6 +1316,13 @@ try {
   db.ref('settings/maxPerDay').on('value', snap => {
     const v = snap.val();
     if(v) maxPerDay = v;
+    renderCal && renderCal();
+  });
+
+  // 讀取指定日期覆蓋
+  db.ref('settings/dateOverrides').on('value', snap => {
+    dateOverrides = snap.val() || {};
+    renderCal && renderCal();
   });
 
   // 即時監聽 Firebase，更新進度條 + 庫存
@@ -1456,8 +1464,9 @@ function fmtDisplay(s){
 
 function getStock(ds,fid){
   const flavorKey = fid==='original'?'orig': fid==='matcha'?'matcha':'cocoa';
-  const max = maxPerDay[flavorKey] ?? MAX;
-  return max-(inv[ds+'_'+fid]||0);
+  const override = dateOverrides[ds];
+  const dayMax = override && override[flavorKey] != null ? override[flavorKey] : (maxPerDay[flavorKey] ?? MAX);
+  return dayMax-(inv[ds+'_'+fid]||0);
 }
 function reserve(ds,fid,q){ inv[ds+'_'+fid]=(inv[ds+'_'+fid]||0)+q; }
 
