@@ -190,9 +190,8 @@ tr.done-row td{opacity:.45;}
         <option value="宅配">宅配</option>
         <option value="面交">面交</option>
       </select>
-      <select class="filter-select" id="f-date" onchange="renderTable()">
-        <option value="">全部日期</option>
-      </select>
+      <input class="filter-input" id="f-date" type="date" onchange="renderTable()" title="指定收貨日" style="width:140px;">
+      <button class="filter-select" onclick="document.getElementById('f-date').value='';renderTable();" style="cursor:pointer;padding:7px 10px;" title="清除日期">✕</button>
       <input class="filter-input" id="f-search" placeholder="搜尋姓名 / 電話 / 末五碼" oninput="renderTable()" style="min-width:190px;">
     </div>
     <div class="table-wrap">
@@ -572,9 +571,9 @@ function renderStats(){
 
 function initFilters(){
   const dates=[...new Set(orders.map(o=>o.date).filter(Boolean))].sort();
-  [document.getElementById('f-date'),document.getElementById('dd-date')].forEach(sel=>{
-    dates.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
-  });
+  const ddSel=document.getElementById('dd-date');
+  ddSel.innerHTML='<option value="">全部日期</option>';
+  dates.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;ddSel.appendChild(o);});
 }
 function switchTab(n,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -780,7 +779,7 @@ function sendShipNotify(id){
     flavor_lines:   items,
     shipping_fee:   (o.total - (o.orig||0)*360 - (o.matcha||0)*390 - (o.cocoa||0)*390) > 0 ? 'NT$160' : 'NT$0（免運）',
     total_amount:   `NT$${o.total}`,
-    delivery_mode:  '🚚 宅配到府',
+    delivery_mode:  o.delivery==='面交'?'📍 面交':'🚚 宅配到府',
     delivery_date:  dateDisplay,
     address:        o.address || '',
     transfer_date:  o.transferDate || '—',
@@ -788,8 +787,7 @@ function sendShipNotify(id){
     to_email:       o.email,
   }).then(()=>{
     showToast(`✉️ 出貨通知已寄給 ${o.name}`);
-  }).catch((err)=>{
-    console.error('EmailJS error:', err);
+  }).catch(()=>{
     showToast('⚠️ 寄信失敗，請確認 EmailJS 設定');
   });
 }
@@ -942,10 +940,18 @@ function renderDaily(){
     const cards=list.map(o=>{
       const done=o.status==='shipped';
       const boxes=o.orig+o.matcha+o.cocoa;
+      const ws=['日','一','二','三','四','五','六'];
+      const dd=new Date(date);
+      const dateDisp=`${dd.getMonth()+1}/${dd.getDate()}（週${ws[dd.getDay()]}）`;
+      const items=[o.orig?`原味×${o.orig}盒`:'',o.matcha?`抹茶×${o.matcha}盒`:'',o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+      const smsText = o.delivery==='面交'
+        ? `${o.name} 您好，白沙布丁出貨通知🍮\n品項：${items}\n面交日期：${dateDisp}\n地點：${o.address}\n時間：${o.time}\n如有問題請與我們聯繫，謝謝！`
+        : `${o.name} 您好，白沙布丁出貨通知🍮\n品項：${items}\n預計到貨：${dateDisp}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，7天內享用最佳🙏`;
+      const smsId = 'sms-'+o.id;
       return`<div class="s-card ${done?'done':''}">
         <div class="card-top">
           <div>
-            <div class="card-name">${o.name} ${o.note.startsWith('⚠️')?'<span style="font-size:11px;color:var(--red)">⚠️</span>':''}</div>
+            <div class="card-name">${o.name} ${o.note&&o.note.startsWith('⚠️')?'<span style="font-size:11px;color:var(--red)">⚠️</span>':''}</div>
             <div class="card-meta">${o.id} · ${o.phone}</div>
           </div>
           <div style="text-align:right">
@@ -959,6 +965,19 @@ function renderDaily(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
           <span style="font-weight:500;color:var(--caramel)">NT$${o.total.toLocaleString()}</span>
           <span style="font-size:10px;color:var(--ink-soft)">末五碼：${o.code}</span>
+        </div>
+        <!-- 簡訊範本 -->
+        <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
+          <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+            <span>📱 簡訊 / LINE 範本</span>
+            <button onclick="
+              const el=document.getElementById('${smsId}');
+              el.select();document.execCommand('copy');
+              this.textContent='✅ 已複製';
+              setTimeout(()=>this.textContent='複製',1500);
+            " style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
+          </div>
+          <textarea id="${smsId}" readonly style="width:100%;border:none;background:transparent;font-size:11px;font-family:inherit;color:var(--ink);resize:none;line-height:1.7;outline:none;" rows="5">${smsText}</textarea>
         </div>
         <div class="card-actions">
           <button class="act-btn edit" onclick="openEdit('${o.id}')" style="flex:0 0 auto">✏️</button>
