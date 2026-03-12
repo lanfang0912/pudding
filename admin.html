@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -157,8 +156,11 @@ tr.done-row td{opacity:.45;}
   <div class="login-box">
     <div class="login-title">white <span style="color:var(--caramel);font-style:italic">dessert</span></div>
     <div class="login-sub">後台管理系統</div>
-    <input class="login-input" id="pw-input" type="password" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" onclick="doLogin()">進入後台</button>
+    <form onsubmit="doLogin();return false;" autocomplete="on">
+      <input class="login-input" id="un-input" type="text" name="username" placeholder="帳號" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      <input class="login-input" id="pw-input" type="password" name="password" placeholder="密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" type="submit">進入後台</button>
+    </form>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
@@ -177,7 +179,6 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 1 訂單 -->
-
   <div class="tab-panel active" id="tab-orders">
     <div class="filters">
       <span class="filter-label">篩選：</span>
@@ -209,7 +210,6 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 2 每日出貨 -->
-
   <div class="tab-panel" id="tab-daily">
     <div class="filters">
       <span class="filter-label">日期：</span>
@@ -225,7 +225,6 @@ tr.done-row td{opacity:.45;}
   </div>
 
   <!-- TAB 3 排程 -->
-
   <div class="tab-panel" id="tab-schedule">
     <div class="schedule-wrap" id="sch-content"></div>
   </div>
@@ -235,77 +234,73 @@ tr.done-row td{opacity:.45;}
       <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px">庫存設定</div>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">設定每天各口味的最大接單數量，即時同步到訂購頁</div>
 
-```
-  <!-- 全域預設 -->
-  <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
-    <div style="font-size:13px;font-weight:600;margin-bottom:4px">預設上限（所有日期套用）</div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">指定日期有單獨設定時，以指定日期為準</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end">
-      <div>
-        <label class="form-label" style="color:var(--caramel)">原味（盒）</label>
-        <input class="form-ctrl" id="inv-default-orig" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
+      <!-- 全域預設 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">預設上限（所有日期套用）</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">指定日期有單獨設定時，以指定日期為準</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end">
+          <div>
+            <label class="form-label" style="color:var(--caramel)">原味（盒）</label>
+            <input class="form-ctrl" id="inv-default-orig" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--matcha)">抹茶（盒）</label>
+            <input class="form-ctrl" id="inv-default-matcha" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--cocoa)">可可（盒）</label>
+            <input class="form-ctrl" id="inv-default-cocoa" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--blue)">每日總上限（盒）</label>
+            <input class="form-ctrl" id="inv-default-total" type="number" min="0" max="99" value="9">
+          </div>
+        </div>
+        <div id="inv-preview" style="margin-top:10px;font-size:12px;color:var(--ink-soft)">各口味加總 = 9 盒</div>
+        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存預設設定</button>
       </div>
-      <div>
-        <label class="form-label" style="color:var(--matcha)">抹茶（盒）</label>
-        <input class="form-ctrl" id="inv-default-matcha" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
+
+      <!-- 指定製作日單獨調整 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">指定製作日單獨調整</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">系統自動開放：製作日+1天（面交）、製作日+2天（宅配）</div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
+          <div>
+            <label class="form-label">製作日</label>
+            <input class="form-ctrl" id="inv-date" type="date">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--caramel)">原味</label>
+            <input class="form-ctrl" id="inv-date-orig" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--matcha)">抹茶</label>
+            <input class="form-ctrl" id="inv-date-matcha" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--cocoa)">可可</label>
+            <input class="form-ctrl" id="inv-date-cocoa" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--blue)">總上限</label>
+            <input class="form-ctrl" id="inv-date-total" type="number" min="0" max="99" placeholder="預設">
+          </div>
+          <div>
+            <button class="btn-save" style="white-space:nowrap" onclick="saveDateInv()">儲存</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px">空白 = 沿用預設值。填 0 = 封鎖該製作日。</div>
       </div>
-      <div>
-        <label class="form-label" style="color:var(--cocoa)">可可（盒）</label>
-        <input class="form-ctrl" id="inv-default-cocoa" type="number" min="0" max="99" value="3" oninput="updateTotalPreview()">
-      </div>
-      <div>
-        <label class="form-label" style="color:var(--blue)">每日總上限（盒）</label>
-        <input class="form-ctrl" id="inv-default-total" type="number" min="0" max="99" value="9">
-      </div>
+
+      <!-- 已設定的日期列表 -->
+      <div id="inv-overrides-list"></div>
+
+      <div style="font-size:12px;color:var(--ink-soft)">儲存後訂購頁會立即更新。超過任一上限，顧客無法選擇該日期。</div>
     </div>
-    <div id="inv-preview" style="margin-top:10px;font-size:12px;color:var(--ink-soft)">各口味加總 = 9 盒</div>
-    <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveDefaultInv()">儲存預設設定</button>
-  </div>
-
-  <!-- 指定製作日單獨調整 -->
-  <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
-    <div style="font-size:13px;font-weight:600;margin-bottom:4px">指定製作日單獨調整</div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">系統自動開放：製作日+1天（面交）、製作日+2天（宅配）</div>
-    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
-      <div>
-        <label class="form-label">製作日</label>
-        <input class="form-ctrl" id="inv-date" type="date">
-      </div>
-      <div>
-        <label class="form-label" style="color:var(--caramel)">原味</label>
-        <input class="form-ctrl" id="inv-date-orig" type="number" min="0" max="99" placeholder="預設">
-      </div>
-      <div>
-        <label class="form-label" style="color:var(--matcha)">抹茶</label>
-        <input class="form-ctrl" id="inv-date-matcha" type="number" min="0" max="99" placeholder="預設">
-      </div>
-      <div>
-        <label class="form-label" style="color:var(--cocoa)">可可</label>
-        <input class="form-ctrl" id="inv-date-cocoa" type="number" min="0" max="99" placeholder="預設">
-      </div>
-      <div>
-        <label class="form-label" style="color:var(--blue)">總上限</label>
-        <input class="form-ctrl" id="inv-date-total" type="number" min="0" max="99" placeholder="預設">
-      </div>
-      <div>
-        <button class="btn-save" style="white-space:nowrap" onclick="saveDateInv()">儲存</button>
-      </div>
-    </div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-top:10px">空白 = 沿用預設值。填 0 = 封鎖該製作日。</div>
-  </div>
-
-  <!-- 已設定的日期列表 -->
-  <div id="inv-overrides-list"></div>
-
-  <div style="font-size:12px;color:var(--ink-soft)">儲存後訂購頁會立即更新。超過任一上限，顧客無法選擇該日期。</div>
-</div>
-```
-
   </div>
   </div>
 
 <!-- NEW MODAL -->
-
 <div class="modal-overlay" id="new-modal" onclick="if(event.target===this)closeNewModal()">
   <div class="modal">
     <div class="modal-hdr">
@@ -359,7 +354,6 @@ tr.done-row td{opacity:.45;}
 </div>
 
 <!-- EDIT MODAL -->
-
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-hdr">
@@ -545,9 +539,12 @@ function startFirebaseListener(){
   });
 }
 
+const UN='admin';
 // ── login ──
 function doLogin(){
-  if(document.getElementById('pw-input').value===PW){
+  const un=document.getElementById('un-input').value;
+  const pw=document.getElementById('pw-input').value;
+  if(un===UN && pw===PW){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-screen').style.display='block';
     initFilters();
@@ -555,7 +552,7 @@ function doLogin(){
     seedIfEmpty().then(()=> startFirebaseListener());
     seedSettings();
     renderSchedule();
-  }else{document.getElementById('login-err').textContent='密碼錯誤';}
+  }else{document.getElementById('login-err').textContent='帳號或密碼錯誤';}
 }
 function logout(){
   db.ref('orders').off(); // 停止監聽
@@ -987,266 +984,255 @@ function renderDaily(){
             " style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
           </div>
           <textarea id="${smsId}" readonly style="width:100%;border:none;background:transparent;font-size:11px;font-family:inherit;color:var(--ink);resize:none;line-height:1.7;outline:none;" rows="5">${smsText}</textarea>
-
-```
-    </div>
-    <div class="card-actions">
-      <button class="act-btn edit" onclick="openEdit('${o.id}')" style="flex:0 0 auto">✏️</button>
-      ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
-      ${done?`<button class="ship-btn done">✓ 已出貨</button>`:
-             `<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
-    </div>
-  </div>`;
-}).join('');
-return`<div class="day-section">
-  <div class="day-header">
-    <div class="day-title">${date} <span style="font-size:13px;color:var(--ink-soft)">週${wd[d.getDay()]}</span></div>
-    <div class="day-meta">${list.length}筆・${list.reduce((a,o)=>a+o.orig+o.matcha+o.cocoa,0)}盒</div>
-    <div class="day-prog"><div class="day-prog-bar" style="width:${pct}%"></div></div>
-    <div class="day-meta">${shipped}/${list.length} 完成</div>
-  </div>
-  <div class="shipping-cards">${cards}</div>
-</div>`;
-```
-
-}).join(’’);
+        </div>
+        <div class="card-actions">
+          <button class="act-btn edit" onclick="openEdit('${o.id}')" style="flex:0 0 auto">✏️</button>
+          ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
+          ${done?`<button class="ship-btn done">✓ 已出貨</button>`:
+                 `<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
+        </div>
+      </div>`;
+    }).join('');
+    return`<div class="day-section">
+      <div class="day-header">
+        <div class="day-title">${date} <span style="font-size:13px;color:var(--ink-soft)">週${wd[d.getDay()]}</span></div>
+        <div class="day-meta">${list.length}筆・${list.reduce((a,o)=>a+o.orig+o.matcha+o.cocoa,0)}盒</div>
+        <div class="day-prog"><div class="day-prog-bar" style="width:${pct}%"></div></div>
+        <div class="day-meta">${shipped}/${list.length} 完成</div>
+      </div>
+      <div class="shipping-cards">${cards}</div>
+    </div>`;
+  }).join('');
 }
 
 // ── schedule ──
 function renderSchedule(){
-const MAX = 36;
+  const MAX = 36;
 
-// 從訂單動態建立排程
-// 邏輯：客戶收到日(date) → 出貨日(date-1) → 製作日(date-2)
-// 面交：直接在 date 當天面交，不需要出貨日/製作日
+  // 從訂單動態建立排程
+  // 邏輯：客戶收到日(date) → 出貨日(date-1) → 製作日(date-2)
+  // 面交：直接在 date 當天面交，不需要出貨日/製作日
 
-const makeMap = {};  // 製作日 → {orig, matcha, cocoa, shipNote}
-const shipMap = {};  // 出貨日 → [顧客名稱+地址]
-const meetMap = {};  // 面交日 → [{name, address, note}]
+  const makeMap = {};  // 製作日 → {orig, matcha, cocoa, shipNote}
+  const shipMap = {};  // 出貨日 → [顧客名稱+地址]
+  const meetMap = {};  // 面交日 → [{name, address, note}]
 
-function addDays(dateStr, n){
-if(!dateStr) return null;
-const d = new Date(dateStr);
-d.setDate(d.getDate() + n);
-return d.toISOString().slice(0,10);
-}
-function fmt(dateStr){
-if(!dateStr) return ‘’;
-const d = new Date(dateStr);
-const days = [’(日)’,’(一)’,’(二)’,’(三)’,’(四)’,’(五)’,’(六)’];
-return `${d.getMonth()+1}/${d.getDate()} ${days[d.getDay()]}`;
-}
+  function addDays(dateStr, n){
+    if(!dateStr) return null;
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0,10);
+  }
+  function fmt(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr);
+    const days = ['(日)','(一)','(二)','(三)','(四)','(五)','(六)'];
+    return `${d.getMonth()+1}/${d.getDate()} ${days[d.getDay()]}`;
+  }
 
-// 只算未取消的訂單
-const active = orders.filter(o => o.status !== ‘cancelled’ && o.date);
+  // 只算未取消的訂單
+  const active = orders.filter(o => o.status !== 'cancelled' && o.date);
 
-active.forEach(o => {
-const receiveDate = o.date;
-const isPickup = o.delivery === ‘面交’;
+  active.forEach(o => {
+    const receiveDate = o.date;
+    const isPickup = o.delivery === '面交';
 
-```
-if(isPickup){
-  // 面交：當天面交，前一天晚上製作
-  if(!meetMap[receiveDate]) meetMap[receiveDate] = [];
-  meetMap[receiveDate].push({
-    id: o.id,
-    name: o.name,
-    address: o.address || '凱旋國小',
-    note: o.note || '',
-    status: o.status,
-    orig:   o.orig   || 0,
-    matcha: o.matcha || 0,
-    cocoa:  o.cocoa  || 0,
+    if(isPickup){
+      // 面交：當天面交，前一天晚上製作
+      if(!meetMap[receiveDate]) meetMap[receiveDate] = [];
+      meetMap[receiveDate].push({
+        id: o.id,
+        name: o.name,
+        address: o.address || '凱旋國小',
+        note: o.note || '',
+        status: o.status,
+        orig:   o.orig   || 0,
+        matcha: o.matcha || 0,
+        cocoa:  o.cocoa  || 0,
+      });
+      // 製作日 = 面交日前一天
+      const makeDate = addDays(receiveDate, -1);
+      if(makeDate){
+        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
+        makeMap[makeDate].orig   += o.orig   || 0;
+        makeMap[makeDate].matcha += o.matcha || 0;
+        makeMap[makeDate].cocoa  += o.cocoa  || 0;
+      }
+    } else {
+      // 宅配：出貨日 = receiveDate-1，製作日 = receiveDate-2
+      const shipDate = addDays(receiveDate, -1);
+      const makeDate = addDays(receiveDate, -2);
+
+      if(shipDate){
+        if(!shipMap[shipDate]) shipMap[shipDate] = [];
+        shipMap[shipDate].push({
+          id: o.id,
+          name: o.name,
+          address: o.address || '',
+          note: o.note || '',
+          orig:   o.orig   || 0,
+          matcha: o.matcha || 0,
+          cocoa:  o.cocoa  || 0,
+          status: o.status,
+          packed: o.packed || false,
+          receiveDate,
+        });
+      }
+      if(makeDate){
+        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
+        makeMap[makeDate].orig   += o.orig   || 0;
+        makeMap[makeDate].matcha += o.matcha || 0;
+        makeMap[makeDate].cocoa  += o.cocoa  || 0;
+      }
+    }
   });
-  // 製作日 = 面交日前一天
-  const makeDate = addDays(receiveDate, -1);
-  if(makeDate){
-    if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
-    makeMap[makeDate].orig   += o.orig   || 0;
-    makeMap[makeDate].matcha += o.matcha || 0;
-    makeMap[makeDate].cocoa  += o.cocoa  || 0;
+
+  // 合併所有日期
+  const today = new Date().toISOString().slice(0,10);
+  const allDates = [...new Set([
+    ...Object.keys(makeMap),
+    ...Object.keys(shipMap),
+    ...Object.keys(meetMap),
+  ])].sort((a,b) => {
+    const aPast = a < today, bPast = b < today;
+    if(aPast !== bPast) return aPast ? 1 : -1; // 過去的排後面
+    return a.localeCompare(b);
+  });
+
+  if(!allDates.length){
+    document.getElementById('sch-content').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-soft)">目前沒有訂單</div>';
+    return;
   }
-} else {
-  // 宅配：出貨日 = receiveDate-1，製作日 = receiveDate-2
-  const shipDate = addDays(receiveDate, -1);
-  const makeDate = addDays(receiveDate, -2);
 
-  if(shipDate){
-    if(!shipMap[shipDate]) shipMap[shipDate] = [];
-    shipMap[shipDate].push({
-      id: o.id,
-      name: o.name,
-      address: o.address || '',
-      note: o.note || '',
-      orig:   o.orig   || 0,
-      matcha: o.matcha || 0,
-      cocoa:  o.cocoa  || 0,
-      status: o.status,
-      packed: o.packed || false,
-      receiveDate,
-    });
-  }
-  if(makeDate){
-    if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
-    makeMap[makeDate].orig   += o.orig   || 0;
-    makeMap[makeDate].matcha += o.matcha || 0;
-    makeMap[makeDate].cocoa  += o.cocoa  || 0;
-  }
-}
-```
+  document.getElementById('sch-content').innerHTML = allDates.map(date => {
+    const make = makeMap[date];
+    const ships = shipMap[date] || [];
+    const meets = meetMap[date] || [];
 
-});
+    const tags = [];
+    if(make) tags.push('<span class="stag stag-make">🔥製作</span>');
+    if(ships.length) tags.push('<span class="stag stag-ship">📦出貨</span>');
+    if(meets.length) tags.push('<span class="stag stag-meet">🤝面交</span>');
 
-// 合併所有日期
-const today = new Date().toISOString().slice(0,10);
-const allDates = […new Set([
-…Object.keys(makeMap),
-…Object.keys(shipMap),
-…Object.keys(meetMap),
-])].sort((a,b) => {
-const aPast = a < today, bPast = b < today;
-if(aPast !== bPast) return aPast ? 1 : -1; // 過去的排後面
-return a.localeCompare(b);
-});
+    // 判斷這天的標籤說明
+    const labels = [];
+    if(make) labels.push(`製作（供明天出貨）`);
+    if(ships.length) labels.push(`出貨 ${ships.length} 筆`);
+    if(meets.length) labels.push(`面交 ${meets.length} 筆`);
+    const label = labels.join('・');
 
-if(!allDates.length){
-document.getElementById(‘sch-content’).innerHTML = ‘<div style="padding:40px;text-align:center;color:var(--ink-soft)">目前沒有訂單</div>’;
-return;
-}
+    // 生產區 - 對應訂單明細（含 checkbox）
+    const makeOrderRows = make ? active
+      .filter(o => {
+        if(o.delivery === '面交') return addDays(o.date, -1) === date;
+        return addDays(o.date, -2) === date;
+      })
+      .map(o => {
+        const items = [];
+        if(o.orig)   items.push(`原×${o.orig}`);
+        if(o.matcha) items.push(`抹×${o.matcha}`);
+        if(o.cocoa)  items.push(`可×${o.cocoa}`);
+        const done = o.made === true;
+        return `<li style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;cursor:pointer;${done?'opacity:.45;text-decoration:line-through':''}" onclick="toggleMade('${o.id}',${done})">
+          <span style="font-size:16px;flex-shrink:0">${done ? '✅' : '⬜'}</span>
+          <span style="font-weight:500;flex:1">${o.name}</span>
+          <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${items.join(' ')}</span>
+        </li>`;
+      }).join('') : '';
 
-document.getElementById(‘sch-content’).innerHTML = allDates.map(date => {
-const make = makeMap[date];
-const ships = shipMap[date] || [];
-const meets = meetMap[date] || [];
+    const doneCount = make ? active.filter(o => {
+      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
+      return mDate === date && o.made;
+    }).length : 0;
+    const totalCount = make ? active.filter(o => {
+      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
+      return mDate === date;
+    }).length : 0;
 
-```
-const tags = [];
-if(make) tags.push('<span class="stag stag-make">🔥製作</span>');
-if(ships.length) tags.push('<span class="stag stag-ship">📦出貨</span>');
-if(meets.length) tags.push('<span class="stag stag-meet">🤝面交</span>');
+    const prodHtml = make ? `<div>
+      <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
+      ${(()=>{
+        const ov=prodOverrides[date]||{};
+        const mo=ov.orig   !=null?ov.orig   :(maxPerDay.orig??3);
+        const mm=ov.matcha !=null?ov.matcha :(maxPerDay.matcha??3);
+        const mc=ov.cocoa  !=null?ov.cocoa  :(maxPerDay.cocoa??3);
+        const mt=ov.total  !=null?ov.total  :(maxPerDay.total??9);
+        const t=make.orig+make.matcha+make.cocoa;
+        const tOver=t>mt;
+        const origOver=make.orig>mo, matchaOver=make.matcha>mm, cocoaOver=make.cocoa>mc;
+        return `
+          <div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${tOver?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${tOver?'var(--red)':'var(--ink-soft)'}">
+            合計 <strong>${t}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}
+          </div>
+          ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mo*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%;${origOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${origOver?'color:var(--red);font-weight:600':''}">${make.orig}／${mo}盒${origOver?` ⚠️+${make.orig-mo}`:''}</span></div>`;})():''}
+          ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mm*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%;${matchaOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${matchaOver?'color:var(--red);font-weight:600':''}">${make.matcha}／${mm}盒${matchaOver?` ⚠️+${make.matcha-mm}`:''}</span></div>`;})():''}
+          ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mc*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%;${cocoaOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${cocoaOver?'color:var(--red);font-weight:600':''}">${make.cocoa}／${mc}盒${cocoaOver?` ⚠️+${make.cocoa-mc}`:''}</span></div>`;})():''}
+        `;
+      })()}
+      ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
+        <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">點擊打勾確認製作完成</li>
+        ${makeOrderRows}
+      </ul>` : ''}
+    </div>` : `<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">今天不需製作</div></div>`;
 
-// 判斷這天的標籤說明
-const labels = [];
-if(make) labels.push(`製作（供明天出貨）`);
-if(ships.length) labels.push(`出貨 ${ships.length} 筆`);
-if(meets.length) labels.push(`面交 ${meets.length} 筆`);
-const label = labels.join('・');
+    // 面交區
+    const mHtml = meets.length
+      ? `<ul class="sch-list">${meets.map(m=>`<li>
+          <span class="pill pill-meet">面交</span>
+          <div>
+            <div style="font-weight:500">${m.name} ${m.status==='shipped'?'✅':''}</div>
+            <div style="font-size:10px;color:var(--caramel)">${[m.orig?`原×${m.orig}`:'',m.matcha?`抹×${m.matcha}`:'',m.cocoa?`可×${m.cocoa}`:''].filter(Boolean).join(' ')}</div>
+            <div style="font-size:10px;color:var(--ink-soft)">${m.address}${m.note?' ・'+m.note:''}</div>
+          </div>
+        </li>`).join('')}</ul>`
+      : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
 
-// 生產區 - 對應訂單明細（含 checkbox）
-const makeOrderRows = make ? active
-  .filter(o => {
-    if(o.delivery === '面交') return addDays(o.date, -1) === date;
-    return addDays(o.date, -2) === date;
-  })
-  .map(o => {
-    const items = [];
-    if(o.orig)   items.push(`原×${o.orig}`);
-    if(o.matcha) items.push(`抹×${o.matcha}`);
-    if(o.cocoa)  items.push(`可×${o.cocoa}`);
-    const done = o.made === true;
-    return `<li style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;cursor:pointer;${done?'opacity:.45;text-decoration:line-through':''}" onclick="toggleMade('${o.id}',${done})">
-      <span style="font-size:16px;flex-shrink:0">${done ? '✅' : '⬜'}</span>
-      <span style="font-weight:500;flex:1">${o.name}</span>
-      <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${items.join(' ')}</span>
-    </li>`;
-  }).join('') : '';
-
-const doneCount = make ? active.filter(o => {
-  const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
-  return mDate === date && o.made;
-}).length : 0;
-const totalCount = make ? active.filter(o => {
-  const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
-  return mDate === date;
-}).length : 0;
-
-const prodHtml = make ? `<div>
-  <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
-  ${(()=>{
-    const ov=prodOverrides[date]||{};
-    const mo=ov.orig   !=null?ov.orig   :(maxPerDay.orig??3);
-    const mm=ov.matcha !=null?ov.matcha :(maxPerDay.matcha??3);
-    const mc=ov.cocoa  !=null?ov.cocoa  :(maxPerDay.cocoa??3);
-    const mt=ov.total  !=null?ov.total  :(maxPerDay.total??9);
-    const t=make.orig+make.matcha+make.cocoa;
-    const tOver=t>mt;
-    const origOver=make.orig>mo, matchaOver=make.matcha>mm, cocoaOver=make.cocoa>mc;
-    return `
-      <div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${tOver?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${tOver?'var(--red)':'var(--ink-soft)'}">
-        合計 <strong>${t}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}
-      </div>
-      ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mo*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%;${origOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${origOver?'color:var(--red);font-weight:600':''}">${make.orig}／${mo}盒${origOver?` ⚠️+${make.orig-mo}`:''}</span></div>`;})():''}
-      ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mm*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%;${matchaOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${matchaOver?'color:var(--red);font-weight:600':''}">${make.matcha}／${mm}盒${matchaOver?` ⚠️+${make.matcha-mm}`:''}</span></div>`;})():''}
-      ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mc*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%;${cocoaOver?'background:var(--red)':''}"></div></div><span class="prod-num" style="${cocoaOver?'color:var(--red);font-weight:600':''}">${make.cocoa}／${mc}盒${cocoaOver?` ⚠️+${make.cocoa-mc}`:''}</span></div>`;})():''}
-    `;
-  })()}
-  ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
-    <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">點擊打勾確認製作完成</li>
-    ${makeOrderRows}
-  </ul>` : ''}
-</div>` : `<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">今天不需製作</div></div>`;
-
-// 面交區
-const mHtml = meets.length
-  ? `<ul class="sch-list">${meets.map(m=>`<li>
-      <span class="pill pill-meet">面交</span>
-      <div>
-        <div style="font-weight:500">${m.name} ${m.status==='shipped'?'✅':''}</div>
-        <div style="font-size:10px;color:var(--caramel)">${[m.orig?`原×${m.orig}`:'',m.matcha?`抹×${m.matcha}`:'',m.cocoa?`可×${m.cocoa}`:''].filter(Boolean).join(' ')}</div>
-        <div style="font-size:10px;color:var(--ink-soft)">${m.address}${m.note?' ・'+m.note:''}</div>
-      </div>
-    </li>`).join('')}</ul>`
-  : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
-
-// 出貨區（含打包 checkbox）
-const shipDoneCount = ships.filter(s => s.packed).length;
-const sundayWarn = ships.length && new Date(date).getDay() === 0
-  ? `<div style="font-size:11px;color:var(--red);background:rgba(180,60,60,.08);padding:6px 10px;border-radius:3px;margin-bottom:8px">⚠️ 今天是週日，黑貓不收件！請改前一天（週六）出貨。</div>`
-  : '';
-const sHtml = ships.length
-  ? `<div style="margin-bottom:6px;font-size:10px;color:${shipDoneCount===ships.length?'var(--matcha)':'var(--ink-soft)'};letter-spacing:.5px">
-      點擊確認打包完成・${shipDoneCount}／${ships.length} 已打包
-    </div>
-    <ul class="sch-list">${ships.map(s=>`<li style="cursor:pointer;${s.packed?'opacity:.45;text-decoration:line-through':''}" onclick="togglePacked('${s.id}',${!!s.packed})">
-      <span style="font-size:16px;flex-shrink:0">${s.packed?'✅':'⬜'}</span>
-      <div style="flex:1">
-        <div style="font-weight:500">${s.name}</div>
-        <div style="font-size:10px;color:var(--ink-soft)">${s.address}</div>
-        <div style="font-size:10px;color:var(--caramel)">
-          ${[s.orig?`原×${s.orig}`:'', s.matcha?`抹×${s.matcha}`:'', s.cocoa?`可×${s.cocoa}`:''].filter(Boolean).join(' ')}
-          &nbsp;→ 客戶 ${fmt(s.receiveDate)} 收到
+    // 出貨區（含打包 checkbox）
+    const shipDoneCount = ships.filter(s => s.packed).length;
+    const sundayWarn = ships.length && new Date(date).getDay() === 0
+      ? `<div style="font-size:11px;color:var(--red);background:rgba(180,60,60,.08);padding:6px 10px;border-radius:3px;margin-bottom:8px">⚠️ 今天是週日，黑貓不收件！請改前一天（週六）出貨。</div>`
+      : '';
+    const sHtml = ships.length
+      ? `<div style="margin-bottom:6px;font-size:10px;color:${shipDoneCount===ships.length?'var(--matcha)':'var(--ink-soft)'};letter-spacing:.5px">
+          點擊確認打包完成・${shipDoneCount}／${ships.length} 已打包
         </div>
-        ${s.note?`<div style="font-size:10px;color:var(--ink-soft)">備註：${s.note}</div>`:''}
+        <ul class="sch-list">${ships.map(s=>`<li style="cursor:pointer;${s.packed?'opacity:.45;text-decoration:line-through':''}" onclick="togglePacked('${s.id}',${!!s.packed})">
+          <span style="font-size:16px;flex-shrink:0">${s.packed?'✅':'⬜'}</span>
+          <div style="flex:1">
+            <div style="font-weight:500">${s.name}</div>
+            <div style="font-size:10px;color:var(--ink-soft)">${s.address}</div>
+            <div style="font-size:10px;color:var(--caramel)">
+              ${[s.orig?`原×${s.orig}`:'', s.matcha?`抹×${s.matcha}`:'', s.cocoa?`可×${s.cocoa}`:''].filter(Boolean).join(' ')}
+              &nbsp;→ 客戶 ${fmt(s.receiveDate)} 收到
+            </div>
+            ${s.note?`<div style="font-size:10px;color:var(--ink-soft)">備註：${s.note}</div>`:''}
+          </div>
+        </li>`).join('')}</ul>`
+      : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
+
+    const isPast = date < today;
+    return `<div class="sch-day" ${isPast?'style="opacity:.5"':''}>
+      <div class="sch-hdr" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'grid':'none'">
+        <div class="sch-title">${fmt(date)}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">${isPast?'<span style="color:var(--ink-soft)">已完成</span> · ':''} ${label}</div>
+        <div style="display:flex;gap:6px">${tags.join('')}</div>
       </div>
-    </li>`).join('')}</ul>`
-  : `<div style="font-size:12px;color:var(--ink-soft)">—</div>`;
-
-const isPast = date < today;
-return `<div class="sch-day" ${isPast?'style="opacity:.5"':''}>
-  <div class="sch-hdr" onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'grid':'none'">
-    <div class="sch-title">${fmt(date)}</div>
-    <div style="font-size:12px;color:var(--ink-soft)">${isPast?'<span style="color:var(--ink-soft)">已完成</span> · ':''} ${label}</div>
-    <div style="display:flex;gap:6px">${tags.join('')}</div>
-  </div>
-  <div class="sch-body">
-    ${prodHtml}
-    <div>
-      <h4>面交安排</h4>${mHtml}
-      <h4 style="margin-top:12px">宅配出貨</h4>${sundayWarn}${sHtml}
-    </div>
-  </div>
-</div>`;
-```
-
-}).join(’’);
+      <div class="sch-body">
+        ${prodHtml}
+        <div>
+          <h4>面交安排</h4>${mHtml}
+          <h4 style="margin-top:12px">宅配出貨</h4>${sundayWarn}${sHtml}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function showToast(msg){
-const t=document.getElementById(‘toast’);
-t.textContent=msg;void t.offsetWidth;t.classList.add(‘show’);
-setTimeout(()=>t.classList.remove(‘show’),2600);
+  const t=document.getElementById('toast');
+  t.textContent=msg;void t.offsetWidth;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
 }
 </script>
-
 </body>
 </html>
