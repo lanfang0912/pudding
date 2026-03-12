@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -21,107 +22,107 @@
   --accent: #c4832a;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+- { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: 'Noto Serif TC', serif;
-  overflow-x: hidden;
+background: var(–paper);
+color: var(–ink);
+font-family: ‘Noto Serif TC’, serif;
+overflow-x: hidden;
 }
 
 /* ── GRAIN TEXTURE ── */
 body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
+content: ‘’;
+position: fixed; inset: 0;
+background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘300’ height=‘300’%3E%3Cfilter id=‘n’%3E%3CfeTurbulence type=‘fractalNoise’ baseFrequency=‘0.75’ numOctaves=‘4’ stitchTiles=‘stitch’/%3E%3C/filter%3E%3Crect width=‘300’ height=‘300’ filter=‘url(%23n)’ opacity=‘0.03’/%3E%3C/svg%3E”);
+pointer-events: none;
+z-index: 0;
 }
 
 /* ── HERO ── */
 .hero {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 60px 24px;
-  position: relative;
-  z-index: 1;
-  border-bottom: 1px solid var(--rule);
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+text-align: center;
+padding: 60px 24px;
+position: relative;
+z-index: 1;
+border-bottom: 1px solid var(–rule);
 }
 
 .hero-eyebrow {
-  font-family: 'Lora', serif;
-  font-style: italic;
-  font-size: 13px;
-  letter-spacing: 3px;
-  color: var(--caramel);
-  margin-bottom: 28px;
-  opacity: 0;
-  animation: fadeUp 0.8s 0.2s forwards;
+font-family: ‘Lora’, serif;
+font-style: italic;
+font-size: 13px;
+letter-spacing: 3px;
+color: var(–caramel);
+margin-bottom: 28px;
+opacity: 0;
+animation: fadeUp 0.8s 0.2s forwards;
 }
 
 .hero-brand {
-  font-family: 'DM Serif Display', serif;
-  font-size: clamp(52px, 12vw, 110px);
-  font-weight: 400;
-  line-height: 0.9;
-  color: var(--ink);
-  margin-bottom: 20px;
-  letter-spacing: -2px;
-  opacity: 0;
-  animation: fadeUp 0.9s 0.35s forwards;
+font-family: ‘DM Serif Display’, serif;
+font-size: clamp(52px, 12vw, 110px);
+font-weight: 400;
+line-height: 0.9;
+color: var(–ink);
+margin-bottom: 20px;
+letter-spacing: -2px;
+opacity: 0;
+animation: fadeUp 0.9s 0.35s forwards;
 }
 
-.hero-brand span { font-style: italic; color: var(--caramel); }
+.hero-brand span { font-style: italic; color: var(–caramel); }
 
 .hero-rule {
-  width: 60px;
-  height: 1px;
-  background: var(--caramel);
-  margin: 28px auto;
-  opacity: 0;
-  animation: fadeUp 0.8s 0.5s forwards;
+width: 60px;
+height: 1px;
+background: var(–caramel);
+margin: 28px auto;
+opacity: 0;
+animation: fadeUp 0.8s 0.5s forwards;
 }
 
 .hero-quote {
-  font-family: 'Lora', serif;
-  font-style: italic;
-  font-size: clamp(16px, 3vw, 22px);
-  line-height: 1.7;
-  color: var(--ink-mid);
-  max-width: 560px;
-  opacity: 0;
-  animation: fadeUp 0.8s 0.65s forwards;
+font-family: ‘Lora’, serif;
+font-style: italic;
+font-size: clamp(16px, 3vw, 22px);
+line-height: 1.7;
+color: var(–ink-mid);
+max-width: 560px;
+opacity: 0;
+animation: fadeUp 0.8s 0.65s forwards;
 }
 
 .hero-scroll {
-  position: absolute;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  opacity: 0;
-  animation: fadeUp 0.8s 1.2s forwards;
+position: absolute;
+bottom: 32px;
+left: 50%;
+transform: translateX(-50%);
+font-size: 11px;
+letter-spacing: 3px;
+color: var(–ink-soft);
+text-transform: uppercase;
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 8px;
+opacity: 0;
+animation: fadeUp 0.8s 1.2s forwards;
 }
 
 .scroll-arrow {
-  width: 1px;
-  height: 40px;
-  background: linear-gradient(to bottom, var(--caramel), transparent);
-  animation: arrowPulse 2s infinite;
+width: 1px;
+height: 40px;
+background: linear-gradient(to bottom, var(–caramel), transparent);
+animation: arrowPulse 2s infinite;
 }
 
 @keyframes arrowPulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
@@ -129,417 +130,417 @@ body::before {
 
 /* ── STORY SECTION ── */
 .story {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 90px 28px;
-  position: relative;
-  z-index: 1;
-  border-bottom: 1px solid var(--rule);
+max-width: 680px;
+margin: 0 auto;
+padding: 90px 28px;
+position: relative;
+z-index: 1;
+border-bottom: 1px solid var(–rule);
 }
 
 .story-kicker {
-  font-size: 11px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--caramel);
-  margin-bottom: 48px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
+font-size: 11px;
+letter-spacing: 4px;
+text-transform: uppercase;
+color: var(–caramel);
+margin-bottom: 48px;
+display: flex;
+align-items: center;
+gap: 14px;
 }
 
 .story-kicker::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--rule);
+content: ‘’;
+flex: 1;
+height: 1px;
+background: var(–rule);
 }
 
 .story-block {
-  margin-bottom: 44px;
+margin-bottom: 44px;
 }
 
 .story-block-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 13px;
-  font-style: italic;
-  letter-spacing: 1px;
-  color: var(--caramel);
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 13px;
+font-style: italic;
+letter-spacing: 1px;
+color: var(–caramel);
+margin-bottom: 16px;
+display: flex;
+align-items: center;
+gap: 10px;
 }
 
 .story-block-title::before {
-  content: '▌';
-  font-style: normal;
-  font-size: 10px;
+content: ‘▌’;
+font-style: normal;
+font-size: 10px;
 }
 
 .story-p {
-  font-size: 15px;
-  line-height: 2.2;
-  color: var(--ink-mid);
-  font-weight: 300;
+font-size: 15px;
+line-height: 2.2;
+color: var(–ink-mid);
+font-weight: 300;
 }
 
 .story-p + .story-p { margin-top: 16px; }
 
 .story-p strong {
-  font-weight: 500;
-  color: var(--ink);
+font-weight: 500;
+color: var(–ink);
 }
 
 .story-pullquote {
-  margin: 48px -24px;
-  padding: 32px 40px;
-  border-left: 3px solid var(--caramel);
-  background: var(--paper-warm);
-  font-family: 'Lora', serif;
-  font-style: italic;
-  font-size: clamp(18px, 3vw, 24px);
-  line-height: 1.7;
-  color: var(--ink);
+margin: 48px -24px;
+padding: 32px 40px;
+border-left: 3px solid var(–caramel);
+background: var(–paper-warm);
+font-family: ‘Lora’, serif;
+font-style: italic;
+font-size: clamp(18px, 3vw, 24px);
+line-height: 1.7;
+color: var(–ink);
 }
 
 .story-progress {
-  background: var(--paper-dark);
-  border-radius: 4px;
-  padding: 28px 32px;
-  margin-top: 40px;
+background: var(–paper-dark);
+border-radius: 4px;
+padding: 28px 32px;
+margin-top: 40px;
 }
 
 .progress-label {
-  font-size: 12px;
-  letter-spacing: 3px;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  margin-bottom: 8px;
+font-size: 12px;
+letter-spacing: 3px;
+color: var(–ink-soft);
+text-transform: uppercase;
+margin-bottom: 8px;
 }
 
 .progress-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 18px;
-  margin-bottom: 20px;
-  color: var(--ink);
+font-family: ‘DM Serif Display’, serif;
+font-size: 18px;
+margin-bottom: 20px;
+color: var(–ink);
 }
 
 .progress-bar-wrap {
-  background: var(--paper);
-  border-radius: 2px;
-  height: 6px;
-  overflow: hidden;
-  margin-bottom: 10px;
+background: var(–paper);
+border-radius: 2px;
+height: 6px;
+overflow: hidden;
+margin-bottom: 10px;
 }
 
 .progress-bar {
-  height: 100%;
-  background: linear-gradient(to right, var(--caramel), #e8a84c);
-  border-radius: 2px;
-  width: 0%;
-  transition: width 1.5s ease;
+height: 100%;
+background: linear-gradient(to right, var(–caramel), #e8a84c);
+border-radius: 2px;
+width: 0%;
+transition: width 1.5s ease;
 }
 
 .progress-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--ink-soft);
+display: flex;
+justify-content: space-between;
+font-size: 12px;
+color: var(–ink-soft);
 }
 
-.progress-meta strong { color: var(--caramel); font-size: 14px; }
+.progress-meta strong { color: var(–caramel); font-size: 14px; }
 
 /* ── ORDER SECTION ── */
 .order-section {
-  background: var(--paper-warm);
-  border-top: 1px solid var(--rule);
-  position: relative;
-  z-index: 1;
+background: var(–paper-warm);
+border-top: 1px solid var(–rule);
+position: relative;
+z-index: 1;
 }
 
 .order-header {
-  text-align: center;
-  padding: 72px 24px 48px;
-  border-bottom: 1px solid var(--rule);
+text-align: center;
+padding: 72px 24px 48px;
+border-bottom: 1px solid var(–rule);
 }
 
 .order-header-label {
-  font-size: 11px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--caramel);
-  margin-bottom: 16px;
+font-size: 11px;
+letter-spacing: 4px;
+text-transform: uppercase;
+color: var(–caramel);
+margin-bottom: 16px;
 }
 
 .order-header-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: clamp(30px, 6vw, 52px);
-  color: var(--ink);
-  line-height: 1.1;
-  margin-bottom: 12px;
+font-family: ‘DM Serif Display’, serif;
+font-size: clamp(30px, 6vw, 52px);
+color: var(–ink);
+line-height: 1.1;
+margin-bottom: 12px;
 }
 
-.order-header-title em { font-style: italic; color: var(--caramel); }
+.order-header-title em { font-style: italic; color: var(–caramel); }
 
 .order-header-sub {
-  font-size: 13px;
-  color: var(--ink-soft);
-  line-height: 1.8;
+font-size: 13px;
+color: var(–ink-soft);
+line-height: 1.8;
 }
 
 /* ── STEPS NAV ── */
 .steps-nav {
-  display: flex;
-  border-bottom: 1px solid var(--rule);
-  overflow-x: auto;
-  position: sticky;
-  top: 0;
-  background: var(--paper-warm);
-  z-index: 100;
+display: flex;
+border-bottom: 1px solid var(–rule);
+overflow-x: auto;
+position: sticky;
+top: 0;
+background: var(–paper-warm);
+z-index: 100;
 }
 
 .step-tab {
-  flex: 1;
-  min-width: 80px;
-  padding: 16px 8px;
-  text-align: center;
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--ink-soft);
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s;
-  white-space: nowrap;
-  text-transform: uppercase;
+flex: 1;
+min-width: 80px;
+padding: 16px 8px;
+text-align: center;
+font-size: 11px;
+letter-spacing: 2px;
+color: var(–ink-soft);
+border-bottom: 2px solid transparent;
+transition: all 0.3s;
+white-space: nowrap;
+text-transform: uppercase;
 }
 
-.step-tab.active { color: var(--caramel); border-bottom-color: var(--caramel); }
-.step-tab.done { color: var(--ink-mid); }
+.step-tab.active { color: var(–caramel); border-bottom-color: var(–caramel); }
+.step-tab.done { color: var(–ink-mid); }
 
 /* ── INNER CONTAINER ── */
 .order-inner {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 48px 24px 80px;
+max-width: 720px;
+margin: 0 auto;
+padding: 48px 24px 80px;
 }
 
 /* ── FLAVOR CARDS ── */
 .flavor-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 36px;
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 14px;
+margin-bottom: 36px;
 }
 
 @media(max-width:580px) { .flavor-grid { grid-template-columns: 1fr; } }
 
 .flavor-card {
-  border: 1.5px solid var(--rule);
-  border-radius: 4px;
-  padding: 28px 18px 22px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s;
-  background: var(--paper);
-  position: relative;
-  overflow: hidden;
+border: 1.5px solid var(–rule);
+border-radius: 4px;
+padding: 28px 18px 22px;
+text-align: center;
+cursor: pointer;
+transition: all 0.3s;
+background: var(–paper);
+position: relative;
+overflow: hidden;
 }
 
 .flavor-card::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 3px;
-  transform: scaleX(0);
-  transition: transform 0.3s;
+content: ‘’;
+position: absolute;
+bottom: 0; left: 0; right: 0;
+height: 3px;
+transform: scaleX(0);
+transition: transform 0.3s;
 }
 
-.flavor-card.original::after { background: var(--caramel); }
-.flavor-card.matcha::after { background: var(--matcha); }
-.flavor-card.cocoa::after { background: var(--cocoa); }
+.flavor-card.original::after { background: var(–caramel); }
+.flavor-card.matcha::after { background: var(–matcha); }
+.flavor-card.cocoa::after { background: var(–cocoa); }
 
 .flavor-card:hover:not(.soldout)::after,
 .flavor-card.selected::after { transform: scaleX(1); }
 
-.flavor-card.selected.original { border-color: var(--caramel); background: #fdf8f0; }
-.flavor-card.selected.matcha { border-color: var(--matcha); background: #f4f8f2; }
-.flavor-card.selected.cocoa { border-color: var(--cocoa); background: #f8f4f0; }
+.flavor-card.selected.original { border-color: var(–caramel); background: #fdf8f0; }
+.flavor-card.selected.matcha { border-color: var(–matcha); background: #f4f8f2; }
+.flavor-card.selected.cocoa { border-color: var(–cocoa); background: #f8f4f0; }
 
 .flavor-card.soldout { opacity: 0.38; cursor: not-allowed; }
 
 .flavor-check {
-  position: absolute;
-  top: 10px; right: 10px;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  font-size: 10px;
-  display: flex; align-items: center; justify-content: center;
-  color: white;
-  opacity: 0;
-  transition: opacity 0.3s;
+position: absolute;
+top: 10px; right: 10px;
+width: 18px; height: 18px;
+border-radius: 50%;
+font-size: 10px;
+display: flex; align-items: center; justify-content: center;
+color: white;
+opacity: 0;
+transition: opacity 0.3s;
 }
 
-.flavor-card.selected.original .flavor-check { background: var(--caramel); opacity: 1; }
-.flavor-card.selected.matcha .flavor-check { background: var(--matcha); opacity: 1; }
-.flavor-card.selected.cocoa .flavor-check { background: var(--cocoa); opacity: 1; }
+.flavor-card.selected.original .flavor-check { background: var(–caramel); opacity: 1; }
+.flavor-card.selected.matcha .flavor-check { background: var(–matcha); opacity: 1; }
+.flavor-card.selected.cocoa .flavor-check { background: var(–cocoa); opacity: 1; }
 
 .flavor-icon { font-size: 36px; display: block; margin-bottom: 10px; }
 .flavor-name-zh {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--ink);
-  margin-bottom: 4px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 22px;
+color: var(–ink);
+margin-bottom: 4px;
 }
 .flavor-name-en {
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  margin-bottom: 12px;
+font-size: 10px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–ink-soft);
+margin-bottom: 12px;
 }
 
 .flavor-price {
-  font-size: 13px;
-  color: var(--caramel);
-  font-weight: 500;
+font-size: 13px;
+color: var(–caramel);
+font-weight: 500;
 }
-.flavor-price-sub { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.flavor-price-sub { font-size: 11px; color: var(–ink-soft); margin-top: 2px; }
 
 .qty-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 14px;
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: all 0.35s;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 12px;
+margin-top: 14px;
+max-height: 0;
+overflow: hidden;
+opacity: 0;
+transition: all 0.35s;
 }
 
 .flavor-card.selected .qty-row { max-height: 50px; opacity: 1; }
 
 .qty-btn {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--rule);
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--ink-mid);
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-  line-height: 1;
+width: 26px; height: 26px;
+border-radius: 50%;
+border: 1px solid var(–rule);
+background: transparent;
+cursor: pointer;
+font-size: 14px;
+color: var(–ink-mid);
+display: flex; align-items: center; justify-content: center;
+transition: all 0.2s;
+line-height: 1;
 }
 
-.qty-btn:hover { border-color: var(--caramel); color: var(--caramel); }
+.qty-btn:hover { border-color: var(–caramel); color: var(–caramel); }
 .qty-display {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--ink);
-  min-width: 28px;
-  text-align: center;
+font-family: ‘DM Serif Display’, serif;
+font-size: 22px;
+color: var(–ink);
+min-width: 28px;
+text-align: center;
 }
 
 /* ── NOTICE ── */
 .notice {
-  background: var(--paper-dark);
-  border-left: 3px solid var(--caramel);
-  padding: 14px 18px;
-  font-size: 12px;
-  color: var(--ink-mid);
-  line-height: 1.9;
-  margin-bottom: 28px;
-  border-radius: 0 4px 4px 0;
+background: var(–paper-dark);
+border-left: 3px solid var(–caramel);
+padding: 14px 18px;
+font-size: 12px;
+color: var(–ink-mid);
+line-height: 1.9;
+margin-bottom: 28px;
+border-radius: 0 4px 4px 0;
 }
 
 /* ── CALENDAR ── */
 .cal-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 14px;
 }
 
 .cal-nav-btn {
-  width: 32px; height: 32px;
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  border-radius: 2px;
-  cursor: pointer;
-  color: var(--ink-mid);
-  font-size: 13px;
-  transition: all 0.2s;
+width: 32px; height: 32px;
+border: 1px solid var(–rule);
+background: var(–paper);
+border-radius: 2px;
+cursor: pointer;
+color: var(–ink-mid);
+font-size: 13px;
+transition: all 0.2s;
 }
 
-.cal-nav-btn:hover { border-color: var(--caramel); color: var(--caramel); }
+.cal-nav-btn:hover { border-color: var(–caramel); color: var(–caramel); }
 
 .cal-month-label {
-  font-family: 'DM Serif Display', serif;
-  font-size: 20px;
-  color: var(--ink);
+font-family: ‘DM Serif Display’, serif;
+font-size: 20px;
+color: var(–ink);
 }
 
 .cal-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
+display: grid;
+grid-template-columns: repeat(7, 1fr);
+gap: 5px;
 }
 
 .cal-dow {
-  text-align: center;
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: var(--ink-soft);
-  padding: 6px 0;
-  text-transform: uppercase;
+text-align: center;
+font-size: 10px;
+letter-spacing: 1px;
+color: var(–ink-soft);
+padding: 6px 0;
+text-transform: uppercase;
 }
 
 .cal-day {
-  aspect-ratio: 1;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.18s;
-  font-family: 'Libre Baskerville', serif;
-  font-size: 13px;
-  color: var(--ink);
-  background: var(--paper);
+aspect-ratio: 1;
+border: 1px solid transparent;
+border-radius: 2px;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+transition: all 0.18s;
+font-family: ‘Libre Baskerville’, serif;
+font-size: 13px;
+color: var(–ink);
+background: var(–paper);
 }
 
-.cal-day:hover:not(.disabled):not(.past) { border-color: var(--caramel); }
-.cal-day.selected { background: var(--caramel); color: white; border-color: var(--caramel); }
-.cal-day.today { border-color: var(--caramel-pale); }
+.cal-day:hover:not(.disabled):not(.past) { border-color: var(–caramel); }
+.cal-day.selected { background: var(–caramel); color: white; border-color: var(–caramel); }
+.cal-day.today { border-color: var(–caramel-pale); }
 .cal-day.disabled, .cal-day.past { opacity: 0.2; cursor: not-allowed; background: transparent; }
 .cal-day.empty { background: transparent; cursor: default; }
 
 .cal-dots {
-  display: flex;
-  gap: 2px;
-  margin-top: 2px;
+display: flex;
+gap: 2px;
+margin-top: 2px;
 }
 
 .cal-dot {
-  width: 3px; height: 3px;
-  border-radius: 50%;
+width: 3px; height: 3px;
+border-radius: 50%;
 }
 
-.cal-dot.original { background: var(--caramel); }
-.cal-dot.matcha { background: var(--matcha); }
-.cal-dot.cocoa { background: var(--cocoa); }
+.cal-dot.original { background: var(–caramel); }
+.cal-dot.matcha { background: var(–matcha); }
+.cal-dot.cocoa { background: var(–cocoa); }
 .cal-dot.full { background: #ccc; }
 
 .cal-legend {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-top: 14px;
-  font-size: 11px;
-  color: var(--ink-soft);
+display: flex;
+gap: 14px;
+flex-wrap: wrap;
+margin-top: 14px;
+font-size: 11px;
+color: var(–ink-soft);
 }
 
 .cal-legend-item { display: flex; align-items: center; gap: 5px; }
@@ -547,9 +548,9 @@ body::before {
 
 /* ── FORM ── */
 .form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 14px;
 }
 
 @media(max-width:580px) { .form-grid { grid-template-columns: 1fr; } }
@@ -558,249 +559,249 @@ body::before {
 .form-field.full { grid-column: 1/-1; }
 
 .form-label {
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--ink-soft);
+font-size: 10px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–ink-soft);
 }
 
-.form-label .req { color: var(--caramel); }
+.form-label .req { color: var(–caramel); }
 
 .form-input, .form-textarea {
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  padding: 11px 14px;
-  background: var(--paper);
-  font-family: 'Noto Serif TC', serif;
-  font-size: 14px;
-  color: var(--ink);
-  outline: none;
-  transition: border-color 0.2s;
-  width: 100%;
+border: 1px solid var(–rule);
+border-radius: 2px;
+padding: 11px 14px;
+background: var(–paper);
+font-family: ‘Noto Serif TC’, serif;
+font-size: 14px;
+color: var(–ink);
+outline: none;
+transition: border-color 0.2s;
+width: 100%;
 }
 
 .form-input:focus, .form-textarea:focus {
-  border-color: var(--caramel);
-  box-shadow: 0 0 0 3px rgba(196,131,42,0.08);
+border-color: var(–caramel);
+box-shadow: 0 0 0 3px rgba(196,131,42,0.08);
 }
 
 .form-textarea { resize: vertical; min-height: 80px; }
 
 /* ── SUMMARY ── */
 .summary-box {
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 24px;
+border: 1px solid var(–rule);
+border-radius: 4px;
+overflow: hidden;
+margin-bottom: 24px;
 }
 
 .summary-head {
-  background: var(--ink);
-  color: var(--paper);
-  padding: 14px 20px;
-  font-family: 'DM Serif Display', serif;
-  font-size: 16px;
-  letter-spacing: 1px;
+background: var(–ink);
+color: var(–paper);
+padding: 14px 20px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 16px;
+letter-spacing: 1px;
 }
 
 .summary-body { padding: 0 20px; }
 
 .summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--rule);
-  font-size: 13px;
-  gap: 16px;
+display: flex;
+justify-content: space-between;
+align-items: flex-start;
+padding: 12px 0;
+border-bottom: 1px solid var(–rule);
+font-size: 13px;
+gap: 16px;
 }
 
 .summary-row:last-child { border-bottom: none; }
-.summary-row-label { color: var(--ink-soft); flex-shrink: 0; }
-.summary-row-value { color: var(--ink); font-weight: 500; text-align: right; }
+.summary-row-label { color: var(–ink-soft); flex-shrink: 0; }
+.summary-row-value { color: var(–ink); font-weight: 500; text-align: right; }
 
 .summary-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: var(--paper-dark);
-  border-top: 1px solid var(--rule);
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 16px 20px;
+background: var(–paper-dark);
+border-top: 1px solid var(–rule);
 }
 
-.summary-total-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-soft); }
-.summary-total-price { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--caramel); }
+.summary-total-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(–ink-soft); }
+.summary-total-price { font-family: ‘DM Serif Display’, serif; font-size: 28px; color: var(–caramel); }
 
 /* ── PAYMENT BOX ── */
 .payment-box {
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  padding: 24px;
-  margin-bottom: 28px;
-  background: var(--paper);
+border: 1px solid var(–rule);
+border-radius: 4px;
+padding: 24px;
+margin-bottom: 28px;
+background: var(–paper);
 }
 
 .payment-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 18px;
-  margin-bottom: 16px;
-  color: var(--ink);
+font-family: ‘DM Serif Display’, serif;
+font-size: 18px;
+margin-bottom: 16px;
+color: var(–ink);
 }
 
 .payment-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 8px;
-  font-size: 13px;
+display: flex;
+gap: 12px;
+margin-bottom: 8px;
+font-size: 13px;
 }
 
-.payment-row-label { color: var(--ink-soft); width: 64px; flex-shrink: 0; }
-.payment-row-value { color: var(--ink); font-weight: 500; font-family: 'Libre Baskerville', serif; letter-spacing: 1px; }
+.payment-row-label { color: var(–ink-soft); width: 64px; flex-shrink: 0; }
+.payment-row-value { color: var(–ink); font-weight: 500; font-family: ‘Libre Baskerville’, serif; letter-spacing: 1px; }
 
 .payment-warning {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--rule);
-  font-size: 12px;
-  color: var(--ink-soft);
-  line-height: 1.9;
+margin-top: 14px;
+padding-top: 14px;
+border-top: 1px solid var(–rule);
+font-size: 12px;
+color: var(–ink-soft);
+line-height: 1.9;
 }
 
 /* ── BUTTONS ── */
 .btn-primary {
-  width: 100%;
-  padding: 17px;
-  border: none;
-  border-radius: 2px;
-  background: var(--ink);
-  color: var(--paper-warm);
-  font-family: 'Noto Serif TC', serif;
-  font-size: 14px;
-  letter-spacing: 3px;
-  cursor: pointer;
-  transition: all 0.25s;
+width: 100%;
+padding: 17px;
+border: none;
+border-radius: 2px;
+background: var(–ink);
+color: var(–paper-warm);
+font-family: ‘Noto Serif TC’, serif;
+font-size: 14px;
+letter-spacing: 3px;
+cursor: pointer;
+transition: all 0.25s;
 }
 
-.btn-primary:hover { background: var(--caramel); }
+.btn-primary:hover { background: var(–caramel); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-ghost {
-  padding: 12px 24px;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--ink-mid);
-  font-family: 'Noto Serif TC', serif;
-  font-size: 12px;
-  letter-spacing: 2px;
-  cursor: pointer;
-  transition: all 0.2s;
+padding: 12px 24px;
+border: 1px solid var(–rule);
+border-radius: 2px;
+background: transparent;
+color: var(–ink-mid);
+font-family: ‘Noto Serif TC’, serif;
+font-size: 12px;
+letter-spacing: 2px;
+cursor: pointer;
+transition: all 0.2s;
 }
 
-.btn-ghost:hover { border-color: var(--ink-mid); }
+.btn-ghost:hover { border-color: var(–ink-mid); }
 
 .btn-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
+display: flex;
+gap: 12px;
+align-items: center;
+flex-wrap: wrap;
 }
 
 .btn-row .btn-primary { flex: 1; min-width: 200px; }
 
 /* ── SECTION LABEL ── */
 .sec-label {
-  font-size: 10px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--caramel);
-  margin-bottom: 8px;
+font-size: 10px;
+letter-spacing: 4px;
+text-transform: uppercase;
+color: var(–caramel);
+margin-bottom: 8px;
 }
 
 .sec-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 26px;
-  color: var(--ink);
-  margin-bottom: 6px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 26px;
+color: var(–ink);
+margin-bottom: 6px;
 }
 
 .sec-sub {
-  font-size: 12px;
-  color: var(--ink-soft);
-  margin-bottom: 28px;
-  line-height: 1.7;
+font-size: 12px;
+color: var(–ink-soft);
+margin-bottom: 28px;
+line-height: 1.7;
 }
 
 /* ── TOAST ── */
 .toast {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%) translateY(80px);
-  background: var(--ink);
-  color: var(--paper);
-  padding: 12px 24px;
-  border-radius: 2px;
-  font-size: 12px;
-  letter-spacing: 1px;
-  transition: transform 0.4s cubic-bezier(.34,1.56,.64,1);
-  z-index: 9999;
-  white-space: nowrap;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+position: fixed;
+bottom: 28px;
+left: 50%;
+transform: translateX(-50%) translateY(80px);
+background: var(–ink);
+color: var(–paper);
+padding: 12px 24px;
+border-radius: 2px;
+font-size: 12px;
+letter-spacing: 1px;
+transition: transform 0.4s cubic-bezier(.34,1.56,.64,1);
+z-index: 9999;
+white-space: nowrap;
+box-shadow: 0 8px 40px rgba(0,0,0,0.2);
 }
 
 .toast.show { transform: translateX(-50%) translateY(0); }
 .toast.error { background: #7a2020; }
-.toast.success { background: var(--matcha); }
+.toast.success { background: var(–matcha); }
 
 /* ── SUCCESS ── */
 .success-page {
-  display: none;
-  text-align: center;
-  padding: 80px 24px;
+display: none;
+text-align: center;
+padding: 80px 24px;
 }
 
 .success-glyph {
-  font-size: 56px;
-  display: block;
-  margin-bottom: 24px;
-  animation: popIn 0.5s ease;
+font-size: 56px;
+display: block;
+margin-bottom: 24px;
+animation: popIn 0.5s ease;
 }
 
 @keyframes popIn { from{transform:scale(0.5);opacity:0} to{transform:scale(1);opacity:1} }
 
 .success-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 36px;
-  color: var(--ink);
-  margin-bottom: 12px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 36px;
+color: var(–ink);
+margin-bottom: 12px;
 }
 
 .success-sub {
-  font-size: 14px;
-  color: var(--ink-soft);
-  line-height: 2.2;
-  max-width: 400px;
-  margin: 0 auto 28px;
+font-size: 14px;
+color: var(–ink-soft);
+line-height: 2.2;
+max-width: 400px;
+margin: 0 auto 28px;
 }
 
 .success-order {
-  display: inline-block;
-  padding: 10px 28px;
-  border: 1px solid var(--caramel);
-  border-radius: 2px;
-  font-family: 'Libre Baskerville', serif;
-  font-size: 18px;
-  color: var(--caramel);
-  letter-spacing: 3px;
-  margin-bottom: 28px;
+display: inline-block;
+padding: 10px 28px;
+border: 1px solid var(–caramel);
+border-radius: 2px;
+font-family: ‘Libre Baskerville’, serif;
+font-size: 18px;
+color: var(–caramel);
+letter-spacing: 3px;
+margin-bottom: 28px;
 }
 
 /* ── DIVIDER ── */
 .divider {
-  border: none;
-  border-top: 1px solid var(--rule);
-  margin: 36px 0;
+border: none;
+border-top: 1px solid var(–rule);
+margin: 36px 0;
 }
 
 /* ── STEP PAGE ── */
@@ -809,152 +810,154 @@ body::before {
 
 /* FOOTER */
 footer {
-  border-top: 1px solid var(--rule);
-  position: relative;
-  z-index: 1;
-  background: var(--paper-warm);
+border-top: 1px solid var(–rule);
+position: relative;
+z-index: 1;
+background: var(–paper-warm);
 }
 
 .footer-inner {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 52px 28px 40px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+max-width: 720px;
+margin: 0 auto;
+padding: 52px 28px 40px;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 40px;
 }
 
 @media(max-width:560px){
-  .footer-inner { grid-template-columns: 1fr; gap: 28px; }
+.footer-inner { grid-template-columns: 1fr; gap: 28px; }
 }
 
 .footer-brand {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--ink);
-  margin-bottom: 6px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 22px;
+color: var(–ink);
+margin-bottom: 6px;
 }
 
 .footer-brand-en {
-  font-size: 10px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--caramel);
-  margin-bottom: 16px;
+font-size: 10px;
+letter-spacing: 3px;
+text-transform: uppercase;
+color: var(–caramel);
+margin-bottom: 16px;
 }
 
 .footer-tagline {
-  font-size: 12px;
-  color: var(--ink-soft);
-  line-height: 2;
+font-size: 12px;
+color: var(–ink-soft);
+line-height: 2;
 }
 
 .footer-col-title {
-  font-size: 10px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--caramel);
-  margin-bottom: 14px;
+font-size: 10px;
+letter-spacing: 3px;
+text-transform: uppercase;
+color: var(–caramel);
+margin-bottom: 14px;
 }
 
 .footer-info-row {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--ink-mid);
-  line-height: 1.6;
-  margin-bottom: 8px;
+display: flex;
+gap: 10px;
+font-size: 12px;
+color: var(–ink-mid);
+line-height: 1.6;
+margin-bottom: 8px;
 }
 
 .footer-info-label {
-  color: var(--ink-soft);
-  flex-shrink: 0;
-  width: 60px;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  padding-top: 1px;
+color: var(–ink-soft);
+flex-shrink: 0;
+width: 60px;
+font-size: 11px;
+letter-spacing: 0.5px;
+padding-top: 1px;
 }
 
 .footer-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 6px;
-  padding: 5px 10px;
-  border: 1px solid var(--rule);
-  border-radius: 2px;
-  font-size: 11px;
-  color: var(--matcha);
-  background: rgba(90,122,72,0.05);
+display: inline-flex;
+align-items: center;
+gap: 5px;
+margin-top: 6px;
+padding: 5px 10px;
+border: 1px solid var(–rule);
+border-radius: 2px;
+font-size: 11px;
+color: var(–matcha);
+background: rgba(90,122,72,0.05);
 }
 
 .footer-bottom {
-  border-top: 1px solid var(--rule);
-  text-align: center;
-  padding: 16px 24px;
-  font-size: 10px;
-  color: var(--ink-soft);
-  letter-spacing: 2px;
-  line-height: 2;
+border-top: 1px solid var(–rule);
+text-align: center;
+padding: 16px 24px;
+font-size: 10px;
+color: var(–ink-soft);
+letter-spacing: 2px;
+line-height: 2;
 }
 .delivery-opt {
-  flex: 1;
-  min-width: 160px;
-  border: 1.5px solid var(--rule);
-  border-radius: 4px;
-  padding: 16px 18px;
-  cursor: pointer;
-  transition: all 0.25s;
-  background: var(--paper);
+flex: 1;
+min-width: 160px;
+border: 1.5px solid var(–rule);
+border-radius: 4px;
+padding: 16px 18px;
+cursor: pointer;
+transition: all 0.25s;
+background: var(–paper);
 }
 
-.delivery-opt:hover { border-color: var(--caramel); }
+.delivery-opt:hover { border-color: var(–caramel); }
 
 .delivery-opt.selected {
-  border-color: var(--caramel);
-  background: #fdf8f0;
-  box-shadow: 0 2px 12px rgba(196,131,42,0.1);
+border-color: var(–caramel);
+background: #fdf8f0;
+box-shadow: 0 2px 12px rgba(196,131,42,0.1);
 }
 
 .delivery-opt-icon { font-size: 24px; margin-bottom: 6px; }
 
 .delivery-opt-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 16px;
-  color: var(--ink);
-  margin-bottom: 4px;
+font-family: ‘DM Serif Display’, serif;
+font-size: 16px;
+color: var(–ink);
+margin-bottom: 4px;
 }
 
 .delivery-opt-sub {
-  font-size: 11px;
-  color: var(--ink-soft);
-  line-height: 1.8;
+font-size: 11px;
+color: var(–ink-soft);
+line-height: 1.8;
 }
 
-.delivery-opt.selected .delivery-opt-title { color: var(--caramel); }
+.delivery-opt.selected .delivery-opt-title { color: var(–caramel); }
 
 .line-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 12px;
-  padding: 9px 16px;
-  background: #06C755;
-  border-radius: 4px;
-  color: white;
-  font-size: 12px;
-  letter-spacing: 1px;
-  text-decoration: none;
-  font-family: 'Noto Serif TC', serif;
-  transition: opacity 0.2s, transform 0.2s;
+display: inline-flex;
+align-items: center;
+gap: 7px;
+margin-top: 12px;
+padding: 9px 16px;
+background: #06C755;
+border-radius: 4px;
+color: white;
+font-size: 12px;
+letter-spacing: 1px;
+text-decoration: none;
+font-family: ‘Noto Serif TC’, serif;
+transition: opacity 0.2s, transform 0.2s;
 }
 
 .line-btn:hover { opacity: 0.88; transform: translateY(-1px); }
 </style>
+
 </head>
 <body>
 
 <!-- ── HERO ── -->
+
 <section class="hero">
   <div class="hero-eyebrow">一個高三生的還款計劃</div>
   <div class="hero-img-wrap" style="margin:24px auto 32px;opacity:0;animation:fadeUp 0.9s 0.4s forwards;">
@@ -970,6 +973,7 @@ footer {
 </section>
 
 <!-- ── STORY ── -->
+
 <article class="story">
   <div class="story-kicker">品牌故事</div>
 
@@ -1013,6 +1017,7 @@ footer {
   </div>
 
   <!-- Progress -->
+
   <div class="story-progress">
     <div class="progress-label">電腦基金進度</div>
     <div class="progress-title">🖥️ 目標：ASUS TUF Gaming &nbsp;<span style="font-size:13px;color:var(--ink-soft);font-family:'Noto Serif TC',serif;font-weight:300;">（成本約五成，需 422 盒淨利）</span></div>
@@ -1027,6 +1032,7 @@ footer {
 </article>
 
 <!-- ── ORDER ── -->
+
 <section class="order-section" id="order">
   <div class="order-header">
     <div class="order-header-label">立即預訂</div>
@@ -1041,6 +1047,7 @@ footer {
   </div>
 
   <!-- Steps nav -->
+
   <div class="steps-nav">
     <div class="step-tab active" id="tab-1">① 口味</div>
     <div class="step-tab" id="tab-2">② 日期</div>
@@ -1050,183 +1057,187 @@ footer {
 
   <div class="order-inner">
 
-    <!-- PAGE 1 -->
-    <div class="step-page active" id="page-1">
-      <div class="sec-label">Step 01</div>
-      <div class="sec-title">選擇口味</div>
-      <div class="sec-sub">可複選多種口味，選取後調整數量</div>
+```
+<!-- PAGE 1 -->
+<div class="step-page active" id="page-1">
+  <div class="sec-label">Step 01</div>
+  <div class="sec-title">選擇口味</div>
+  <div class="sec-sub">可複選多種口味，選取後調整數量</div>
 
-      <div class="flavor-grid" id="flavor-grid"></div>
+  <div class="flavor-grid" id="flavor-grid"></div>
 
-      <div style="margin-bottom:20px;">
-        <div class="sec-label" style="margin-bottom:10px;">配送方式</div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <div class="delivery-opt selected" id="opt-delivery" onclick="setDelivery('delivery')">
-            <div class="delivery-opt-icon">🚚</div>
-            <div class="delivery-opt-title">宅配到府</div>
-            <div class="delivery-opt-sub">滿 3 盒免運 · 未滿 NT$160<br>週二至週六收送（週日、一不到貨）</div>
-          </div>
-          <div class="delivery-opt" id="opt-pickup" onclick="setDelivery('pickup')">
-            <div class="delivery-opt-icon">🤝</div>
-            <div class="delivery-opt-title">宜蘭面交</div>
-            <div class="delivery-opt-sub">免運費 · 不限星期<br>📍 宜蘭凱旋國小</div>
-          </div>
-        </div>
+  <div style="margin-bottom:20px;">
+    <div class="sec-label" style="margin-bottom:10px;">配送方式</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <div class="delivery-opt selected" id="opt-delivery" onclick="setDelivery('delivery')">
+        <div class="delivery-opt-icon">🚚</div>
+        <div class="delivery-opt-title">宅配到府</div>
+        <div class="delivery-opt-sub">滿 3 盒免運 · 未滿 NT$160<br>週二至週六收送（週日、一不到貨）</div>
       </div>
-
-      <button class="btn-primary" onclick="goTo(2)">下一步：選擇收貨日期 →</button>
-    </div>
-
-    <!-- PAGE 2 -->
-    <div class="step-page" id="page-2">
-      <div class="sec-label">Step 02</div>
-      <div class="sec-title">選擇收貨日期</div>
-      <div class="sec-sub" id="cal-sub">請選擇 3 天後以上的日期 · 週日不收送貨 · 已售完日期無法選取</div>
-
-      <div class="cal-nav">
-        <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
-        <div class="cal-month-label" id="cal-label"></div>
-        <button class="cal-nav-btn" onclick="nextMonth()">›</button>
-      </div>
-
-      <div class="cal-grid" id="cal-grid"></div>
-
-      <div class="cal-legend">
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--caramel)"></div>原味有貨</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--matcha)"></div>抹茶有貨</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cocoa)"></div>可可有貨</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ccc"></div>已售完</div>
-      </div>
-
-      <hr class="divider">
-
-      <div class="btn-row">
-        <button class="btn-ghost" onclick="goTo(1)">← 返回</button>
-        <button class="btn-primary" onclick="goTo(3)">下一步：填寫資料 →</button>
+      <div class="delivery-opt" id="opt-pickup" onclick="setDelivery('pickup')">
+        <div class="delivery-opt-icon">🤝</div>
+        <div class="delivery-opt-title">宜蘭面交</div>
+        <div class="delivery-opt-sub">免運費 · 不限星期<br>📍 宜蘭凱旋國小</div>
       </div>
     </div>
+  </div>
 
-    <!-- PAGE 3 -->
-    <div class="step-page" id="page-3">
-      <div class="sec-label">Step 03</div>
-      <div class="sec-title">寄件資訊</div>
-      <div class="sec-sub">請填寫正確的收件資訊，確保順利送達</div>
+  <button class="btn-primary" onclick="goTo(2)">下一步：選擇收貨日期 →</button>
+</div>
 
-      <div class="form-grid">
-        <div class="form-field">
-          <label class="form-label">收件人姓名 <span class="req">*</span></label>
-          <input class="form-input" id="f-name" type="text" placeholder="王小明">
-        </div>
-        <div class="form-field">
-          <label class="form-label">聯絡電話 <span class="req">*</span></label>
-          <input class="form-input" id="f-phone" type="tel" placeholder="0912-345-678">
-        </div>
-        <div class="form-field full">
-          <label class="form-label">收件地址 <span class="req">*</span></label>
-          <input class="form-input" id="f-address" type="text" placeholder="台北市中正區重慶南路一段122號">
-        </div>
-        <div class="form-field">
-          <label class="form-label">電子信箱 <span class="req">*</span></label>
-          <input class="form-input" id="f-email" type="email" placeholder="hello@email.com">
-        </div>
-        <div class="form-field">
-          <label class="form-label">備用電話</label>
-          <input class="form-input" id="f-phone2" type="tel" placeholder="選填">
-        </div>
-        <div class="form-field full">
-          <label class="form-label">備註 / 特殊需求</label>
-          <textarea class="form-textarea" id="f-note" placeholder="如需禮盒包裝、指定配送時段等，請在此說明..."></textarea>
-        </div>
+<!-- PAGE 2 -->
+<div class="step-page" id="page-2">
+  <div class="sec-label">Step 02</div>
+  <div class="sec-title">選擇收貨日期</div>
+  <div class="sec-sub" id="cal-sub">請選擇 3 天後以上的日期 · 週日不收送貨 · 已售完日期無法選取</div>
+
+  <div class="cal-nav">
+    <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
+    <div class="cal-month-label" id="cal-label"></div>
+    <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+  </div>
+
+  <div class="cal-grid" id="cal-grid"></div>
+
+  <div class="cal-legend">
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--caramel)"></div>原味有貨</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--matcha)"></div>抹茶有貨</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cocoa)"></div>可可有貨</div>
+    <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ccc"></div>已售完</div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="btn-row">
+    <button class="btn-ghost" onclick="goTo(1)">← 返回</button>
+    <button class="btn-primary" onclick="goTo(3)">下一步：填寫資料 →</button>
+  </div>
+</div>
+
+<!-- PAGE 3 -->
+<div class="step-page" id="page-3">
+  <div class="sec-label">Step 03</div>
+  <div class="sec-title">寄件資訊</div>
+  <div class="sec-sub">請填寫正確的收件資訊，確保順利送達</div>
+
+  <div class="form-grid">
+    <div class="form-field">
+      <label class="form-label">收件人姓名 <span class="req">*</span></label>
+      <input class="form-input" id="f-name" type="text" placeholder="王小明">
+    </div>
+    <div class="form-field">
+      <label class="form-label">聯絡電話 <span class="req">*</span></label>
+      <input class="form-input" id="f-phone" type="tel" placeholder="0912-345-678">
+    </div>
+    <div class="form-field full">
+      <label class="form-label">收件地址 <span class="req">*</span></label>
+      <input class="form-input" id="f-address" type="text" placeholder="台北市中正區重慶南路一段122號">
+    </div>
+    <div class="form-field">
+      <label class="form-label">電子信箱 <span class="req">*</span></label>
+      <input class="form-input" id="f-email" type="email" placeholder="hello@email.com">
+    </div>
+    <div class="form-field">
+      <label class="form-label">備用電話</label>
+      <input class="form-input" id="f-phone2" type="tel" placeholder="選填">
+    </div>
+    <div class="form-field full">
+      <label class="form-label">備註 / 特殊需求</label>
+      <textarea class="form-textarea" id="f-note" placeholder="如需禮盒包裝、指定配送時段等，請在此說明..."></textarea>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="btn-row">
+    <button class="btn-ghost" onclick="goTo(2)">← 返回</button>
+    <button class="btn-primary" onclick="goTo(4)">下一步：確認訂單 →</button>
+  </div>
+</div>
+
+<!-- PAGE 4 -->
+<div class="step-page" id="page-4">
+  <div class="sec-label">Step 04</div>
+  <div class="sec-title">確認訂單</div>
+  <div class="sec-sub">請核對訂單資訊後完成付款</div>
+
+  <div class="summary-box">
+    <div class="summary-head">訂單明細</div>
+    <div class="summary-body" id="summary-body"></div>
+    <div class="summary-total">
+      <span class="summary-total-label">合計</span>
+      <span class="summary-total-price" id="summary-total-price">NT$ 0</span>
+    </div>
+  </div>
+
+  <div class="payment-box">
+    <div class="payment-title">匯款帳號</div>
+    <div class="payment-row">
+      <div class="payment-row-label">銀行</div>
+      <div class="payment-row-value">永豐銀行 宜蘭分行（807）</div>
+    </div>
+    <div class="payment-row">
+      <div class="payment-row-label">帳號</div>
+      <div class="payment-row-value">120-018-0008291-3</div>
+    </div>
+    <div class="payment-row">
+      <div class="payment-row-label">戶名</div>
+      <div class="payment-row-value">悠藍自得有限公司</div>
+    </div>
+    <div class="payment-warning">
+      ⚠ 請於 <strong>24 小時內完成匯款</strong>，並將收據截圖傳送至 LINE（@281huzeg）確認。<br>
+      確認匯款後才會安排出貨 / 面交，請勿於付款前前往取貨。<br>
+      逾時未付款將自動取消訂單，名額開放給其他顧客。
+    </div>
+  </div>
+
+  <!-- 匯款通知 -->
+  <div style="margin-bottom:28px;">
+    <div class="sec-label" style="margin-bottom:8px;">匯款通知</div>
+    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;line-height:1.8;">
+      匯款完成後請填寫以下資訊，方便我們快速對帳確認 🙏
+    </p>
+    <div class="form-grid">
+      <div class="form-field">
+        <label class="form-label">匯款日期 <span class="req">*</span></label>
+        <input class="form-input" id="f-transfer-date" type="date">
       </div>
-
-      <hr class="divider">
-
-      <div class="btn-row">
-        <button class="btn-ghost" onclick="goTo(2)">← 返回</button>
-        <button class="btn-primary" onclick="goTo(4)">下一步：確認訂單 →</button>
+      <div class="form-field">
+        <label class="form-label">帳號末五碼 <span class="req">*</span></label>
+        <input class="form-input" id="f-transfer-code" type="text" maxlength="5" placeholder="例：12345" inputmode="numeric">
       </div>
     </div>
+  </div>
 
-    <!-- PAGE 4 -->
-    <div class="step-page" id="page-4">
-      <div class="sec-label">Step 04</div>
-      <div class="sec-title">確認訂單</div>
-      <div class="sec-sub">請核對訂單資訊後完成付款</div>
+  <div class="btn-row">
+    <button class="btn-ghost" onclick="goTo(3)">← 返回修改</button>
+    <button class="btn-primary" id="submit-btn" onclick="submitOrder()">✓ 確認預訂，完成下單</button>
+  </div>
+</div>
 
-      <div class="summary-box">
-        <div class="summary-head">訂單明細</div>
-        <div class="summary-body" id="summary-body"></div>
-        <div class="summary-total">
-          <span class="summary-total-label">合計</span>
-          <span class="summary-total-price" id="summary-total-price">NT$ 0</span>
-        </div>
-      </div>
-
-      <div class="payment-box">
-        <div class="payment-title">匯款帳號</div>
-        <div class="payment-row">
-          <div class="payment-row-label">銀行</div>
-          <div class="payment-row-value">永豐銀行 宜蘭分行（807）</div>
-        </div>
-        <div class="payment-row">
-          <div class="payment-row-label">帳號</div>
-          <div class="payment-row-value">120-018-0008291-3</div>
-        </div>
-        <div class="payment-row">
-          <div class="payment-row-label">戶名</div>
-          <div class="payment-row-value">悠藍自得有限公司</div>
-        </div>
-        <div class="payment-warning">
-          ⚠ 請於 <strong>24 小時內完成匯款</strong>，並將收據截圖傳送至 LINE（@281huzeg）確認。<br>
-          確認匯款後才會安排出貨 / 面交，請勿於付款前前往取貨。<br>
-          逾時未付款將自動取消訂單，名額開放給其他顧客。
-        </div>
-      </div>
-
-      <!-- 匯款通知 -->
-      <div style="margin-bottom:28px;">
-        <div class="sec-label" style="margin-bottom:8px;">匯款通知</div>
-        <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;line-height:1.8;">
-          匯款完成後請填寫以下資訊，方便我們快速對帳確認 🙏
-        </p>
-        <div class="form-grid">
-          <div class="form-field">
-            <label class="form-label">匯款日期 <span class="req">*</span></label>
-            <input class="form-input" id="f-transfer-date" type="date">
-          </div>
-          <div class="form-field">
-            <label class="form-label">帳號末五碼 <span class="req">*</span></label>
-            <input class="form-input" id="f-transfer-code" type="text" maxlength="5" placeholder="例：12345" inputmode="numeric">
-          </div>
-        </div>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn-ghost" onclick="goTo(3)">← 返回修改</button>
-        <button class="btn-primary" id="submit-btn" onclick="submitOrder()">✓ 確認預訂，完成下單</button>
-      </div>
-    </div>
-
-    <!-- SUCCESS -->
-    <div class="success-page" id="success-page">
-      <span class="success-glyph">🍮</span>
-      <div class="success-title">預訂成功</div>
-      <div class="success-order" id="order-num"></div>
-      <p class="success-sub">
-        感謝您的支持！<br>
-        請於 24 小時內完成匯款，<br>
-        並將收據截圖傳給我們確認。<br><br>
-        你的這份心意，<br>
-        是他第一台電腦的一部份。🧡
-      </p>
-      <button class="btn-ghost" onclick="resetOrder()" style="margin:0 auto">再次預訂</button>
-    </div>
+<!-- SUCCESS -->
+<div class="success-page" id="success-page">
+  <span class="success-glyph">🍮</span>
+  <div class="success-title">預訂成功</div>
+  <div class="success-order" id="order-num"></div>
+  <p class="success-sub">
+    感謝您的支持！<br>
+    請於 24 小時內完成匯款，<br>
+    並將收據截圖傳給我們確認。<br><br>
+    你的這份心意，<br>
+    是他第一台電腦的一部份。🧡
+  </p>
+  <button class="btn-ghost" onclick="resetOrder()" style="margin:0 auto">再次預訂</button>
+</div>
+```
 
   </div>
 </section>
 
 <!-- EmailJS SDK -->
+
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 <script>
   // ══════════════════════════════════════════
   // 🔑 EmailJS 設定（請填入你的代碼）
@@ -1241,6 +1252,7 @@ footer {
   // ══════════════════════════════════════════
   emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 </script>
+
 <div class="toast" id="toast"></div>
 
 <footer>
@@ -1261,6 +1273,10 @@ footer {
         <span>G-202263818-00000-5</span>
       </div>
       <div class="footer-info-row">
+        <span class="footer-info-label">統一編號</span>
+        <span>93555969</span>
+      </div>
+      <div class="footer-info-row">
         <span class="footer-info-label">產品責任</span>
         <span>已投保產品責任險</span>
       </div>
@@ -1277,7 +1293,9 @@ footer {
 </footer>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
 // ─── CONFIG ───
 const MAX = 3; // fallback
@@ -1689,5 +1707,6 @@ function toast(msg,type=''){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 </script>
+
 </body>
 </html>
