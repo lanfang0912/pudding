@@ -284,12 +284,6 @@ tr.done-row td{opacity:.45;}
       <!-- 補貨警示 -->
       <div id="ing-alerts" style="margin-bottom:20px"></div>
 
-      <!-- 需求總覽 -->
-      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:14px">📦 未出貨訂單食材需求</div>
-        <div id="ing-demand"></div>
-      </div>
-
       <!-- 食材庫存管理 -->
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -644,19 +638,24 @@ function renderInvOverrides(overrides){
 
 // 預設食材（首次使用時寫入 Firebase）
 const DEFAULT_INGREDIENTS = [
-  {id:'milk',    name:'鮮奶',      unit:'ml', stock:5000, warnDays:2},
-  {id:'egg',     name:'雞蛋',      unit:'顆', stock:30,   warnDays:1},
-  {id:'sugar',   name:'砂糖',      unit:'g',  stock:2000, warnDays:3},
-  {id:'matcha',  name:'抹茶粉',    unit:'g',  stock:500,  warnDays:3},
-  {id:'cocoa',   name:'可可粉',    unit:'g',  stock:500,  warnDays:3},
-  {id:'cream',   name:'動物鮮奶油', unit:'ml', stock:1000, warnDays:2},
+  {id:'milk',       name:'鮮奶',        unit:'g', stock:0, warnDays:2},
+  {id:'cream',      name:'動物鮮奶油',  unit:'g', stock:0, warnDays:2},
+  {id:'egg',        name:'洗選蛋',      unit:'g', stock:0, warnDays:1},
+  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g', stock:0, warnDays:1},
+  {id:'sugar',      name:'上白糖',      unit:'g', stock:0, warnDays:3},
+  {id:'matcha',     name:'抹茶粉',      unit:'g', stock:0, warnDays:3},
+  {id:'cocoa',      name:'可可粉',      unit:'g', stock:0, warnDays:3},
+  {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:3},
 ];
 
-// 預設每盒配方（原味/抹茶/可可，每盒6杯）
+// 每盒配方（6杯 = 10杯食譜 × 6/10）
+// 原味：日式昭和布丁
+// 抹茶：小山園食譜（一般抹茶粉替代）
+// 可可：摩卡可可烤布蕾
 const DEFAULT_RECIPE = {
-  original: {milk:700, egg:6, sugar:80, cream:100},
-  matcha:   {milk:700, egg:6, sugar:80, cream:100, matcha:20},
-  cocoa:    {milk:700, egg:6, sugar:80, cream:100, cocoa:25},
+  original: {milk:330, cream:105, egg:150, egg_yolk:27, sugar:60},
+  matcha:   {milk:240, cream:240, egg:30,  egg_yolk:108, sugar:48, matcha:11},
+  cocoa:    {milk:240, cream:210, egg:30,  egg_yolk:90,  sugar:54, chocolate:30, cocoa:9},
 };
 
 let ingData = {};   // {id: {name, unit, stock, warnDays}}
@@ -689,7 +688,6 @@ function loadIngredients(){
 
 function renderIngAll(){
   renderIngAlerts();
-  renderIngDemand();
   renderIngList();
   renderIngRecipe();
 }
@@ -716,143 +714,92 @@ function calcDemand(){
 
 // ── 補貨警示 ──
 function renderIngAlerts(){
-  const demand = calcDemand();
-  const alerts = [];
-  Object.entries(ingData).forEach(([id, ing]) => {
-    const needed = demand[id] || 0;
-    const stock = ing.stock || 0;
-    const shortage = needed - stock;
-    if(shortage > 0){
-      alerts.push({id, ing, shortage, needed, stock});
-    }
-  });
-
   const el = document.getElementById('ing-alerts');
-  if(!alerts.length){
-    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;display:flex;align-items:center;gap:8px;">✅ 目前庫存充足，可應付所有未出貨訂單</div>`;
+  if(!el) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const warnUntil = new Date(today); warnUntil.setDate(today.getDate()+2);
+
+  const pending = orders.filter(o => o.status!=='shipped' && o.status!=='cancelled' && o.date);
+
+  // 找出所有製作日，排序
+  const allProdDates = [...new Set(pending.map(o=>{
+    const offset = o.delivery==='面交' ? -1 : -2;
+    const d = new Date(o.date); d.setDate(d.getDate()+offset);
+    return d.toISOString().slice(0,10);
+  }))].sort();
+
+  const urgentSet = new Set(allProdDates.filter(pd => {
+    const d = new Date(pd); d.setHours(0,0,0,0);
+    return d >= today && d <= warnUntil;
+  }));
+
+  if(!urgentSet.size){
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天內沒有製作排程</div>`;
     return;
   }
+
+  // 滾動計算庫存，找出 2 天內的缺口
+  let rollingStock = {};
+  Object.keys(ingData).forEach(id => rollingStock[id] = ingData[id].stock||0);
+
+  const alerts = [];
+
+  allProdDates.forEach(pd => {
+    const boxes = {orig:0, matcha:0, cocoa:0};
+    pending.forEach(o => {
+      const offset = o.delivery==='面交' ? -1 : -2;
+      const d = new Date(o.date); d.setDate(d.getDate()+offset);
+      if(d.toISOString().slice(0,10)===pd){
+        boxes.orig   += o.orig   || 0;
+        boxes.matcha += o.matcha || 0;
+        boxes.cocoa  += o.cocoa  || 0;
+      }
+    });
+    const dayDemand = {};
+    Object.keys(ingData).forEach(id => dayDemand[id]=0);
+    [['original',boxes.orig],['matcha',boxes.matcha],['cocoa',boxes.cocoa]].forEach(([f,q])=>{
+      if(!q) return;
+      Object.entries(recipeData[f]||{}).forEach(([id,amt])=>{ dayDemand[id]=(dayDemand[id]||0)+amt*q; });
+    });
+    if(urgentSet.has(pd)){
+      const shortages = Object.entries(dayDemand)
+        .filter(([id,needed])=>needed>0 && (rollingStock[id]||0)<needed)
+        .map(([id,needed])=>({
+          name:(ingData[id]||{name:id}).name,
+          short:+(needed-(rollingStock[id]||0)).toFixed(0),
+          unit:(ingData[id]||{unit:''}).unit,
+        }));
+      const d = new Date(pd);
+      const wd=['日','一','二','三','四','五','六'];
+      alerts.push({ dateLabel:`${d.getMonth()+1}/${d.getDate()}（週${wd[d.getDay()]}）`, shortages, totalBoxes:boxes.orig+boxes.matcha+boxes.cocoa });
+    }
+    Object.keys(dayDemand).forEach(id => { rollingStock[id]=Math.max(0,(rollingStock[id]||0)-(dayDemand[id]||0)); });
+  });
+
+  const hasShortage = alerts.some(a=>a.shortages.length>0);
+  const urgentList = [...urgentSet].join('、');
+
+  if(!hasShortage){
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天食材充足（製作日：${urgentList}）</div>`;
+    return;
+  }
+
   el.innerHTML = `
     <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;">
-      <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;">⚠️ 以下食材庫存不足</div>
-      ${alerts.map(a=>`
-        <div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(224,112,112,0.15);">
-          <span style="font-weight:500">${a.ing.name}</span>
-          <span style="color:var(--red)">缺 ${a.shortage.toFixed(0)} ${a.ing.unit}（現有 ${a.stock} / 需要 ${a.needed.toFixed(0)}）</span>
+      <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來2天食材不足，請盡快補貨</div>
+      ${alerts.filter(a=>a.shortages.length>0).map(a=>`
+        <div style="margin-bottom:10px">
+          <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${a.totalBoxes}盒）</div>
+          ${a.shortages.map(s=>`
+            <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 10px;background:rgba(224,112,112,0.08);border-radius:4px;margin-bottom:2px">
+              <span>${s.name}</span>
+              <span style="color:var(--red);font-weight:600">缺 ${s.short} ${s.unit}</span>
+            </div>`).join('')}
         </div>`).join('')}
     </div>`;
 }
 
-// ── 每日浮動庫存 ──
-function renderIngDemand(){
-  const el = document.getElementById('ing-demand');
-
-  // 按製作日整理訂單用量
-  const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled' && o.date);
-  if(!pending.length){
-    el.innerHTML = `<div style="font-size:12px;color:var(--ink-soft)">目前沒有未出貨訂單</div>`;
-    return;
-  }
-
-  // 計算每個製作日的用量
-  const byProdDate = {}; // prodDate → {orig, matcha, cocoa}
-  pending.forEach(o => {
-    const offset = o.delivery === '面交' ? -1 : -2;
-    const d = new Date(o.date);
-    d.setDate(d.getDate() + offset);
-    const pd = d.toISOString().slice(0,10);
-    if(!byProdDate[pd]) byProdDate[pd] = {orig:0, matcha:0, cocoa:0};
-    byProdDate[pd].orig   += o.orig   || 0;
-    byProdDate[pd].matcha += o.matcha || 0;
-    byProdDate[pd].cocoa  += o.cocoa  || 0;
-  });
-
-  const prodDates = Object.keys(byProdDate).sort();
-  const ingKeys = Object.keys(ingData);
-  if(!ingKeys.length){ el.innerHTML=`<div style="font-size:12px;color:var(--ink-soft)">請先設定食材和配方</div>`; return; }
-
-  // 計算每個製作日需要的食材量（累計）
-  // 從今天開始，庫存滾動扣除
-  let rollingStock = {};
-  ingKeys.forEach(id => rollingStock[id] = ingData[id].stock || 0);
-
-  const wd = ['日','一','二','三','四','五','六'];
-
-  let html = `<div style="display:grid;gap:12px;">`;
-
-  prodDates.forEach(pd => {
-    const boxes = byProdDate[pd];
-    const totalBoxes = boxes.orig + boxes.matcha + boxes.cocoa;
-    const d = new Date(pd);
-    const dateLabel = `${d.getMonth()+1}/${d.getDate()}（週${wd[d.getDay()]}）`;
-
-    // 計算這天需要的各食材量
-    const dayDemand = {};
-    ingKeys.forEach(id => dayDemand[id] = 0);
-    ['original','matcha','cocoa'].forEach(flavor => {
-      const qty = flavor==='original'? boxes.orig : flavor==='matcha'? boxes.matcha : boxes.cocoa;
-      if(!qty) return;
-      const recipe = (recipeData[flavor] || {});
-      Object.entries(recipe).forEach(([ingId, amt]) => {
-        if(dayDemand[ingId] !== undefined) dayDemand[ingId] += amt * qty;
-      });
-    });
-
-    // 扣庫存
-    const afterStock = {};
-    let anyShortage = false;
-    ingKeys.forEach(id => {
-      afterStock[id] = rollingStock[id] - (dayDemand[id] || 0);
-      if(afterStock[id] < 0) anyShortage = true;
-    });
-
-    const relevantIngs = ingKeys.filter(id => (dayDemand[id]||0) > 0);
-
-    html += `
-      <div style="background:var(--paper);border:1px solid ${anyShortage?'#f5c0c0':'var(--rule)'};border-radius:6px;padding:14px 16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-weight:600;font-size:13px">${dateLabel} 製作</div>
-          <div style="font-size:11px;color:var(--ink-soft)">原味${boxes.orig} · 抹茶${boxes.matcha} · 可可${boxes.cocoa}（共${totalBoxes}盒）</div>
-          ${anyShortage?'<span style="font-size:11px;color:var(--red);font-weight:600">🚨 食材不足</span>':'<span style="font-size:11px;color:var(--matcha)">✅ 庫存充足</span>'}
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead>
-            <tr style="border-bottom:1px solid var(--rule)">
-              <th style="padding:4px 8px;text-align:left;color:var(--ink-soft);font-weight:500">食材</th>
-              <th style="padding:4px 6px;text-align:right;color:var(--ink-soft);font-weight:500">本日用量</th>
-              <th style="padding:4px 6px;text-align:right;color:var(--ink-soft);font-weight:500">使用前庫存</th>
-              <th style="padding:4px 6px;text-align:right;color:var(--ink-soft);font-weight:500">使用後剩餘</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${relevantIngs.map(id => {
-              const ing = ingData[id];
-              const use = dayDemand[id] || 0;
-              const before = rollingStock[id];
-              const after = afterStock[id];
-              const short = after < 0;
-              return `<tr style="border-bottom:1px solid #f0f0f0">
-                <td style="padding:4px 8px;font-weight:500">${ing.name}</td>
-                <td style="padding:4px 6px;text-align:right">${use.toFixed(0)} ${ing.unit}</td>
-                <td style="padding:4px 6px;text-align:right;color:var(--ink-soft)">${before.toFixed(0)} ${ing.unit}</td>
-                <td style="padding:4px 6px;text-align:right;font-weight:600;color:${short?'var(--red)':'var(--matcha)'}">
-                  ${short ? '缺 '+Math.abs(after).toFixed(0) : after.toFixed(0)} ${ing.unit}
-                </td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-
-    // 更新滾動庫存（這天用掉之後）
-    ingKeys.forEach(id => {
-      rollingStock[id] = Math.max(0, afterStock[id]);
-    });
-  });
-
-  html += `</div>`;
-  el.innerHTML = html;
-}
 
 // ── 食材清單 ──
 function renderIngList(){
