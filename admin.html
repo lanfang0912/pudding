@@ -1037,6 +1037,7 @@ function saveNewIngredient(){
 // ── 補貨 Modal ──
 function openRestockModal(id){
   const ing = ingData[id];
+  const isEgg = (id === 'egg'); // 洗選蛋才顯示顆數換算
   const overlay = document.createElement('div');
   overlay.id = 'restock-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;';
@@ -1046,10 +1047,23 @@ function openRestockModal(id){
       <div style="font-size:15px;font-weight:600;margin-bottom:4px">補貨：${ing.name}</div>
       <div style="font-size:11px;color:var(--ink-soft);margin-bottom:18px">現有庫存：${ing.stock||0} ${ing.unit}</div>
       <div style="display:grid;gap:10px">
+        ${isEgg ? `
+        <div>
+          <label class="form-label">買了幾顆蛋</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input class="form-ctrl" id="restock-egg-count" type="number" min="1" placeholder="0"
+              oninput="calcEggGrams()" style="flex:1">
+            <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap">顆 × 55g =</span>
+            <input class="form-ctrl" id="restock-qty" type="number" min="1" placeholder="0"
+              oninput="calcRestockUnit('${id}')" style="width:80px">
+            <span style="font-size:12px;color:var(--ink-soft)">g</span>
+          </div>
+          <div style="font-size:10px;color:var(--ink-soft);margin-top:4px">也可以直接填克數</div>
+        </div>` : `
         <div>
           <label class="form-label">補貨數量（${ing.unit}）</label>
           <input class="form-ctrl" id="restock-qty" type="number" min="1" placeholder="0" oninput="calcRestockUnit('${id}')">
-        </div>
+        </div>`}
         <div>
           <label class="form-label">本次採購金額（NT$）</label>
           <input class="form-ctrl" id="restock-total-cost" type="number" min="0" step="1" placeholder="選填" oninput="calcRestockUnit('${id}')">
@@ -1066,7 +1080,14 @@ function openRestockModal(id){
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  setTimeout(()=>document.getElementById('restock-qty').focus(), 100);
+  setTimeout(()=>document.getElementById(isEgg?'restock-egg-count':'restock-qty').focus(), 100);
+}
+
+function calcEggGrams(){
+  const count = +document.getElementById('restock-egg-count').value || 0;
+  const grams = count * 55;
+  document.getElementById('restock-qty').value = grams || '';
+  calcRestockUnit('egg');
 }
 
 function calcRestockUnit(id){
