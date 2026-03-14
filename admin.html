@@ -1077,22 +1077,29 @@ function resetRecipe(){
 }
 
 function resetIngredients(){
-  if(!confirm('確定重置食材清單？會補上缺少的食材，現有庫存數字不會被清除。')) return;
-  // 只補上不存在的食材，不覆蓋已有的
+  if(!confirm('確定重置食材清單？會補上缺少的食材，並更新現有食材的單位名稱（庫存數字不變）。')) return;
   const updates = {};
   DEFAULT_INGREDIENTS.forEach(i => {
     const {id, ...data} = i;
     if(!ingData[id]){
+      // 補上缺少的食材
       updates[id] = data;
       ingData[id] = data;
+    } else {
+      // 已有的：只更新名稱和單位，不動庫存
+      if(ingData[id].unit !== data.unit || ingData[id].name !== data.name){
+        updates[id] = {...ingData[id], name: data.name, unit: data.unit};
+        ingData[id].name = data.name;
+        ingData[id].unit = data.unit;
+      }
     }
   });
   if(!Object.keys(updates).length){
-    showToast('✅ 食材清單已是最新，無需更新');
+    showToast('✅ 食材清單已是最新');
     return;
   }
   db.ref('settings/ingredients').update(updates).then(()=>{
-    showToast(`✅ 已補上 ${Object.keys(updates).length} 項缺少的食材`);
+    showToast(`✅ 食材清單已更新`);
     renderIngAll();
   });
 }
