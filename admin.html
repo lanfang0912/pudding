@@ -508,8 +508,13 @@ const schedule=[
 ];
 
 // ── Firebase ──
-firebase.initializeApp({ databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' });
-const db = firebase.database();
+let db = null;
+try {
+  firebase.initializeApp({ databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' });
+  db = firebase.database();
+} catch(e) {
+  console.warn('Firebase init failed:', e);
+}
 
 // ── persist ──
 function save(){
