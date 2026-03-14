@@ -282,10 +282,21 @@ tr.done-row td{opacity:.45;}
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">根據未出貨訂單自動計算需求，顯示補貨提醒</div>
 
       <!-- 已完成製作至 -->
-      <div style="background:var(--paper-dark);border-radius:4px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="background:var(--paper-dark);border-radius:4px;padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="font-size:13px;font-weight:600;white-space:nowrap">📅 已完成製作至</div>
         <input class="form-ctrl" id="completed-until" type="date" style="width:160px" onchange="saveCompletedUntil()">
         <div style="font-size:11px;color:var(--ink-soft)">庫存計算只看此日期之後的訂單</div>
+      </div>
+
+      <!-- 全蛋代替蛋黃開關 -->
+      <div style="background:#FFF8EC;border:1px solid #F0D5A8;border-radius:4px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+          <div id="egg-toggle-wrap" onclick="toggleEggSub()" style="width:40px;height:22px;border-radius:11px;background:#ccc;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0">
+            <div id="egg-toggle-knob" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
+          </div>
+          <span style="font-size:13px;font-weight:600">目前用全蛋代替殺菌蛋黃</span>
+        </label>
+        <div style="font-size:11px;color:var(--ink-soft)">開啟時蛋黃用量合併到洗選蛋計算 · 買蛋黃液後再關閉</div>
       </div>
 
       <!-- 補貨警示 -->
@@ -308,8 +319,8 @@ tr.done-row td{opacity:.45;}
 
       <!-- 配方設定 -->
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px">📋 每盒配方設定</div>
-        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">每種口味一盒（6杯）需要多少食材</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">📋 配方設定（10杯用量）</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">直接輸入老師食譜的10杯用量，系統自動換算成每盒6杯</div>
         <div id="ing-recipe"></div>
         <div style="display:flex;gap:8px;margin-top:14px">
           <button class="btn-save" style="flex:1" onclick="saveRecipe()">儲存配方</button>
@@ -662,22 +673,25 @@ const DEFAULT_INGREDIENTS = [
 // 原味：日式昭和布丁
 // 抹茶：小山園食譜（一般抹茶粉替代）
 // 可可：摩卡可可烤布蕾
+// 配方存的是「10杯」用量（老師食譜原始數字），計算時自動換算成每盒6杯
 const DEFAULT_RECIPE = {
-  original: {milk:330, cream:105, egg:150, egg_yolk:27, sugar:60},
-  matcha:   {milk:240, cream:240, egg:30,  egg_yolk:108, sugar:48, matcha:11},
-  cocoa:    {milk:240, cream:210, egg:30,  egg_yolk:90,  sugar:54, chocolate:30, cocoa:9},
+  original: {milk:550, cream:175, egg:250, egg_yolk:45, sugar:100},
+  matcha:   {milk:400, cream:400, egg:50,  egg_yolk:180, sugar:80, matcha:18},
+  cocoa:    {milk:400, cream:350, egg:50,  egg_yolk:150, sugar:90, chocolate:50, cocoa:15},
 };
 
-let ingData = {};   // {id: {name, unit, stock, warnDays}}
-let recipeData = {}; // {original: {milk:700,...}, matcha:{...}, cocoa:{...}}
-let completedUntil = ''; // 已完成製作至此日期
+let ingData = {};
+let recipeData = {};
+let completedUntil = '';
+let eggSubstitute = true; // 預設開啟：全蛋代替蛋黃
 
 function loadIngredients(){
   Promise.all([
     db.ref('settings/ingredients').once('value'),
     db.ref('settings/recipe').once('value'),
     db.ref('settings/completedUntil').once('value'),
-  ]).then(([ingSnap, recSnap, cuSnap]) => {
+    db.ref('settings/eggSubstitute').once('value'),
+  ]).then(([ingSnap, recSnap, cuSnap, eggSnap]) => {
     if(!ingSnap.val()){
       const defaults = {};
       DEFAULT_INGREDIENTS.forEach(i => { defaults[i.id] = {...i}; delete defaults[i.id].id; });
@@ -695,8 +709,28 @@ function loadIngredients(){
     completedUntil = cuSnap.val() || '';
     const el = document.getElementById('completed-until');
     if(el) el.value = completedUntil;
+    // 蛋黃替代：null 時預設 true
+    eggSubstitute = eggSnap.val() === null ? true : eggSnap.val();
+    renderEggToggle();
     renderIngAll();
     renderRestockLog();
+  });
+}
+
+function renderEggToggle(){
+  const wrap = document.getElementById('egg-toggle-wrap');
+  const knob = document.getElementById('egg-toggle-knob');
+  if(!wrap || !knob) return;
+  wrap.style.background = eggSubstitute ? 'var(--caramel)' : '#ccc';
+  knob.style.left = eggSubstitute ? '20px' : '2px';
+}
+
+function toggleEggSub(){
+  eggSubstitute = !eggSubstitute;
+  db.ref('settings/eggSubstitute').set(eggSubstitute).then(()=>{
+    renderEggToggle();
+    showToast(eggSubstitute ? '✅ 全蛋代替模式開啟' : '✅ 蛋黃分開計算');
+    renderIngAll();
   });
 }
 
@@ -727,8 +761,11 @@ function calcDemand(){
       if(!qty) return;
       const recipe = (recipeData[flavor] || {});
       Object.entries(recipe).forEach(([ingId, amt]) => {
-        if(demand[ingId] !== undefined) demand[ingId] += amt * qty;
-        else demand[ingId] = amt * qty;
+        const use = amt * qty * 6 / 10;
+        // 全蛋代替模式：蛋黃用量合併到洗選蛋
+        const targetId = (eggSubstitute && ingId === 'egg_yolk') ? 'egg' : ingId;
+        if(demand[targetId] !== undefined) demand[targetId] += use;
+        else demand[targetId] = use;
       });
     });
   });
@@ -787,7 +824,11 @@ function renderIngAlerts(){
     Object.keys(ingData).forEach(id => dayDemand[id]=0);
     [['original',boxes.orig],['matcha',boxes.matcha],['cocoa',boxes.cocoa]].forEach(([f,q])=>{
       if(!q) return;
-      Object.entries(recipeData[f]||{}).forEach(([id,amt])=>{ dayDemand[id]=(dayDemand[id]||0)+amt*q; });
+      Object.entries(recipeData[f]||{}).forEach(([id,amt])=>{
+        const use = amt*q*6/10;
+        const targetId = (eggSubstitute && id==='egg_yolk') ? 'egg' : id;
+        dayDemand[targetId]=(dayDemand[targetId]||0)+use;
+      });
     });
     if(urgentSet.has(pd)){
       const shortages = Object.entries(dayDemand)
