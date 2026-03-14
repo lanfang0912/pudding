@@ -1875,7 +1875,7 @@ function makeOrderCard(o, date){
 
   const smsText = o.delivery==='面交'
     ? `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n面交日期：${dateDisp}\n地點：${o.address}\n時間：${o.time}\n如有問題請與我們聯繫，謝謝！`
-    : `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n預計到貨：${dateDisp}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，7天內享用最佳🙏`;
+    : `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n預計到貨：${dateDisp}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，3天內享用最佳🙏`;
   const smsId = 'sms-'+o.id;
 
   return `<div class="s-card ${done?'done':''}">
@@ -1901,10 +1901,14 @@ function makeOrderCard(o, date){
       ${o.email && o.email.includes('@') ? `<button onclick="sendShipNotify('${o.id}')" style="padding:2px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit;">寄出貨通知</button>` : ''}
     </div>` : ''}
     <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
-      <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
         <span>📱 簡訊 / LINE 範本</span>
-        <button onclick="const el=document.getElementById('${smsId}');el.select();document.execCommand('copy');this.textContent='✅ 已複製';setTimeout(()=>this.textContent='複製',1500);"
-          style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
+        <div style="display:flex;gap:6px">
+          ${o.phone && o.phone!=='未填' ? `<a href="sms:${o.phone.replace(/-/g,'')}?body=${encodeURIComponent(smsText)}"
+            style="padding:3px 10px;background:#06C755;color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;text-decoration:none;display:inline-block">📲 發簡訊</a>` : ''}
+          <button onclick="const el=document.getElementById('${smsId}');el.select();document.execCommand('copy');this.textContent='✅ 已複製';setTimeout(()=>this.textContent='複製',1500);"
+            style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
+        </div>
       </div>
       <textarea id="${smsId}" readonly style="width:100%;border:none;background:transparent;font-size:11px;font-family:inherit;color:var(--ink);resize:none;line-height:1.7;outline:none;" rows="5">${smsText}</textarea>
     </div>
