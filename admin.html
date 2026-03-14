@@ -156,10 +156,16 @@ tr.done-row td{opacity:.45;}
   .tab-btn { padding: 10px 14px; font-size: 11px; letter-spacing: 0.5px; }
   .content { padding: 14px; }
   .stats-bar { grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 14px; }
-  .filters { padding: 10px 14px; gap: 8px; }
+  .filters { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
   .filter-select, .filter-input, input[type=date].filter-input { font-size: 13px; }
-  .table-wrap { font-size: 11px; }
-  table th, table td { padding: 6px 8px; }
+  /* 訂單總覽：可橫向滑動，隱藏次要欄 */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrap table { min-width: 560px; font-size: 11px; }
+  .table-wrap th, .table-wrap td { padding: 6px 7px; }
+  .table-wrap th:nth-child(4),.table-wrap td:nth-child(4),
+  .table-wrap th:nth-child(8),.table-wrap td:nth-child(8),
+  .table-wrap th:nth-child(9),.table-wrap td:nth-child(9),
+  .table-wrap th:nth-child(11),.table-wrap td:nth-child(11) { display:none; }
   /* 每日出貨 */
   .shipping-cards { grid-template-columns: 1fr !important; }
   .s-card { padding: 12px; }
@@ -169,15 +175,18 @@ tr.done-row td{opacity:.45;}
   .sch-block { padding: 12px; }
   /* 食材庫存 */
   #tab-ingredients > div { padding: 14px 0; }
-  .form-row { grid-template-columns: 1fr !important; }
+  #tab-ingredients .form-row { grid-template-columns: 1fr !important; }
+  #ing-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #ing-list table { min-width: 360px; font-size: 11px; }
+  #ing-list th:nth-child(4),#ing-list td:nth-child(4) { display:none; }
+  #ing-recipe { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #ing-recipe table { min-width: 340px; font-size: 11px; }
+  #inv-calendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   /* Modal */
-  .modal { width: 95vw; max-height: 92vh; margin: 10px; }
+  .modal { width: 96vw; max-height: 92vh; margin: 10px auto; }
   .modal-body { padding: 14px; }
-  .flavor-inputs { gap: 8px; }
+  .flavor-inputs { gap: 8px; flex-wrap: wrap; }
   .fi-group { min-width: 70px; }
-  /* 行事曆 */
-  table.sched-table { font-size: 10px; }
-  /* 隱藏不常用欄位 */
   .hide-mobile { display: none !important; }
 }
 </style>
@@ -229,11 +238,21 @@ tr.done-row td{opacity:.45;}
       <input class="filter-input" id="f-date" type="date" onchange="renderTable()" title="指定收貨日" style="width:140px;">
       <button class="filter-select" onclick="document.getElementById('f-date').value='';renderTable();" style="cursor:pointer;padding:7px 10px;" title="清除日期">✕</button>
       <input class="filter-input" id="f-search" placeholder="搜尋姓名 / 電話 / 末五碼" oninput="renderTable()" style="min-width:190px;">
+      <select class="filter-select" id="f-sort" onchange="renderTable()">
+        <option value="ts-desc">下單時間↓</option>
+        <option value="ts-asc">下單時間↑</option>
+        <option value="date-asc">收貨日期↑</option>
+        <option value="date-desc">收貨日期↓</option>
+      </select>
     </div>
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>編號</th><th>姓名</th><th>電話</th><th>Email</th><th>收貨日期</th><th>品項</th>
+          <th>編號</th><th>姓名</th><th>電話</th><th>Email</th>
+          <th onclick="toggleDateSort()" style="cursor:pointer;user-select:none;white-space:nowrap">
+            收貨日期 <span id="date-sort-icon">↕</span>
+          </th>
+          <th>品項</th>
           <th>配送</th><th>地址</th><th>末五碼</th><th>金額</th><th>備註</th><th>狀態</th><th>操作</th>
         </tr></thead>
         <tbody id="order-tbody"></tbody>
@@ -1507,15 +1526,37 @@ function fhtml(o){
 const SB={pending:'<span class="badge badge-pending">待確認匯款</span>',paid:'<span class="badge badge-paid">已確認匯款</span>',shipped:'<span class="badge badge-shipped">已出貨</span>'};
 
 // ── table ──
+function toggleDateSort(){
+  const sel = document.getElementById('f-sort');
+  if(sel.value === 'date-asc'){
+    sel.value = 'date-desc';
+    document.getElementById('date-sort-icon').textContent = '↓';
+  } else {
+    sel.value = 'date-asc';
+    document.getElementById('date-sort-icon').textContent = '↑';
+  }
+  renderTable();
+}
+
 function renderTable(){
   const fs=document.getElementById('f-status').value,fd=document.getElementById('f-delivery').value,
         fdt=document.getElementById('f-date').value,fq=document.getElementById('f-search').value.toLowerCase();
-  const list=orders.filter(o=>{
+  const fsort=(document.getElementById('f-sort')||{}).value||'ts-desc';
+  let list=orders.filter(o=>{
     if(fs&&o.status!==fs)return false;
     if(fd&&o.delivery!==fd)return false;
     if(fdt&&o.date!==fdt)return false;
     if(fq&&![o.name,o.phone,o.code].some(v=>v&&v.toLowerCase().includes(fq)))return false;
     return true;
+  });
+
+  // 排序
+  list = [...list].sort((a,b)=>{
+    if(fsort==='ts-asc')   return (a.ts||'').localeCompare(b.ts||'');
+    if(fsort==='ts-desc')  return (b.ts||'').localeCompare(a.ts||'');
+    if(fsort==='date-asc') return (a.date||'9').localeCompare(b.date||'9');
+    if(fsort==='date-desc')return (b.date||'0').localeCompare(a.date||'0');
+    return 0;
   });
 
   // 計算每天每口味累計（按時間戳排序，超過上限的標出來）
@@ -1855,6 +1896,10 @@ function makeOrderCard(o, date){
       <span style="font-weight:500;color:${isYixin?'var(--blue)':'var(--caramel)'}">NT$${o.total.toLocaleString()}</span>
       <span style="font-size:10px;color:var(--ink-soft)">末五碼：${o.code}</span>
     </div>
+    ${!isYixin ? `<div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:var(--ink-soft)">${o.email && o.email.includes('@') ? `✉️ ${o.email}` : '<span style="color:var(--red)">⚠️ 未填 Email</span>'}</span>
+      ${o.email && o.email.includes('@') ? `<button onclick="sendShipNotify('${o.id}')" style="padding:2px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit;">寄出貨通知</button>` : ''}
+    </div>` : ''}
     <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
       <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
         <span>📱 簡訊 / LINE 範本</span>
