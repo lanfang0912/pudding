@@ -148,6 +148,38 @@ tr.done-row td{opacity:.45;}
 .addr-cell{max-width:165px;font-size:11px;word-break:break-all;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--matcha);color:white;padding:10px 22px;border-radius:2px;font-size:12px;letter-spacing:1px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;}
 .toast.show{transform:translateX(-50%) translateY(0);}
+/* ── MOBILE ── */
+@media(max-width:640px){
+  .topbar { padding: 0 14px; }
+  .topbar-brand { font-size: 14px; }
+  .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding: 0 12px; }
+  .tab-btn { padding: 10px 14px; font-size: 11px; letter-spacing: 0.5px; }
+  .content { padding: 14px; }
+  .stats-bar { grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 14px; }
+  .filters { padding: 10px 14px; gap: 8px; }
+  .filter-select, .filter-input, input[type=date].filter-input { font-size: 13px; }
+  .table-wrap { font-size: 11px; }
+  table th, table td { padding: 6px 8px; }
+  /* 每日出貨 */
+  .shipping-cards { grid-template-columns: 1fr !important; }
+  .s-card { padding: 12px; }
+  .card-name { font-size: 14px; }
+  /* 生產排程 */
+  .schedule-wrap { padding: 0; }
+  .sch-block { padding: 12px; }
+  /* 食材庫存 */
+  #tab-ingredients > div { padding: 14px 0; }
+  .form-row { grid-template-columns: 1fr !important; }
+  /* Modal */
+  .modal { width: 95vw; max-height: 92vh; margin: 10px; }
+  .modal-body { padding: 14px; }
+  .flavor-inputs { gap: 8px; }
+  .fi-group { min-width: 70px; }
+  /* 行事曆 */
+  table.sched-table { font-size: 10px; }
+  /* 隱藏不常用欄位 */
+  .hide-mobile { display: none !important; }
+}
 </style>
 </head>
 <body>
@@ -306,7 +338,10 @@ tr.done-row td{opacity:.45;}
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <div style="font-size:13px;font-weight:600">🧾 食材清單</div>
-          <button class="btn-save" onclick="openIngModal()">＋ 新增食材</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-save" onclick="openIngModal()">＋ 新增食材</button>
+            <button onclick="resetIngredients()" style="padding:9px 14px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-soft)">↺ 重置食材</button>
+          </div>
         </div>
         <div id="ing-list"></div>
       </div>
@@ -338,36 +373,84 @@ tr.done-row td{opacity:.45;}
       <button class="modal-close" onclick="closeNewModal()">✕</button>
     </div>
     <div class="modal-body">
+      <!-- 來源選擇 -->
+      <div class="form-row full" style="margin-bottom:4px">
+        <div class="form-group">
+          <label class="form-label">訂單來源</label>
+          <div style="display:flex;gap:8px">
+            <div id="src-pudding" onclick="setOrderSource('pudding')"
+              style="flex:1;padding:8px;border:2px solid var(--caramel);border-radius:6px;text-align:center;cursor:pointer;background:rgba(196,131,42,0.08);font-size:12px;font-weight:600;color:var(--caramel)">
+              🍮 布丁訂單
+            </div>
+            <div id="src-yixin" onclick="setOrderSource('yixin')"
+              style="flex:1;padding:8px;border:2px solid var(--rule);border-radius:6px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-soft)">
+              🏫 一心專區
+            </div>
+          </div>
+        </div>
+      </div>
+      <input type="hidden" id="n-source" value="pudding">
+
       <div class="form-row">
         <div class="form-group"><label class="form-label">姓名 *</label><input class="form-ctrl" id="n-name" placeholder="顧客姓名"></div>
         <div class="form-group"><label class="form-label">電話</label><input class="form-ctrl" id="n-phone" placeholder="選填"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">收貨日期 *</label><input class="form-ctrl" id="n-date" type="date"></div>
-        <div class="form-group"><label class="form-label">配送方式</label>
+        <div class="form-group" id="n-delivery-group"><label class="form-label">配送方式</label>
           <select class="form-ctrl" id="n-delivery" onchange="nrecalc()"><option value="宅配">宅配</option><option value="面交">面交</option></select>
         </div>
       </div>
-      <div class="form-row full">
-        <div class="form-group">
-          <label class="form-label">品項數量（盒）</label>
-          <div class="flavor-inputs">
-            <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味</label><input class="form-ctrl" id="n-orig" type="number" min="0" value="0" oninput="nrecalc()"></div>
-            <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶</label><input class="form-ctrl" id="n-matcha" type="number" min="0" value="0" oninput="nrecalc()"></div>
-            <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可</label><input class="form-ctrl" id="n-cocoa" type="number" min="0" value="0" oninput="nrecalc()"></div>
+
+      <!-- 布丁盒裝品項 -->
+      <div id="n-pudding-items">
+        <div class="form-row full">
+          <div class="form-group">
+            <label class="form-label">品項數量（盒）</label>
+            <div class="flavor-inputs">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味</label><input class="form-ctrl" id="n-orig" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶</label><input class="form-ctrl" id="n-matcha" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可</label><input class="form-ctrl" id="n-cocoa" type="number" min="0" value="0" oninput="nrecalc()"></div>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- 一心品項 -->
+      <div id="n-yixin-items" style="display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;letter-spacing:1px">單杯</div>
+        <div class="form-row full" style="margin-bottom:12px">
+          <div class="form-group">
+            <div class="flavor-inputs">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $25</label><input class="form-ctrl" id="n-yi-orig-cup" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可 $30</label><input class="form-ctrl" id="n-yi-cocoa-cup" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $35</label><input class="form-ctrl" id="n-yi-matcha-cup" type="number" min="0" value="0" oninput="nrecalc()"></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;letter-spacing:1px">十杯卡</div>
+        <div class="form-row full">
+          <div class="form-group">
+            <div class="flavor-inputs" style="flex-wrap:wrap">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $230</label><input class="form-ctrl" id="n-yi-orig-card" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可 $250</label><input class="form-ctrl" id="n-yi-cocoa-card" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $300</label><input class="form-ctrl" id="n-yi-matcha-card" type="number" min="0" value="0" oninput="nrecalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--blue)">綜合 $230</label><input class="form-ctrl" id="n-yi-mix-card" type="number" min="0" value="0" oninput="nrecalc()"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="form-row">
-        <div class="form-group"><label class="form-label">地址</label><input class="form-ctrl" id="n-addr" placeholder="宅配必填"></div>
+        <div class="form-group" id="n-addr-group"><label class="form-label">地址</label><input class="form-ctrl" id="n-addr" placeholder="宅配必填"></div>
         <div class="form-group"><label class="form-label">金額（自動）</label><input class="form-ctrl" id="n-total" readonly style="background:var(--paper-dark)"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">匯款末五碼</label><input class="form-ctrl" id="n-code" placeholder="選填"></div>
         <div class="form-group"><label class="form-label">狀態</label>
           <select class="form-ctrl" id="n-status">
-            <option value="pending">待確認匯款</option>
-            <option value="paid">已確認匯款</option>
+            <option value="pending">待確認</option>
+            <option value="paid">已確認</option>
             <option value="shipped">已出貨</option>
           </select>
         </div>
@@ -974,6 +1057,27 @@ function resetRecipe(){
   });
 }
 
+function resetIngredients(){
+  if(!confirm('確定重置食材清單？會補上缺少的食材，現有庫存數字不會被清除。')) return;
+  // 只補上不存在的食材，不覆蓋已有的
+  const updates = {};
+  DEFAULT_INGREDIENTS.forEach(i => {
+    const {id, ...data} = i;
+    if(!ingData[id]){
+      updates[id] = data;
+      ingData[id] = data;
+    }
+  });
+  if(!Object.keys(updates).length){
+    showToast('✅ 食材清單已是最新，無需更新');
+    return;
+  }
+  db.ref('settings/ingredients').update(updates).then(()=>{
+    showToast(`✅ 已補上 ${Object.keys(updates).length} 項缺少的食材`);
+    renderIngAll();
+  });
+}
+
 function saveIngField(id, field, val){
   ingData[id][field] = +val;
   db.ref('settings/ingredients/'+id+'/'+field).set(+val).then(()=>{
@@ -1530,6 +1634,27 @@ function togglePacked(id, currentPacked){
 }
 
 // ── 新增訂單 ──
+function setOrderSource(src){
+  document.getElementById('n-source').value = src;
+  const isPudding = src === 'pudding';
+  // 切換 UI
+  document.getElementById('src-pudding').style.cssText = `flex:1;padding:8px;border:2px solid ${isPudding?'var(--caramel)':'var(--rule)'};border-radius:6px;text-align:center;cursor:pointer;background:${isPudding?'rgba(196,131,42,0.08)':'transparent'};font-size:12px;font-weight:600;color:${isPudding?'var(--caramel)':'var(--ink-soft)'}`;
+  document.getElementById('src-yixin').style.cssText = `flex:1;padding:8px;border:2px solid ${!isPudding?'#5B9AB5':'var(--rule)'};border-radius:6px;text-align:center;cursor:pointer;background:${!isPudding?'rgba(91,154,181,0.08)':'transparent'};font-size:12px;font-weight:600;color:${!isPudding?'#5B9AB5':'var(--ink-soft)'}`;
+  document.getElementById('n-pudding-items').style.display = isPudding ? '' : 'none';
+  document.getElementById('n-yixin-items').style.display  = isPudding ? 'none' : '';
+  // 一心永遠面交
+  if(!isPudding){
+    document.getElementById('n-delivery').value = '面交';
+    document.getElementById('n-delivery-group').style.opacity = '0.4';
+    document.getElementById('n-delivery-group').style.pointerEvents = 'none';
+    document.getElementById('n-addr').value = '一心書院';
+  } else {
+    document.getElementById('n-delivery-group').style.opacity = '';
+    document.getElementById('n-delivery-group').style.pointerEvents = '';
+  }
+  nrecalc();
+}
+
 function openNew(){
   document.getElementById('n-name').value='';
   document.getElementById('n-phone').value='';
@@ -1537,53 +1662,86 @@ function openNew(){
   document.getElementById('n-orig').value=0;
   document.getElementById('n-matcha').value=0;
   document.getElementById('n-cocoa').value=0;
-  document.getElementById('n-delivery').value='宅配';
+  ['n-yi-orig-cup','n-yi-cocoa-cup','n-yi-matcha-cup','n-yi-orig-card','n-yi-cocoa-card','n-yi-matcha-card','n-yi-mix-card']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=0; });
+  document.getElementById('n-delivery').value='面交';
   document.getElementById('n-addr').value='';
   document.getElementById('n-code').value='';
   document.getElementById('n-note').value='';
   document.getElementById('n-status').value='paid';
   document.getElementById('n-total').value='';
+  setOrderSource('pudding');
   document.getElementById('new-modal').classList.add('open');
 }
+
 function closeNewModal(){
   document.getElementById('new-modal').classList.remove('open');
 }
+
 function nrecalc(){
-  const orig=+document.getElementById('n-orig').value||0;
-  const matcha=+document.getElementById('n-matcha').value||0;
-  const cocoa=+document.getElementById('n-cocoa').value||0;
-  const boxes=orig+matcha+cocoa;
-  const isPickup=document.getElementById('n-delivery').value==='面交';
-  const ship=isPickup?0:(boxes>=3?0:160);
-  const total=orig*360+matcha*390+cocoa*390+ship;
-  document.getElementById('n-total').value=`NT$${total}`;
+  const src = document.getElementById('n-source').value;
+  let total = 0;
+  if(src === 'pudding'){
+    const orig  = +document.getElementById('n-orig').value||0;
+    const matcha= +document.getElementById('n-matcha').value||0;
+    const cocoa = +document.getElementById('n-cocoa').value||0;
+    const boxes = orig+matcha+cocoa;
+    const isPickup = document.getElementById('n-delivery').value==='面交';
+    const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
+    total = orig*360 + matcha*390 + cocoa*390 + ship;
+  } else {
+    const g = id => +document.getElementById(id)?.value||0;
+    total = g('n-yi-orig-cup')*25 + g('n-yi-cocoa-cup')*30 + g('n-yi-matcha-cup')*35
+          + g('n-yi-orig-card')*230 + g('n-yi-cocoa-card')*250 + g('n-yi-matcha-card')*300 + g('n-yi-mix-card')*230;
+  }
+  document.getElementById('n-total').value = `NT$${total}`;
   return total;
 }
+
 function saveNew(){
-  const name=document.getElementById('n-name').value.trim();
-  const date=document.getElementById('n-date').value;
+  const name = document.getElementById('n-name').value.trim();
+  const date = document.getElementById('n-date').value;
+  const src  = document.getElementById('n-source').value;
   if(!name){ alert('請填寫姓名'); return; }
   if(!date){ alert('請填寫收貨日期'); return; }
-  const orig=+document.getElementById('n-orig').value||0;
-  const matcha=+document.getElementById('n-matcha').value||0;
-  const cocoa=+document.getElementById('n-cocoa').value||0;
-  if(orig+matcha+cocoa===0){ alert('請填寫品項數量'); return; }
-  const id='WD-M-'+Date.now().toString().slice(-8);
-  const newOrder={
-    id,
-    ts: new Date().toISOString(),
-    name,
-    phone: document.getElementById('n-phone').value||'未填',
-    date,
-    time: '未指定',
+
+  let orig=0, matcha=0, cocoa=0;
+  let yixinItems = null;
+
+  if(src === 'pudding'){
+    orig  = +document.getElementById('n-orig').value||0;
+    matcha= +document.getElementById('n-matcha').value||0;
+    cocoa = +document.getElementById('n-cocoa').value||0;
+    if(orig+matcha+cocoa===0){ alert('請填寫品項數量'); return; }
+  } else {
+    const g = id => +document.getElementById(id)?.value||0;
+    yixinItems = {
+      origCup: g('n-yi-orig-cup'), cocoaCup: g('n-yi-cocoa-cup'), matchaCup: g('n-yi-matcha-cup'),
+      origCard: g('n-yi-orig-card'), cocoaCard: g('n-yi-cocoa-card'), matchaCard: g('n-yi-matcha-card'), mixCard: g('n-yi-mix-card'),
+    };
+    const totalItems = Object.values(yixinItems).reduce((a,b)=>a+b,0);
+    if(!totalItems){ alert('請填寫品項數量'); return; }
+    // 換算杯數→盒（用於食材估算，10杯≒1盒）
+    orig   = Math.round((yixinItems.origCup + yixinItems.origCard*10) / 6 * 10) / 10;
+    matcha = Math.round((yixinItems.matchaCup + yixinItems.matchaCard*10) / 6 * 10) / 10;
+    cocoa  = Math.round((yixinItems.cocoaCup + yixinItems.cocoaCard*10) / 6 * 10) / 10;
+  }
+
+  const id = (src==='yixin'?'YX-':'WD-M-') + Date.now().toString().slice(-8);
+  const newOrder = {
+    id, ts: new Date().toISOString(), name,
+    phone:    document.getElementById('n-phone').value||'未填',
+    date, time: '未指定',
     orig, matcha, cocoa,
     delivery: document.getElementById('n-delivery').value,
-    address: document.getElementById('n-addr').value||'',
-    code: document.getElementById('n-code').value||'待確認',
-    note: document.getElementById('n-note').value||'',
-    status: document.getElementById('n-status').value,
-    total: nrecalc(),
+    address:  document.getElementById('n-addr').value||'',
+    code:     document.getElementById('n-code').value||'待確認',
+    note:     document.getElementById('n-note').value||'',
+    status:   document.getElementById('n-status').value,
+    total:    nrecalc(),
+    source:   src,
   };
+  if(yixinItems) newOrder.yixinItems = yixinItems;
   db.ref('orders/'+id).set(newOrder);
   closeNewModal();
   showToast('✅ 訂單已新增');
@@ -1645,83 +1803,117 @@ function saveEdit(){
 }
 
 // ── daily ──
+function makeOrderCard(o, date){
+  const done = o.status==='shipped';
+  const isYixin = o.source === 'yixin';
+  const ws = ['日','一','二','三','四','五','六'];
+  const dd = new Date(date);
+  const dateDisp = `${dd.getMonth()+1}/${dd.getDate()}（週${ws[dd.getDay()]}）`;
+
+  let itemsHtml = '';
+  let itemsText = '';
+  let boxes = 0;
+
+  if(isYixin && o.yixinItems){
+    const yi = o.yixinItems;
+    const parts = [];
+    if(yi.origCup)   parts.push(`原味單杯×${yi.origCup}`);
+    if(yi.cocoaCup)  parts.push(`可可單杯×${yi.cocoaCup}`);
+    if(yi.matchaCup) parts.push(`抹茶單杯×${yi.matchaCup}`);
+    if(yi.origCard)  parts.push(`原味十杯卡×${yi.origCard}`);
+    if(yi.cocoaCard) parts.push(`可可十杯卡×${yi.cocoaCard}`);
+    if(yi.matchaCard)parts.push(`抹茶十杯卡×${yi.matchaCard}`);
+    if(yi.mixCard)   parts.push(`綜合十杯卡×${yi.mixCard}`);
+    itemsText = parts.join('、');
+    itemsHtml = `<div style="font-size:12px;color:var(--ink)">${itemsText}</div>`;
+  } else {
+    boxes = (o.orig||0)+(o.matcha||0)+(o.cocoa||0);
+    itemsText = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+    itemsHtml = `${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${boxes}盒</span>`;
+  }
+
+  const smsText = o.delivery==='面交'
+    ? `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n面交日期：${dateDisp}\n地點：${o.address}\n時間：${o.time}\n如有問題請與我們聯繫，謝謝！`
+    : `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n預計到貨：${dateDisp}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，7天內享用最佳🙏`;
+  const smsId = 'sms-'+o.id;
+
+  return `<div class="s-card ${done?'done':''}">
+    <div class="card-top">
+      <div>
+        <div class="card-name">${o.name} ${o.note&&o.note.startsWith('⚠️')?'<span style="font-size:11px;color:var(--red)">⚠️</span>':''}</div>
+        <div class="card-meta">${o.id} · ${o.phone}</div>
+      </div>
+      <div style="text-align:right">
+        ${o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>'}
+        <div style="font-size:10px;color:var(--ink-soft);margin-top:3px">${o.time}</div>
+      </div>
+    </div>
+    <div style="margin:8px 0">${itemsHtml}</div>
+    <div class="card-addr">${o.address}</div>
+    ${o.note?`<div class="card-warn">${o.note}</div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+      <span style="font-weight:500;color:${isYixin?'var(--blue)':'var(--caramel)'}">NT$${o.total.toLocaleString()}</span>
+      <span style="font-size:10px;color:var(--ink-soft)">末五碼：${o.code}</span>
+    </div>
+    <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
+      <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+        <span>📱 簡訊 / LINE 範本</span>
+        <button onclick="const el=document.getElementById('${smsId}');el.select();document.execCommand('copy');this.textContent='✅ 已複製';setTimeout(()=>this.textContent='複製',1500);"
+          style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
+      </div>
+      <textarea id="${smsId}" readonly style="width:100%;border:none;background:transparent;font-size:11px;font-family:inherit;color:var(--ink);resize:none;line-height:1.7;outline:none;" rows="5">${smsText}</textarea>
+    </div>
+    <div class="card-actions">
+      <button class="act-btn edit" onclick="openEdit('${o.id}')" style="flex:0 0 auto">✏️</button>
+      ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
+      ${done?`<button class="ship-btn done">✓ 已出貨</button>`:`<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
+    </div>
+  </div>`;
+}
+
 function renderDaily(){
-  const fDate=document.getElementById('dd-date').value;
-  const fType=document.getElementById('dd-type').value;
-  const fStatus=document.getElementById('dd-status').value;
-  let pool=orders.filter(o=>o.date);
-  if(fDate)pool=pool.filter(o=>o.date===fDate);
-  if(fType)pool=pool.filter(o=>o.delivery===fType);
-  if(fStatus==='todo')pool=pool.filter(o=>o.status!=='shipped');
-  else if(fStatus==='done')pool=pool.filter(o=>o.status==='shipped');
-  const byDate={};
-  pool.forEach(o=>{if(!byDate[o.date])byDate[o.date]=[];byDate[o.date].push(o);});
-  const dates=Object.keys(byDate).sort();
-  if(!dates.length){document.getElementById('daily-content').innerHTML='<div class="no-results">沒有符合的訂單</div>';return;}
-  const wd=['日','一','二','三','四','五','六'];
-  document.getElementById('daily-content').innerHTML=dates.map(date=>{
-    const list=byDate[date];
-    const shipped=list.filter(o=>o.status==='shipped').length;
-    const pct=list.length?Math.round(shipped/list.length*100):0;
-    const d=new Date(date);
-    const cards=list.map(o=>{
-      const done=o.status==='shipped';
-      const boxes=o.orig+o.matcha+o.cocoa;
-      const ws=['日','一','二','三','四','五','六'];
-      const dd=new Date(date);
-      const dateDisp=`${dd.getMonth()+1}/${dd.getDate()}（週${ws[dd.getDay()]}）`;
-      const items=[o.orig?`原味×${o.orig}盒`:'',o.matcha?`抹茶×${o.matcha}盒`:'',o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
-      const smsText = o.delivery==='面交'
-        ? `${o.name} 您好，小白布丁出貨通知🍮\n品項：${items}\n面交日期：${dateDisp}\n地點：${o.address}\n時間：${o.time}\n如有問題請與我們聯繫，謝謝！`
-        : `${o.name} 您好，小白布丁出貨通知🍮\n品項：${items}\n預計到貨：${dateDisp}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，7天內享用最佳🙏`;
-      const smsId = 'sms-'+o.id;
-      return`<div class="s-card ${done?'done':''}">
-        <div class="card-top">
-          <div>
-            <div class="card-name">${o.name} ${o.note&&o.note.startsWith('⚠️')?'<span style="font-size:11px;color:var(--red)">⚠️</span>':''}</div>
-            <div class="card-meta">${o.id} · ${o.phone}</div>
-          </div>
-          <div style="text-align:right">
-            ${o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>'}
-            <div style="font-size:10px;color:var(--ink-soft);margin-top:3px">${o.time}</div>
-          </div>
-        </div>
-        <div style="margin:8px 0">${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${boxes}盒</span></div>
-        <div class="card-addr">${o.address}</div>
-        ${o.note?`<div class="card-warn">${o.note}</div>`:''}
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-          <span style="font-weight:500;color:var(--caramel)">NT$${o.total.toLocaleString()}</span>
-          <span style="font-size:10px;color:var(--ink-soft)">末五碼：${o.code}</span>
-        </div>
-        <!-- 簡訊範本 -->
-        <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
-          <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-            <span>📱 簡訊 / LINE 範本</span>
-            <button onclick="
-              const el=document.getElementById('${smsId}');
-              el.select();document.execCommand('copy');
-              this.textContent='✅ 已複製';
-              setTimeout(()=>this.textContent='複製',1500);
-            " style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
-          </div>
-          <textarea id="${smsId}" readonly style="width:100%;border:none;background:transparent;font-size:11px;font-family:inherit;color:var(--ink);resize:none;line-height:1.7;outline:none;" rows="5">${smsText}</textarea>
-        </div>
-        <div class="card-actions">
-          <button class="act-btn edit" onclick="openEdit('${o.id}')" style="flex:0 0 auto">✏️</button>
-          ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
-          ${done?`<button class="ship-btn done">✓ 已出貨</button>`:
-                 `<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
-        </div>
-      </div>`;
-    }).join('');
-    return`<div class="day-section">
+  const fDate  = document.getElementById('dd-date').value;
+  const fType  = document.getElementById('dd-type').value;
+  const fStatus= document.getElementById('dd-status').value;
+  let pool = orders.filter(o=>o.date);
+  if(fDate)  pool = pool.filter(o=>o.date===fDate);
+  if(fType)  pool = pool.filter(o=>o.delivery===fType);
+  if(fStatus==='todo') pool = pool.filter(o=>o.status!=='shipped');
+  else if(fStatus==='done') pool = pool.filter(o=>o.status==='shipped');
+
+  const byDate = {};
+  pool.forEach(o=>{ if(!byDate[o.date]) byDate[o.date]=[]; byDate[o.date].push(o); });
+  const dates = Object.keys(byDate).sort();
+  if(!dates.length){ document.getElementById('daily-content').innerHTML='<div class="no-results">沒有符合的訂單</div>'; return; }
+
+  const wd = ['日','一','二','三','四','五','六'];
+  document.getElementById('daily-content').innerHTML = dates.map(date=>{
+    const list = byDate[date];
+    const pudding = list.filter(o=>o.source!=='yixin');
+    const yixin   = list.filter(o=>o.source==='yixin');
+    const shipped = list.filter(o=>o.status==='shipped').length;
+    const pct = list.length ? Math.round(shipped/list.length*100) : 0;
+    const d = new Date(date);
+
+    const puddingTotal = pudding.reduce((a,o)=>a+o.total,0);
+    const yixinTotal   = yixin.reduce((a,o)=>a+o.total,0);
+
+    const puddingSection = pudding.length ? `
+      <div style="font-size:11px;font-weight:600;color:var(--caramel);margin:10px 0 6px;letter-spacing:1px">🍮 布丁訂單（NT$${puddingTotal.toLocaleString()}）</div>
+      <div class="shipping-cards">${pudding.map(o=>makeOrderCard(o,date)).join('')}</div>` : '';
+
+    const yixinSection = yixin.length ? `
+      <div style="font-size:11px;font-weight:600;color:var(--blue);margin:10px 0 6px;letter-spacing:1px">🏫 一心專區（NT$${yixinTotal.toLocaleString()}）</div>
+      <div class="shipping-cards">${yixin.map(o=>makeOrderCard(o,date)).join('')}</div>` : '';
+
+    return `<div class="day-section">
       <div class="day-header">
         <div class="day-title">${date} <span style="font-size:13px;color:var(--ink-soft)">週${wd[d.getDay()]}</span></div>
-        <div class="day-meta">${list.length}筆・${list.reduce((a,o)=>a+o.orig+o.matcha+o.cocoa,0)}盒</div>
+        <div class="day-meta">${list.length}筆</div>
         <div class="day-prog"><div class="day-prog-bar" style="width:${pct}%"></div></div>
         <div class="day-meta">${shipped}/${list.length} 完成</div>
       </div>
-      <div class="shipping-cards">${cards}</div>
+      ${puddingSection}${yixinSection}
     </div>`;
   }).join('');
 }
