@@ -304,7 +304,10 @@ tr.done-row td{opacity:.45;}
         <div style="font-size:13px;font-weight:600;margin-bottom:4px">📋 每盒配方設定</div>
         <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">每種口味一盒（6杯）需要多少食材</div>
         <div id="ing-recipe"></div>
-        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveRecipe()">儲存配方</button>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-save" style="flex:1" onclick="saveRecipe()">儲存配方</button>
+          <button onclick="resetRecipe()" style="padding:9px 16px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-soft)">↺ 重置為預設配方</button>
+        </div>
       </div>
     </div>
   </div>
@@ -722,12 +725,13 @@ function renderIngAlerts(){
 
   const pending = orders.filter(o => o.status!=='shipped' && o.status!=='cancelled' && o.date);
 
-  // 找出所有製作日，排序
+  // 找出今天之後的製作日（今天含），排序
+  const todayStr = today.toISOString().slice(0,10);
   const allProdDates = [...new Set(pending.map(o=>{
     const offset = o.delivery==='面交' ? -1 : -2;
     const d = new Date(o.date); d.setDate(d.getDate()+offset);
     return d.toISOString().slice(0,10);
-  }))].sort();
+  }))].filter(pd => pd >= todayStr).sort();
 
   const urgentSet = new Set(allProdDates.filter(pd => {
     const d = new Date(pd); d.setHours(0,0,0,0);
@@ -893,6 +897,15 @@ function saveRecipe(){
   db.ref('settings/recipe').set(newRecipe).then(()=>{
     recipeData = newRecipe;
     showToast('✅ 配方已儲存');
+    renderIngAll();
+  });
+}
+
+function resetRecipe(){
+  if(!confirm('確定重置為預設配方？現有配方將被覆蓋。')) return;
+  db.ref('settings/recipe').set(DEFAULT_RECIPE).then(()=>{
+    recipeData = JSON.parse(JSON.stringify(DEFAULT_RECIPE));
+    showToast('✅ 已重置為預設配方');
     renderIngAll();
   });
 }
