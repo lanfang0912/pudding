@@ -176,6 +176,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
     <button class="tab-btn" onclick="switchTab('schedule',this)">🏭 生產排程</button>
     <button class="tab-btn" onclick="switchTab('inventory',this)">⚙️ 庫存設定</button>
+    <button class="tab-btn" onclick="switchTab('ingredients',this)">🥛 食材庫存</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -273,6 +274,45 @@ tr.done-row td{opacity:.45;}
       <div style="font-size:12px;color:var(--ink-soft)">儲存後訂購頁會立即更新。超過任一上限，顧客無法選擇該日期。</div>
     </div>
   </div>
+
+  <!-- ── 食材庫存 ── -->
+  <div class="tab-panel" id="tab-ingredients">
+    <div style="max-width:800px;margin:0 auto;padding:24px 0">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px">食材庫存</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">根據未出貨訂單自動計算需求，顯示補貨提醒</div>
+
+      <!-- 補貨警示 -->
+      <div id="ing-alerts" style="margin-bottom:20px"></div>
+
+      <!-- 需求總覽 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">📦 未出貨訂單食材需求</div>
+        <div id="ing-demand"></div>
+      </div>
+
+      <!-- 食材庫存管理 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:600">🧾 食材清單</div>
+          <button class="btn-save" onclick="openIngModal()">＋ 新增食材</button>
+        </div>
+        <div id="ing-list"></div>
+      </div>
+
+      <!-- 補貨紀錄 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">📝 補貨紀錄（最近20筆）</div>
+        <div id="restock-log"><div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div></div>
+      </div>
+
+      <!-- 配方設定 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">📋 每盒配方設定</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px">每種口味一盒（6杯）需要多少食材</div>
+        <div id="ing-recipe"></div>
+        <button class="btn-save" style="margin-top:14px;width:100%" onclick="saveRecipe()">儲存配方</button>
+      </div>
+    </div>
   </div>
 
 <!-- NEW MODAL -->
@@ -561,6 +601,7 @@ function switchTab(n,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('tab-'+n).classList.add('active');
   if(n==='inventory') loadInvSettings();
+  if(n==='ingredients') loadIngredients();
 }
 
 function loadInvSettings(){
@@ -583,6 +624,466 @@ function loadInvSettings(){
 
 function renderInvOverrides(overrides){
   // 行事曆已取代舊列表，保留供相容性
+}
+
+// ═══════════════════════════════════════
+// 🥛 食材庫存模組
+// ═══════════════════════════════════════
+
+// 預設食材（首次使用時寫入 Firebase）
+const DEFAULT_INGREDIENTS = [
+  {id:'milk',    name:'鮮奶',   unit:'ml',  costPer:0.08, stock:5000, warnDays:2},
+  {id:'egg',     name:'雞蛋',   unit:'顆',  costPer:8,    stock:30,   warnDays:1},
+  {id:'sugar',   name:'砂糖',   unit:'g',   costPer:0.02, stock:2000, warnDays:3},
+  {id:'matcha',  name:'抹茶粉', unit:'g',   costPer:0.8,  stock:500,  warnDays:3},
+  {id:'cocoa',   name:'可可粉', unit:'g',   costPer:0.5,  stock:500,  warnDays:3},
+  {id:'cream',   name:'動物鮮奶油', unit:'ml', costPer:0.12, stock:1000, warnDays:2},
+];
+
+// 預設每盒配方（原味/抹茶/可可，每盒6杯）
+const DEFAULT_RECIPE = {
+  original: {milk:700, egg:6, sugar:80, cream:100},
+  matcha:   {milk:700, egg:6, sugar:80, cream:100, matcha:20},
+  cocoa:    {milk:700, egg:6, sugar:80, cream:100, cocoa:25},
+};
+
+let ingData = {};   // {id: {name, unit, costPer, stock, warnDays}}
+let recipeData = {}; // {original: {milk:700,...}, matcha:{...}, cocoa:{...}}
+
+function loadIngredients(){
+  Promise.all([
+    db.ref('settings/ingredients').once('value'),
+    db.ref('settings/recipe').once('value'),
+  ]).then(([ingSnap, recSnap]) => {
+    // 如果沒資料就寫入預設值
+    if(!ingSnap.val()){
+      const defaults = {};
+      DEFAULT_INGREDIENTS.forEach(i => { defaults[i.id] = {...i}; delete defaults[i.id].id; });
+      db.ref('settings/ingredients').set(defaults);
+      ingData = defaults;
+    } else {
+      ingData = ingSnap.val();
+    }
+    if(!recSnap.val()){
+      db.ref('settings/recipe').set(DEFAULT_RECIPE);
+      recipeData = DEFAULT_RECIPE;
+    } else {
+      recipeData = recSnap.val();
+    }
+    renderIngAll();
+    renderRestockLog();
+  });
+}
+  renderIngAlerts();
+  renderIngDemand();
+  renderIngList();
+  renderIngRecipe();
+}
+
+// ── 計算未出貨訂單的食材需求 ──
+function calcDemand(){
+  const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled');
+  const demand = {}; // {ingId: totalAmount}
+  Object.keys(ingData).forEach(id => demand[id] = 0);
+
+  pending.forEach(o => {
+    ['original','matcha','cocoa'].forEach(flavor => {
+      const qty = flavor==='original'? (o.orig||0) : flavor==='matcha'? (o.matcha||0) : (o.cocoa||0);
+      if(!qty) return;
+      const recipe = (recipeData[flavor] || {});
+      Object.entries(recipe).forEach(([ingId, amt]) => {
+        if(demand[ingId] !== undefined) demand[ingId] += amt * qty;
+        else demand[ingId] = amt * qty;
+      });
+    });
+  });
+  return demand;
+}
+
+// ── 補貨警示 ──
+function renderIngAlerts(){
+  const demand = calcDemand();
+  const alerts = [];
+  Object.entries(ingData).forEach(([id, ing]) => {
+    const needed = demand[id] || 0;
+    const stock = ing.stock || 0;
+    const shortage = needed - stock;
+    if(shortage > 0){
+      alerts.push({id, ing, shortage, needed, stock});
+    }
+  });
+
+  const el = document.getElementById('ing-alerts');
+  if(!alerts.length){
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;display:flex;align-items:center;gap:8px;">✅ 目前庫存充足，可應付所有未出貨訂單</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;">⚠️ 以下食材庫存不足</div>
+      ${alerts.map(a=>`
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(224,112,112,0.15);">
+          <span style="font-weight:500">${a.ing.name}</span>
+          <span style="color:var(--red)">缺 ${a.shortage.toFixed(0)} ${a.ing.unit}（現有 ${a.stock} / 需要 ${a.needed.toFixed(0)}）</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── 需求總覽 ──
+function renderIngDemand(){
+  const demand = calcDemand();
+  const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled');
+  const totalOrig   = pending.reduce((a,o)=>a+(o.orig||0),0);
+  const totalMatcha = pending.reduce((a,o)=>a+(o.matcha||0),0);
+  const totalCocoa  = pending.reduce((a,o)=>a+(o.cocoa||0),0);
+  const totalBoxes  = totalOrig + totalMatcha + totalCocoa;
+
+  const el = document.getElementById('ing-demand');
+  if(!totalBoxes){
+    el.innerHTML = `<div style="font-size:12px;color:var(--ink-soft)">目前沒有未出貨訂單</div>`;
+    return;
+  }
+
+  // 總成本試算
+  let totalCost = 0;
+  Object.entries(demand).forEach(([id, amt]) => {
+    totalCost += amt * ((ingData[id]||{}).costPer||0);
+  });
+
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--ink-soft);margin-bottom:12px">
+      待出貨：原味 ${totalOrig} 盒 · 抹茶 ${totalMatcha} 盒 · 可可 ${totalCocoa} 盒（共 ${totalBoxes} 盒）
+      <span style="margin-left:12px;color:var(--caramel);font-weight:600">預估食材成本 NT$${totalCost.toFixed(0)}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;font-weight:600;color:var(--ink-soft)">食材</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">需要量</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">現有庫存</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">缺口</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">食材成本</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${Object.entries(demand).filter(([,v])=>v>0).map(([id,needed])=>{
+          const ing = ingData[id] || {name:id, unit:'', stock:0, costPer:0};
+          const stock = ing.stock || 0;
+          const gap = needed - stock;
+          const cost = needed * (ing.costPer||0);
+          const over = gap > 0;
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;font-weight:500">${ing.name}</td>
+            <td style="padding:7px 6px;text-align:right">${needed.toFixed(0)} ${ing.unit}</td>
+            <td style="padding:7px 6px;text-align:right;color:${over?'var(--red)':'var(--matcha)'}">${stock} ${ing.unit}</td>
+            <td style="padding:7px 6px;text-align:right;font-weight:600;color:${over?'var(--red)':'var(--ink-soft)'}">${over?'缺 '+gap.toFixed(0):'充足'}</td>
+            <td style="padding:7px 6px;text-align:right;color:var(--caramel)">NT$${cost.toFixed(0)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── 食材清單 ──
+function renderIngList(){
+  const el = document.getElementById('ing-list');
+  const keys = Object.keys(ingData);
+  if(!keys.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無食材，請新增</div>'; return; }
+
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">食材</th>
+          <th style="padding:7px 6px;text-align:center;color:var(--ink-soft)">單位</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">現有庫存</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">單價(NT$)</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">提前補貨(天)</th>
+          <th style="padding:7px 6px;text-align:center;color:var(--ink-soft)">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${keys.map(id => {
+          const ing = ingData[id];
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;font-weight:500">${ing.name}</td>
+            <td style="padding:7px 6px;text-align:center;color:var(--ink-soft)">${ing.unit}</td>
+            <td style="padding:7px 6px;text-align:right">
+              <input type="number" min="0" value="${ing.stock||0}"
+                onblur="saveIngField('${id}','stock',this.value)"
+                onkeydown="if(event.key==='Enter')this.blur()"
+                style="width:70px;padding:3px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:right;font-size:12px;font-family:inherit;outline:none;">
+              ${ing.unit}
+            </td>
+            <td style="padding:7px 6px;text-align:right">
+              <input type="number" min="0" step="0.01" value="${ing.costPer||0}"
+                onblur="saveIngField('${id}','costPer',this.value)"
+                onkeydown="if(event.key==='Enter')this.blur()"
+                style="width:60px;padding:3px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:right;font-size:12px;font-family:inherit;outline:none;">
+            </td>
+            <td style="padding:7px 6px;text-align:right">
+              <input type="number" min="1" max="30" value="${ing.warnDays||2}"
+                onblur="saveIngField('${id}','warnDays',this.value)"
+                onkeydown="if(event.key==='Enter')this.blur()"
+                style="width:50px;padding:3px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:center;font-size:12px;font-family:inherit;outline:none;">
+            </td>
+            <td style="padding:7px 6px;text-align:center;white-space:nowrap">
+              <button onclick="openRestockModal('${id}')" style="border:none;background:var(--caramel);color:#fff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit;margin-right:4px">＋補貨</button>
+              <button onclick="delIngredient('${id}')" style="border:none;background:none;cursor:pointer;color:var(--ink-soft);font-size:13px" title="刪除">🗑</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── 配方設定 ──
+function renderIngRecipe(){
+  const el = document.getElementById('ing-recipe');
+  const flavors = [{id:'original',label:'原味',color:'var(--caramel)'},{id:'matcha',label:'抹茶',color:'var(--matcha)'},{id:'cocoa',label:'可可',color:'var(--cocoa)'}];
+  const ingKeys = Object.keys(ingData);
+
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">食材</th>
+          ${flavors.map(f=>`<th style="padding:7px 10px;text-align:center;color:${f.color};font-weight:600">${f.label}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${ingKeys.map(id => {
+          const ing = ingData[id];
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;font-weight:500">${ing.name} <span style="color:var(--ink-soft);font-weight:400">(${ing.unit})</span></td>
+            ${flavors.map(f => {
+              const val = (recipeData[f.id]||{})[id] || '';
+              return `<td style="padding:6px 10px;text-align:center">
+                <input type="number" min="0" id="rec-${f.id}-${id}" value="${val}" placeholder="0"
+                  style="width:60px;padding:4px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:center;font-size:12px;font-family:inherit;outline:none;">
+              </td>`;
+            }).join('')}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function saveRecipe(){
+  const flavors = ['original','matcha','cocoa'];
+  const ingKeys = Object.keys(ingData);
+  const newRecipe = {};
+  flavors.forEach(f => {
+    newRecipe[f] = {};
+    ingKeys.forEach(id => {
+      const val = +document.getElementById(`rec-${f}-${id}`)?.value || 0;
+      if(val > 0) newRecipe[f][id] = val;
+    });
+  });
+  db.ref('settings/recipe').set(newRecipe).then(()=>{
+    recipeData = newRecipe;
+    showToast('✅ 配方已儲存');
+    renderIngAll();
+  });
+}
+
+function saveIngField(id, field, val){
+  ingData[id][field] = +val;
+  db.ref('settings/ingredients/'+id+'/'+field).set(+val).then(()=>{
+    showToast(`✅ ${ingData[id].name} 已更新`);
+    renderIngAll();
+  });
+}
+
+function delIngredient(id){
+  if(!confirm(`確定刪除「${ingData[id].name}」？`)) return;
+  delete ingData[id];
+  db.ref('settings/ingredients/'+id).remove().then(()=>{
+    showToast('🗑 已刪除');
+    renderIngAll();
+  });
+}
+
+// ── 新增食材 Modal ──
+function openIngModal(){
+  const overlay = document.createElement('div');
+  overlay.id = 'ing-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:4px;padding:28px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:18px">新增食材</div>
+      <div style="display:grid;gap:10px">
+        <div><label class="form-label">食材名稱</label><input class="form-ctrl" id="ing-new-name" placeholder="例：鮮奶"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label class="form-label">單位</label><input class="form-ctrl" id="ing-new-unit" placeholder="ml / g / 顆"></div>
+          <div><label class="form-label">單價 (NT$/單位)</label><input class="form-ctrl" id="ing-new-cost" type="number" min="0" step="0.01" placeholder="0.08"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label class="form-label">現有庫存</label><input class="form-ctrl" id="ing-new-stock" type="number" min="0" placeholder="0"></div>
+          <div><label class="form-label">提前補貨(天)</label><input class="form-ctrl" id="ing-new-warn" type="number" min="1" max="30" placeholder="2"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn-save" style="flex:1" onclick="saveNewIngredient()">新增</button>
+        <button onclick="document.getElementById('ing-modal-overlay').remove()" style="padding:9px 18px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function saveNewIngredient(){
+  const name  = document.getElementById('ing-new-name').value.trim();
+  const unit  = document.getElementById('ing-new-unit').value.trim();
+  const cost  = +document.getElementById('ing-new-cost').value  || 0;
+  const stock = +document.getElementById('ing-new-stock').value || 0;
+  const warn  = +document.getElementById('ing-new-warn').value  || 2;
+  if(!name){ showToast('請填寫食材名稱'); return; }
+  const id = 'ing_' + Date.now();
+  ingData[id] = {name, unit, costPer:cost, stock, warnDays:warn};
+  db.ref('settings/ingredients/'+id).set(ingData[id]).then(()=>{
+    showToast(`✅ 已新增「${name}」`);
+    document.getElementById('ing-modal-overlay').remove();
+    renderIngAll();
+  });
+}
+
+// ── 補貨 Modal ──
+function openRestockModal(id){
+  const ing = ingData[id];
+  const overlay = document.createElement('div');
+  overlay.id = 'restock-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:4px;padding:28px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">補貨：${ing.name}</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:18px">現有庫存：${ing.stock||0} ${ing.unit}　單價：NT$${ing.costPer||0} / ${ing.unit}</div>
+      <div style="display:grid;gap:10px">
+        <div>
+          <label class="form-label">補貨數量（${ing.unit}）</label>
+          <input class="form-ctrl" id="restock-qty" type="number" min="1" placeholder="0"
+            oninput="calcRestockCost('${id}')">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label class="form-label">單價 NT$ / ${ing.unit}</label>
+            <input class="form-ctrl" id="restock-unit-cost" type="number" min="0" step="0.01"
+              value="${ing.costPer||''}" placeholder="${ing.costPer||0}"
+              oninput="calcRestockCost('${id}')">
+          </div>
+          <div>
+            <label class="form-label">本次進貨總金額</label>
+            <input class="form-ctrl" id="restock-total-cost" type="number" min="0" step="1"
+              placeholder="自動計算" oninput="calcRestockUnitCost('${id}')">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-soft);background:var(--paper-dark);border-radius:4px;padding:8px 10px" id="restock-cost-preview">填寫數量後自動計算金額</div>
+        <div>
+          <label class="form-label">備註（選填）</label>
+          <input class="form-ctrl" id="restock-note" placeholder="例：家樂福補貨">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn-save" style="flex:1;background:var(--caramel)" onclick="saveRestock('${id}')">確認補貨</button>
+        <button onclick="document.getElementById('restock-overlay').remove()" style="padding:9px 18px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>document.getElementById('restock-qty').focus(), 100);
+}
+
+function calcRestockCost(id){
+  const qty      = +document.getElementById('restock-qty').value || 0;
+  const unitCost = +document.getElementById('restock-unit-cost').value || 0;
+  const total    = qty * unitCost;
+  document.getElementById('restock-total-cost').value = total ? total.toFixed(0) : '';
+  document.getElementById('restock-cost-preview').textContent =
+    qty && unitCost ? `本次進貨 ${qty} ${ingData[id].unit} × NT$${unitCost} = NT$${total.toFixed(0)}` : '填寫數量後自動計算金額';
+}
+
+function calcRestockUnitCost(id){
+  const qty   = +document.getElementById('restock-qty').value || 0;
+  const total = +document.getElementById('restock-total-cost').value || 0;
+  if(qty && total){
+    const unit = total / qty;
+    document.getElementById('restock-unit-cost').value = unit.toFixed(2);
+    document.getElementById('restock-cost-preview').textContent =
+      `本次進貨 ${qty} ${ingData[id].unit} × NT$${unit.toFixed(2)} = NT$${total.toFixed(0)}`;
+  }
+}
+
+function saveRestock(id){
+  const qty       = +document.getElementById('restock-qty').value || 0;
+  const unitCost  = +document.getElementById('restock-unit-cost').value || 0;
+  const totalCost = +document.getElementById('restock-total-cost').value || (qty * unitCost);
+  const note      = document.getElementById('restock-note').value.trim();
+  if(!qty){ showToast('請填寫補貨數量'); return; }
+
+  const ing = ingData[id];
+  const newStock = (ing.stock||0) + qty;
+  const ts = new Date().toISOString();
+  const record = { ingId:id, ingName:ing.name, unit:ing.unit, qty,
+    unitCost, totalCost, note, ts,
+    stockBefore: ing.stock||0, stockAfter: newStock };
+
+  const updates = {};
+  updates['settings/ingredients/'+id+'/stock'] = newStock;
+  // 如果單價有填，同步更新預設單價
+  if(unitCost) updates['settings/ingredients/'+id+'/costPer'] = unitCost;
+  updates['settings/restockLog/'+Date.now()] = record;
+
+  db.ref().update(updates).then(()=>{
+    if(unitCost) ingData[id].costPer = unitCost;
+    ingData[id].stock = newStock;
+    showToast(`✅ ${ing.name} 補貨 +${qty} ${ing.unit}，進貨 NT$${totalCost.toFixed(0)}`);
+    document.getElementById('restock-overlay').remove();
+    renderIngAll();
+    renderRestockLog();
+  });
+}
+
+// ── 補貨紀錄 ──
+function renderRestockLog(){
+  const el = document.getElementById('restock-log');
+  if(!el) return;
+  db.ref('settings/restockLog').orderByChild('ts').limitToLast(20).once('value').then(snap=>{
+    const records = [];
+    snap.forEach(c => records.unshift(c.val())); // 最新的在前
+    if(!records.length){
+      el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>';
+      return;
+    }
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:2px solid var(--rule)">
+            <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">時間</th>
+            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">食材</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨量</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">單價</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">進貨金額</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨後庫存</th>
+            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">備註</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map(r=>{
+            const d = new Date(r.ts);
+            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return `<tr style="border-bottom:1px solid var(--rule)">
+              <td style="padding:7px 10px;color:var(--ink-soft)">${dateStr}</td>
+              <td style="padding:7px 6px;font-weight:500">${r.ingName}</td>
+              <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:600">+${r.qty} ${r.unit}</td>
+              <td style="padding:7px 6px;text-align:right;color:var(--ink-soft)">${r.unitCost ? 'NT$'+r.unitCost : '—'}</td>
+              <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:500">${r.totalCost ? 'NT$'+Math.round(r.totalCost) : '—'}</td>
+              <td style="padding:7px 6px;text-align:right;color:var(--matcha)">${r.stockAfter} ${r.unit}</td>
+              <td style="padding:7px 6px;color:var(--ink-soft)">${r.note||'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  });
 }
 
 function updateTotalPreview(){
