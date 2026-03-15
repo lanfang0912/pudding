@@ -761,14 +761,22 @@ function renderInvOverrides(overrides){
 
 // 預設食材（首次使用時寫入 Firebase）
 const DEFAULT_INGREDIENTS = [
-  {id:'milk',       name:'鮮奶',        unit:'g', stock:0, warnDays:2},
-  {id:'cream',      name:'動物鮮奶油',  unit:'g', stock:0, warnDays:2},
-  {id:'egg',        name:'洗選蛋',      unit:'g', stock:0, warnDays:1},
-  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g', stock:0, warnDays:1},
-  {id:'sugar',      name:'上白糖',      unit:'g', stock:0, warnDays:3},
-  {id:'matcha',     name:'抹茶粉',      unit:'g', stock:0, warnDays:3},
-  {id:'cocoa',      name:'可可粉',      unit:'g', stock:0, warnDays:3},
+  // 食材
+  {id:'milk',       name:'鮮奶',        unit:'g',  stock:0, warnDays:2},
+  {id:'cream',      name:'動物鮮奶油',  unit:'g',  stock:0, warnDays:2},
+  {id:'egg',        name:'洗選蛋',      unit:'g',  stock:0, warnDays:1},
+  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g',  stock:0, warnDays:1},
+  {id:'sugar',      name:'上白糖',      unit:'g',  stock:0, warnDays:3},
+  {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:3},
+  {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:3},
   {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:3},
+  // 耗材
+  {id:'cup',        name:'布丁杯',      unit:'個', stock:0, warnDays:7},
+  {id:'cup_lid',    name:'布丁杯蓋',    unit:'個', stock:0, warnDays:7},
+  {id:'box_small',  name:'小紙箱（宅配）', unit:'個', stock:0, warnDays:7},
+  {id:'box_large',  name:'大紙箱（宅配）', unit:'個', stock:0, warnDays:7},
+  {id:'box_muffin', name:'馬芬包裝盒（面交）', unit:'個', stock:0, warnDays:7},
+  {id:'bag_kraft',  name:'白牛皮袋（面交）',   unit:'個', stock:0, warnDays:7},
 ];
 
 // 每盒配方（6杯 = 10杯食譜 × 6/10）
@@ -852,6 +860,30 @@ function renderIngAll(){
 }
 
 // ── 計算未出貨訂單的食材需求 ──
+// ── 耗材需求計算（按訂單配送方式+盒數）──
+function calcPackagingDemand(){
+  const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled' && o.date);
+  const pkg = { cup:0, cup_lid:0, box_small:0, box_large:0, box_muffin:0, bag_kraft:0 };
+
+  pending.forEach(o => {
+    const boxes = (o.orig||0) + (o.matcha||0) + (o.cocoa||0);
+    if(!boxes) return;
+    const cups = boxes * 6;
+    pkg.cup     += cups;
+    pkg.cup_lid += cups;
+
+    if(o.delivery === '宅配'){
+      pkg.box_small += boxes;           // 每盒一個小紙箱
+      if(boxes >= 2) pkg.box_large += 2; // 2盒以上用一組大紙箱（2個）
+    } else {
+      // 面交
+      pkg.box_muffin += boxes;          // 每盒一個馬芬盒
+      pkg.bag_kraft  += 1;              // 3盒以下共用一個牛皮袋
+    }
+  });
+  return pkg;
+}
+
 function calcDemand(){
   const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled');
   const demand = {}; // {ingId: totalAmount}
@@ -952,22 +984,48 @@ function renderIngAlerts(){
 
   if(!hasShortage){
     el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天食材充足（製作日：${urgentList}）</div>`;
-    return;
+  } else {
+    el.innerHTML = `
+      <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來2天食材不足，請盡快補貨</div>
+        ${alerts.filter(a=>a.shortages.length>0).map(a=>`
+          <div style="margin-bottom:10px">
+            <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${a.totalBoxes}盒）</div>
+            ${a.shortages.map(s=>`
+              <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 10px;background:rgba(224,112,112,0.08);border-radius:4px;margin-bottom:2px">
+                <span>${s.name}</span>
+                <span style="color:var(--red);font-weight:600">缺 ${s.short} ${s.unit}</span>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>`;
   }
 
-  el.innerHTML = `
-    <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;">
-      <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來2天食材不足，請盡快補貨</div>
-      ${alerts.filter(a=>a.shortages.length>0).map(a=>`
-        <div style="margin-bottom:10px">
-          <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${a.totalBoxes}盒）</div>
-          ${a.shortages.map(s=>`
-            <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 10px;background:rgba(224,112,112,0.08);border-radius:4px;margin-bottom:2px">
-              <span>${s.name}</span>
-              <span style="color:var(--red);font-weight:600">缺 ${s.short} ${s.unit}</span>
-            </div>`).join('')}
-        </div>`).join('')}
-    </div>`;
+  // 耗材庫存警示（所有未出貨訂單）
+  const pkg = calcPackagingDemand();
+  const pkgAlerts = [];
+  Object.entries(pkg).forEach(([id, needed]) => {
+    if(!needed) return;
+    const ing = ingData[id];
+    if(!ing) return;
+    const stock = ing.stock || 0;
+    if(stock < needed) pkgAlerts.push({
+      name: ing.name, unit: ing.unit,
+      needed, stock, short: needed - stock,
+    });
+  });
+
+  if(pkgAlerts.length){
+    const existingHtml = el.innerHTML;
+    el.innerHTML = existingHtml + `
+      <div style="background:#fff3e0;border:1px solid #F0D5A8;border-radius:4px;padding:14px 16px;margin-top:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--caramel);margin-bottom:8px">📦 耗材庫存不足（所有未出貨訂單）</div>
+        ${pkgAlerts.map(a=>`
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 10px;background:rgba(196,131,42,0.08);border-radius:4px;margin-bottom:2px">
+            <span>${a.name}</span>
+            <span style="color:var(--caramel);font-weight:600">缺 ${a.short} ${a.unit}（現有 ${a.stock} / 需要 ${a.needed}）</span>
+          </div>`).join('')}
+      </div>`;
+  }
 }
 
 
