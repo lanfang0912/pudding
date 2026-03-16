@@ -1,29 +1,37 @@
 """
-YouTube Video Finder — Daily Runner
+創作者覺醒日 AI 超級內容生產線
 
-Finds 3 YouTube relationship/parenting interview videos with CC subtitles,
-fetches their transcripts, and generates Facebook posts via Claude API.
+流程：
+  步驟 1-2  YouTube 搜尋 + 抓字幕 + Claude 初稿
+  步驟 3    改寫（風格、字數、格式）
+  步驟 4    社群寫作教練分析 → 潤飾改寫
+  步驟 5    希塔療癒導師視角 → 融入信念／下載／顯化
+  步驟 6    加入影片來源標註
+  ────────────────────────────────
+  步驟 7    ★ 人工精修（輸出至 Google 文件）
 
 Usage:
     python main.py
 
 Output:
-    Console output + daily_report_YYYY-MM-DD.txt in the current directory.
+    draft_YYYY-MM-DD_<序號>.txt（每支影片一份，可直接貼入 Google 文件精修）
 
-Schedule (cron example, runs every day at 09:00):
+Cron（每天早上 9 點）:
     0 9 * * * cd /path/to/youtube_video_finder && python main.py >> run.log 2>&1
 """
 import sys
 from datetime import date
 from pathlib import Path
 
-from config import YOUTUBE_API_KEY, ANTHROPIC_API_KEY, VIDEOS_PER_RUN
+from config import YOUTUBE_API_KEY, ANTHROPIC_API_KEY, VIDEOS_PER_RUN, USER_IDENTITY
 from youtube_finder import find_videos
 from transcript_fetcher import fetch_transcript
 from report_generator import generate_facebook_post
+from pipeline import run_pipeline
 
 
 DIVIDER = "=" * 70
+THIN = "─" * 70
 
 
 def check_env() -> None:
@@ -33,8 +41,8 @@ def check_env() -> None:
     if not ANTHROPIC_API_KEY:
         missing.append("ANTHROPIC_API_KEY")
     if missing:
-        print(f"[ERROR] Missing environment variables: {', '.join(missing)}")
-        print("        Copy .env.example to .env and fill in your API keys.")
+        print(f"[ERROR] 缺少環境變數：{', '.join(missing)}")
+        print("        請複製 .env.example 為 .env 並填入 API Keys。")
         sys.exit(1)
 
 
@@ -42,16 +50,16 @@ def run() -> None:
     check_env()
 
     today = date.today().isoformat()
-    report_path = Path(f"daily_report_{today}.txt")
 
     print(f"\n{DIVIDER}")
-    print(f"  YouTube Video Finder — {today}")
+    print(f"  創作者覺醒日 AI 內容生產線 — {today}")
     print(DIVIDER)
-    print(f"  目標：找 {VIDEOS_PER_RUN} 支有 CC 字幕的伴侶／親子關係訪談影片")
-    print(f"  篩選：觀看數 > 10 萬 | 一年內發布 | 以外文為主")
+    print(f"  主題：關係療癒 ／ 心靈成長 ／ 豐盛顯化")
+    print(f"  身份：{USER_IDENTITY}")
+    print(f"  目標：{VIDEOS_PER_RUN} 支外文 CC 字幕影片（觀看數 > 10 萬，一年內）")
     print(DIVIDER + "\n")
 
-    # ── Step 1: Search YouTube ──────────────────────────────────────────────
+    # ── 步驟 1：搜尋 YouTube ────────────────────────────────────────────────
     print("▶ 搜尋 YouTube 影片中...")
     try:
         videos = find_videos()
@@ -65,64 +73,65 @@ def run() -> None:
 
     print(f"  找到 {len(videos)} 支符合條件的影片\n")
 
-    # ── Step 2 & 3: Fetch transcripts + generate posts ──────────────────────
-    report_sections: list[str] = []
+    # ── 步驟 2-6：逐一處理影片 ─────────────────────────────────────────────
+    success_count = 0
 
     for idx, video in enumerate(videos, start=1):
-        print(f"{DIVIDER}")
-        print(f"  影片 {idx}/{len(videos)}")
+        print(f"\n{DIVIDER}")
+        print(f"  ▍ 影片 {idx}/{len(videos)}")
         print(f"  標題：{video['title']}")
         print(f"  頻道：{video['channel']}")
         print(f"  網址：{video['url']}")
-        print(f"  觀看數：{video['view_count']:,}  |  發布：{video['published_at'][:10]}")
+        print(f"  觀看數：{video['view_count']:,}　發布：{video['published_at'][:10]}")
         print(DIVIDER)
 
-        # Fetch CC transcript
-        print("  ▷ 抓取字幕...")
+        # 步驟 2：抓取 CC 字幕
+        print("  ▷ 步驟 2｜抓取 CC 字幕...")
         transcript, lang = fetch_transcript(video["id"])
 
         if not transcript:
             print("  [SKIP] 找不到可用的 CC 字幕，跳過此影片。\n")
             continue
 
-        print(f"  ▷ 字幕語言：{lang}  |  字幕長度：{len(transcript)} 字元")
+        print(f"         字幕語言：{lang}　字幕長度：{len(transcript):,} 字元")
 
-        # Generate Facebook post
-        print("  ▷ 呼叫 Claude 生成臉書貼文...")
         try:
-            post = generate_facebook_post(video, transcript)
+            # 步驟 2（續）：生成初稿
+            print("  ▷ 步驟 2｜Claude 生成初稿...")
+            initial_draft = generate_facebook_post(video, transcript)
+
+            # 步驟 3-6：完整管線
+            print(f"\n{THIN}")
+            print("  ▍ 進入內容生產管線（步驟 3-6）")
+            print(THIN)
+            final_draft = run_pipeline(initial_draft, video)
+
         except Exception as e:
-            print(f"  [ERROR] Claude API 呼叫失敗：{e}\n")
+            print(f"  [ERROR] 處理失敗：{e}\n")
             continue
 
-        print("\n  ─── 生成的臉書貼文 ───────────────────────────────────────────")
-        print(post)
-        print("  ──────────────────────────────────────────────────────────────\n")
+        # 輸出草稿檔（每支影片一個檔案，方便直接貼入 Google 文件）
+        draft_path = Path(f"draft_{today}_{idx:02d}.txt")
+        draft_path.write_text(final_draft, encoding="utf-8")
 
-        # Collect for file output
-        section = (
-            f"【影片 {idx}】{video['title']}\n"
-            f"頻道：{video['channel']}\n"
-            f"網址：{video['url']}\n"
-            f"觀看數：{video['view_count']:,}　發布：{video['published_at'][:10]}\n"
-            f"字幕語言：{lang}\n\n"
-            f"── 臉書貼文 ──\n{post}\n"
-        )
-        report_sections.append(section)
+        print(f"\n{THIN}")
+        print(f"  ✓ 草稿已儲存：{draft_path.resolve()}")
+        print(f"  → 下一步：貼入 Google 文件進行人工精修（步驟 7）")
+        print(THIN)
 
-    # ── Step 4: Write report file ───────────────────────────────────────────
-    if report_sections:
-        full_report = (
-            f"YouTube 每日影片報告 — {today}\n"
-            + DIVIDER + "\n\n"
-            + ("\n" + DIVIDER + "\n\n").join(report_sections)
-        )
-        report_path.write_text(full_report, encoding="utf-8")
-        print(f"\n✓ 報告已儲存至：{report_path.resolve()}")
-    else:
-        print("\n[WARN] 沒有成功處理任何影片，未產生報告檔案。")
+        # Console 預覽（前 300 字）
+        preview = final_draft[:300].replace("\n", " ")
+        print(f"\n  預覽：{preview}……\n")
 
-    print("\n完成！\n")
+        success_count += 1
+
+    # ── 完成摘要 ───────────────────────────────────────────────────────────
+    print(f"\n{DIVIDER}")
+    print(f"  完成！成功產出 {success_count}/{len(videos)} 篇草稿")
+    if success_count > 0:
+        print(f"  草稿檔案：draft_{today}_01.txt ～ draft_{today}_{success_count:02d}.txt")
+        print(f"  下一步：將草稿貼入 Google 文件，進行步驟 7 人工精修")
+    print(DIVIDER + "\n")
 
 
 if __name__ == "__main__":
