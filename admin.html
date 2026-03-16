@@ -148,6 +148,20 @@ tr.done-row td{opacity:.45;}
 .addr-cell{max-width:165px;font-size:11px;word-break:break-all;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--matcha);color:white;padding:10px 22px;border-radius:2px;font-size:12px;letter-spacing:1px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;}
 .toast.show{transform:translateX(-50%) translateY(0);}
+/* ── 訂單卡片（手機專用）── */
+.order-card{background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:13px 14px;margin-bottom:10px;}
+.order-card.done-row{opacity:.45;}
+.order-card.oc-overlimit{background:rgba(180,60,60,.05);border-color:rgba(180,60,60,.25);}
+.oc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px;}
+.oc-name{font-size:15px;font-weight:600;line-height:1.3;}
+.oc-sub{font-size:11px;color:var(--ink-soft);margin-top:3px;}
+.oc-right-top{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.oc-info{font-size:13px;color:var(--ink-mid);display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.oc-row{line-height:1.5;}
+.oc-note{font-size:12px;color:var(--ink-soft);}
+.oc-actions{display:flex;gap:5px;flex-wrap:wrap;}
+#order-cards{padding:10px 14px;}
+
 /* ── MOBILE（手機：≤ 640px）── */
 @media(max-width:640px){
   body { font-size: 15px; }
@@ -155,31 +169,29 @@ tr.done-row td{opacity:.45;}
   /* ── Topbar ── */
   .topbar { padding: 10px 14px; min-height: 48px; }
   .topbar-brand { font-size: 15px; }
-  #topbar-date { display: none; }               /* 手機隱藏日期，節省空間 */
+  #topbar-date { display: none; }
   .topbar-right { gap: 8px; }
-  .topbar-right .act-btn { padding: 6px 10px; font-size: 11px; letter-spacing: 0.3px; }
   .logout-btn { padding: 6px 10px; font-size: 11px; }
 
-  /* ── Stats bar：改成 2 欄 grid ── */
+  /* ── Stats bar：2 欄 grid ── */
   .stats-bar {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     padding: 12px 14px;
   }
-  .stat-item { padding: 4px 0; }
   .stat-value { font-size: 20px; }
   .stat-label { font-size: 10px; }
 
-  /* ── Tabs：修正 class 名稱，讓 6 個 tab 可橫向捲動 ── */
+  /* ── Tabs：橫向捲動（隱藏捲軸）── */
   .tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     white-space: nowrap;
     padding: 0 6px;
-    scrollbar-width: none;           /* Firefox：隱藏捲軸 */
+    scrollbar-width: none;
   }
-  .tabs::-webkit-scrollbar { display: none; }  /* Chrome/Safari：隱藏捲軸 */
+  .tabs::-webkit-scrollbar { display: none; }
   .tab-btn { padding: 11px 14px; font-size: 12px; letter-spacing: 0.3px; }
 
   /* ── Filters ── */
@@ -189,17 +201,9 @@ tr.done-row td{opacity:.45;}
   input[type=date].filter-input { font-size: 16px; padding: 9px 11px; }
   .filter-label { font-size: 13px; }
 
-  /* ── 訂單總覽：表格橫向捲動，隱藏次要欄位 ── */
-  .table-wrap { padding: 12px 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table-wrap table { min-width: 560px; font-size: 13px; }
-  .table-wrap th, .table-wrap td { padding: 8px 7px; }
-  /* 隱藏：Email(4)、地址(8)、末五碼(9)、備註(11) */
-  .table-wrap th:nth-child(4), .table-wrap td:nth-child(4),
-  .table-wrap th:nth-child(8), .table-wrap td:nth-child(8),
-  .table-wrap th:nth-child(9), .table-wrap td:nth-child(9),
-  .table-wrap th:nth-child(11),.table-wrap td:nth-child(11) { display: none; }
+  /* ── 訂單總覽：JS 渲染卡片，隱藏原始表格 ── */
+  .table-wrap table { display: none; }
   .act-btn { padding: 7px 10px; font-size: 12px; }
-  .action-btns { gap: 3px; }
 
   /* ── 每日出貨：單欄卡片 ── */
   .day-section { padding: 14px 14px 0; }
@@ -216,39 +220,50 @@ tr.done-row td{opacity:.45;}
   .sch-day { margin-bottom: 14px; }
   .sch-hdr { padding: 10px 14px; gap: 8px; }
   .sch-title { font-size: 15px; }
-  .sch-body {
-    grid-template-columns: 1fr !important;  /* 覆蓋 JS 或行內 1fr 1fr */
-    padding: 12px 14px;
-    gap: 14px;
-  }
+  .sch-body { grid-template-columns: 1fr !important; padding: 12px 14px; gap: 14px; }
 
-  /* ── 庫存設定：4 欄 → 2 欄 ── */
+  /* ── 庫存設定：4 欄 → 2 欄（覆蓋 inline style）── */
   #tab-inventory { padding: 0 14px; }
   #tab-inventory > div { padding: 16px 0 !important; }
-  /* 覆蓋 inline style 的 4 欄格線 */
   #tab-inventory div[style*="grid-template-columns:1fr 1fr 1fr 1fr"] {
     grid-template-columns: 1fr 1fr !important;
   }
-  #inv-calendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* 行事曆：JS 渲染卡片，不需要捲動 */
+  #inv-calendar { overflow: visible; }
 
-  /* ── 食材庫存 ── */
+  /* ── 食材庫存：JS 渲染行列，不需要捲動 ── */
   #tab-ingredients > div { padding: 14px 0; }
   #tab-ingredients .form-row { grid-template-columns: 1fr !important; }
-  #ing-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #ing-list table { min-width: 360px; font-size: 13px; }
-  #ing-list th:nth-child(4), #ing-list td:nth-child(4) { display: none; }
-  #ing-list input[type=number] { font-size: 14px !important; width: 80px !important; }
-  #ing-recipe { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #ing-recipe table { min-width: 340px; font-size: 13px; }
   #ing-alerts { padding: 0 14px; }
 
-  /* ── 包材庫存 ── */
+  /* 配方表格：4欄可適配，縮減 padding */
+  #ing-recipe table { font-size: 12px; }
+  #ing-recipe table th,
+  #ing-recipe table td { padding: 6px 6px !important; }
+  #ing-recipe table input { width: 52px !important; }
+
+  /* ── 補貨紀錄：隱藏次要欄位，只留時間/食材/補貨量/備註 ── */
+  #restock-log table th:nth-child(4),
+  #restock-log table td:nth-child(4),
+  #restock-log table th:nth-child(5),
+  #restock-log table td:nth-child(5),
+  #restock-log table th:nth-child(6),
+  #restock-log table td:nth-child(6) { display: none; }
+  #restock-log table { font-size: 12px; }
+  #restock-log table th, #restock-log table td { padding: 6px 7px !important; }
+
+  /* ── 包材庫存：3-4 欄可適配 ── */
   #tab-packaging > div { padding: 14px 0; }
-  #pkg-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #pkg-list table { font-size: 13px; min-width: 320px; }
-  #pkg-list input[type=number] { font-size: 14px !important; width: 80px !important; }
-  #pkg-demand { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #pkg-demand table { font-size: 13px; min-width: 300px; }
+  #pkg-demand table { font-size: 12px; }
+  #pkg-demand table th, #pkg-demand table td { padding: 6px 7px !important; }
+  #pkg-list table { font-size: 12px; }
+  #pkg-list table th, #pkg-list table td { padding: 6px 7px !important; }
+  #pkg-list table input[type=number] { width: 65px !important; font-size: 13px !important; }
+  /* 包材補貨紀錄：隱藏金額欄 */
+  #pkg-restock-log table th:nth-child(4),
+  #pkg-restock-log table td:nth-child(4) { display: none; }
+  #pkg-restock-log table { font-size: 12px; }
+  #pkg-restock-log table th, #pkg-restock-log table td { padding: 6px 7px !important; }
 
   /* ── 表單 / 按鈕 ── */
   .form-row { grid-template-columns: 1fr !important; }
@@ -257,7 +272,7 @@ tr.done-row td{opacity:.45;}
   .form-label { font-size: 13px; }
   .form-ctrl { font-size: 16px; padding: 10px 12px; }
 
-  /* ── Modal：全寬、底部滑出 ── */
+  /* ── Modal：底部滑出全寬 ── */
   .modal-overlay { align-items: flex-end; }
   .modal {
     width: 100% !important;
@@ -349,6 +364,7 @@ tr.done-row td{opacity:.45;}
         </tr></thead>
         <tbody id="order-tbody"></tbody>
       </table>
+      <div id="order-cards"></div>
       <div class="no-results" id="no-results" style="display:none">沒有符合的訂單</div>
     </div>
   </div>
@@ -1374,6 +1390,27 @@ function renderIngList(){
   const keys = Object.keys(ingData);
   if(!keys.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無食材，請新增</div>'; return; }
 
+  if(isMobile()){
+    // 手機：每項食材一行，顯示名稱＋庫存 input＋補貨按鈕
+    el.innerHTML = keys.map(id => {
+      const ing = ingData[id];
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--rule)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500">${ing.name}</div>
+          <div style="font-size:11px;color:var(--ink-soft)">提前 ${ing.warnDays||2} 天提醒</div>
+        </div>
+        <input type="number" min="0" value="${ing.stock||0}"
+          onblur="saveIngField('${id}','stock',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"
+          style="width:62px;padding:5px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:right;font-size:13px;font-family:inherit;outline:none;">
+        <span style="font-size:12px;color:var(--ink-soft);white-space:nowrap">${ing.unit}</span>
+        <button onclick="openRestockModal('${id}')" style="border:none;background:var(--caramel);color:#fff;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap">＋補貨</button>
+        <button onclick="delIngredient('${id}')" style="border:none;background:none;cursor:pointer;color:var(--ink-soft);font-size:16px;padding:0 2px" title="刪除">🗑</button>
+      </div>`;
+    }).join('');
+    return;
+  }
+
   el.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
@@ -1794,8 +1831,10 @@ function renderInvCalendar(overrides){
 
   const wd = ['日','一','二','三','四','五','六'];
 
-  // 建立表格
-  let html = `
+  const mobile = isMobile();
+
+  // 建立表格（電腦/平板）或卡片（手機）
+  let html = mobile ? '' : `
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
@@ -1855,43 +1894,87 @@ function renderInvCalendar(overrides){
       >`;
     }
 
-    html += `
-      <tr style="${isPast?'opacity:0.45;':''}border-bottom:1px solid var(--rule);" >
-        <td style="padding:8px 10px;white-space:nowrap">
-          <span style="font-weight:${hasOverride?'600':'400'}">${dateLabel}</span>
-          ${hasOverride?'<span style="font-size:9px;background:var(--caramel);color:#fff;border-radius:3px;padding:1px 5px;margin-left:4px">已設定</span>':''}
-          ${isPast?'<span style="font-size:9px;color:var(--ink-faint);margin-left:4px">過去</span>':''}
-        </td>
-        <td style="padding:6px;text-align:center">
-          <span style="${cellStyle(b.orig, limOrig)}">${b.orig}</span>
-          <span style="color:var(--ink-faint)"> / </span>
-          ${inp('orig', ov.orig, 'var(--caramel)')}
-        </td>
-        <td style="padding:6px;text-align:center">
-          <span style="${cellStyle(b.matcha, limMatcha)}">${b.matcha}</span>
-          <span style="color:var(--ink-faint)"> / </span>
-          ${inp('matcha', ov.matcha, 'var(--matcha)')}
-        </td>
-        <td style="padding:6px;text-align:center">
-          <span style="${cellStyle(b.cocoa, limCocoa)}">${b.cocoa}</span>
-          <span style="color:var(--ink-faint)"> / </span>
-          ${inp('cocoa', ov.cocoa, 'var(--cocoa)')}
-        </td>
-        <td style="padding:6px;text-align:center">
-          <span style="${cellStyle(totalBooked, limTotal)}">${totalBooked}</span>
-          <span style="color:var(--ink-faint)"> / </span>
-          ${inp('total', ov.total, 'var(--blue)')}
-        </td>
-        <td style="padding:6px;text-align:center">
-          <span style="font-weight:600;color:${canTake===0?'var(--red)':canTake<=2?'var(--cocoa)':'var(--matcha)'}">${canTake}</span>
-        </td>
-        <td style="padding:6px;text-align:center">
-          ${hasOverride ? `<button onclick="deleteDateInv('${date}')" style="border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink-faint);" title="清除設定">🗑</button>` : '<span style="color:var(--ink-faint);font-size:11px">—</span>'}
-        </td>
-      </tr>`;
+    if(mobile){
+      // 手機：每天一個卡片
+      html += `<div style="background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:12px;margin-bottom:10px;${isPast?'opacity:0.5':''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div>
+            <span style="font-size:14px;font-weight:${hasOverride?'600':'400'}">${dateLabel}</span>
+            ${hasOverride?'<span style="font-size:9px;background:var(--caramel);color:#fff;border-radius:3px;padding:1px 5px;margin-left:6px">已設定</span>':''}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11px;color:var(--ink-soft)">還可接</span>
+            <span style="font-size:18px;font-weight:700;color:${canTake===0?'var(--red)':canTake<=2?'var(--cocoa)':'var(--matcha)'}">${canTake}</span>
+            ${hasOverride?`<button onclick="deleteDateInv('${date}')" style="border:none;background:none;cursor:pointer;font-size:15px;color:var(--ink-soft)" title="清除設定">🗑</button>`:''}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:11px;color:var(--caramel);font-weight:600;min-width:28px">原味</span>
+            <span style="font-size:12px;${cellStyle(b.orig,limOrig)}">${b.orig}</span>
+            <span style="color:var(--rule)">/</span>
+            ${inp('orig',ov.orig,'var(--caramel)')}
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:11px;color:var(--matcha);font-weight:600;min-width:28px">抹茶</span>
+            <span style="font-size:12px;${cellStyle(b.matcha,limMatcha)}">${b.matcha}</span>
+            <span style="color:var(--rule)">/</span>
+            ${inp('matcha',ov.matcha,'var(--matcha)')}
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:11px;color:var(--cocoa);font-weight:600;min-width:28px">可可</span>
+            <span style="font-size:12px;${cellStyle(b.cocoa,limCocoa)}">${b.cocoa}</span>
+            <span style="color:var(--rule)">/</span>
+            ${inp('cocoa',ov.cocoa,'var(--cocoa)')}
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:11px;color:var(--blue);font-weight:600;min-width:28px">總計</span>
+            <span style="font-size:12px;${cellStyle(totalBooked,limTotal)}">${totalBooked}</span>
+            <span style="color:var(--rule)">/</span>
+            ${inp('total',ov.total,'var(--blue)')}
+          </div>
+        </div>
+      </div>`;
+    } else {
+      // 電腦/平板：表格列
+      html += `
+        <tr style="${isPast?'opacity:0.45;':''}border-bottom:1px solid var(--rule);" >
+          <td style="padding:8px 10px;white-space:nowrap">
+            <span style="font-weight:${hasOverride?'600':'400'}">${dateLabel}</span>
+            ${hasOverride?'<span style="font-size:9px;background:var(--caramel);color:#fff;border-radius:3px;padding:1px 5px;margin-left:4px">已設定</span>':''}
+            ${isPast?'<span style="font-size:9px;color:var(--ink-faint);margin-left:4px">過去</span>':''}
+          </td>
+          <td style="padding:6px;text-align:center">
+            <span style="${cellStyle(b.orig, limOrig)}">${b.orig}</span>
+            <span style="color:var(--ink-faint)"> / </span>
+            ${inp('orig', ov.orig, 'var(--caramel)')}
+          </td>
+          <td style="padding:6px;text-align:center">
+            <span style="${cellStyle(b.matcha, limMatcha)}">${b.matcha}</span>
+            <span style="color:var(--ink-faint)"> / </span>
+            ${inp('matcha', ov.matcha, 'var(--matcha)')}
+          </td>
+          <td style="padding:6px;text-align:center">
+            <span style="${cellStyle(b.cocoa, limCocoa)}">${b.cocoa}</span>
+            <span style="color:var(--ink-faint)"> / </span>
+            ${inp('cocoa', ov.cocoa, 'var(--cocoa)')}
+          </td>
+          <td style="padding:6px;text-align:center">
+            <span style="${cellStyle(totalBooked, limTotal)}">${totalBooked}</span>
+            <span style="color:var(--ink-faint)"> / </span>
+            ${inp('total', ov.total, 'var(--blue)')}
+          </td>
+          <td style="padding:6px;text-align:center">
+            <span style="font-weight:600;color:${canTake===0?'var(--red)':canTake<=2?'var(--cocoa)':'var(--matcha)'}">${canTake}</span>
+          </td>
+          <td style="padding:6px;text-align:center">
+            ${hasOverride ? `<button onclick="deleteDateInv('${date}')" style="border:none;background:none;cursor:pointer;font-size:13px;color:var(--ink-faint);" title="清除設定">🗑</button>` : '<span style="color:var(--ink-faint);font-size:11px">—</span>'}
+          </td>
+        </tr>`;
+    }
   });
 
-  html += '</tbody></table></div>';
+  html += mobile ? '' : '</tbody></table></div>';
   html += '<div style="font-size:11px;color:var(--ink-soft);margin-top:10px">上限欄空白 = 沿用預設。填 0 = 封鎖該製作日。修改後自動儲存。</div>';
   el.innerHTML = html;
 }
@@ -1922,6 +2005,7 @@ function saveInvCell(input){
 }
 
 // ── helpers ──
+function isMobile(){ return window.innerWidth <= 640; }
 function fhtml(o){
   return[o.orig?`<span class="flavor-tag tag-original">原味×${o.orig}</span>`:'',
          o.matcha?`<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>`:'',
@@ -1993,34 +2077,72 @@ function renderTable(){
   });
 
   document.getElementById('no-results').style.display=list.length?'none':'block';
-  document.getElementById('order-tbody').innerHTML=list.map(o=>{
-    const isOver = overLimit.has(o.id);
-    const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
-    const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
-    const overWarn = isOver ? '<div style="font-size:10px;color:var(--red);font-weight:600">⚠️ 超過當日上限</div>' : '';
-    return`<tr class="${o.status==='shipped'?'done-row':''}${isOver?' style="background:rgba(180,60,60,.06)"':''}">
-      <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
-      <td><strong>${o.name}</strong>${warn}${overWarn}</td>
-      <td>${o.phone}</td>
-      <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}</td>
-      <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
-      <td>${fhtml(o)}</td>
-      <td>${dbadge}</td>
-      <td class="addr-cell">${o.address}</td>
-      <td style="font-family:monospace">${o.code}</td>
-      <td style="color:var(--caramel);font-weight:500;white-space:nowrap">NT$${o.total.toLocaleString()}</td>
-      <td class="note-cell">${o.note||'—'}</td>
-      <td>${SB[o.status]}</td>
-      <td><div class="action-btns">
-        <button class="act-btn edit" onclick="openEdit('${o.id}')">✏️ 編輯</button>
-        ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
-        ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
-        ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
-        <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
-        <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
-      </div></td>
-    </tr>`;
-  }).join('');
+
+  if(isMobile()){
+    // 手機：卡片模式
+    document.getElementById('order-tbody').innerHTML='';
+    document.getElementById('order-cards').innerHTML=list.map(o=>{
+      const isOver=overLimit.has(o.id);
+      const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
+      const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:11px;margin-left:3px">⚠️</span>':'';
+      const overWarn=isOver?'<div style="font-size:10px;color:var(--red);font-weight:600;margin-top:2px">⚠️ 超過當日上限</div>':'';
+      return`<div class="order-card${o.status==='shipped'?' done-row':''}${isOver?' oc-overlimit':''}">
+        <div class="oc-top">
+          <div style="flex:1;min-width:0">
+            <div class="oc-name"><strong>${o.name}</strong>${warn}</div>
+            ${overWarn}
+            <div class="oc-sub">${o.id} · ${o.phone}</div>
+          </div>
+          <div class="oc-right-top">${SB[o.status]}${dbadge}</div>
+        </div>
+        <div class="oc-info">
+          <div class="oc-row">📅 ${o.date||'<span style="color:var(--red)">未填日期</span>'} &nbsp;${o.time}</div>
+          <div class="oc-row">${fhtml(o)}&ensp;<span style="color:var(--caramel);font-weight:600">NT$${o.total.toLocaleString()}</span></div>
+          ${o.delivery==='宅配'?`<div class="oc-row" style="color:var(--ink-soft)">📍 ${o.address||'—'}</div>`:''}
+          ${o.note?`<div class="oc-note">📝 ${o.note}</div>`:''}
+        </div>
+        <div class="oc-actions">
+          <button class="act-btn edit" onclick="openEdit('${o.id}')">✏️ 編輯</button>
+          ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
+          ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
+          ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
+          <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
+          <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    // 電腦/平板：表格模式
+    document.getElementById('order-cards').innerHTML='';
+    document.getElementById('order-tbody').innerHTML=list.map(o=>{
+      const isOver=overLimit.has(o.id);
+      const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
+      const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
+      const overWarn=isOver?'<div style="font-size:10px;color:var(--red);font-weight:600">⚠️ 超過當日上限</div>':'';
+      return`<tr class="${o.status==='shipped'?'done-row':''}${isOver?' style="background:rgba(180,60,60,.06)"':''}">
+        <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
+        <td><strong>${o.name}</strong>${warn}${overWarn}</td>
+        <td>${o.phone}</td>
+        <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}</td>
+        <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
+        <td>${fhtml(o)}</td>
+        <td>${dbadge}</td>
+        <td class="addr-cell">${o.address}</td>
+        <td style="font-family:monospace">${o.code}</td>
+        <td style="color:var(--caramel);font-weight:500;white-space:nowrap">NT$${o.total.toLocaleString()}</td>
+        <td class="note-cell">${o.note||'—'}</td>
+        <td>${SB[o.status]}</td>
+        <td><div class="action-btns">
+          <button class="act-btn edit" onclick="openEdit('${o.id}')">✏️ 編輯</button>
+          ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
+          ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
+          ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
+          <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
+          <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
 }
 
 function setS(id,status){
