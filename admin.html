@@ -218,6 +218,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn" onclick="switchTab('schedule',this)">🏭 生產排程</button>
     <button class="tab-btn" onclick="switchTab('inventory',this)">⚙️ 庫存設定</button>
     <button class="tab-btn" onclick="switchTab('ingredients',this)">🥛 食材庫存</button>
+    <button class="tab-btn" onclick="switchTab('packaging',this)">📦 包材庫存</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -380,6 +381,38 @@ tr.done-row td{opacity:.45;}
           <button class="btn-save" style="flex:1" onclick="saveRecipe()">儲存配方</button>
           <button onclick="resetRecipe()" style="padding:9px 16px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--ink-soft)">↺ 重置為預設配方</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 包材庫存 ── -->
+  <div class="tab-panel" id="tab-packaging">
+    <div style="max-width:800px;margin:0 auto;padding:24px 0">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px">包材庫存</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:24px">根據未出貨訂單自動計算包材需求，顯示補貨提醒</div>
+
+      <!-- 包材警示 -->
+      <div id="pkg-alerts" style="margin-bottom:20px"></div>
+
+      <!-- 包材需求總覽 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">📊 未出貨訂單包材需求</div>
+        <div id="pkg-demand"></div>
+      </div>
+
+      <!-- 包材清單 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:600">🗂 包材清單</div>
+          <button class="btn-save" onclick="resetPackaging()">↺ 重置包材</button>
+        </div>
+        <div id="pkg-list"></div>
+      </div>
+
+      <!-- 補貨紀錄 -->
+      <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">📝 補貨紀錄（最近20筆）</div>
+        <div id="pkg-restock-log"><div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div></div>
       </div>
     </div>
   </div>
@@ -731,6 +764,7 @@ function switchTab(n,btn){
   btn.classList.add('active');document.getElementById('tab-'+n).classList.add('active');
   if(n==='inventory') loadInvSettings();
   if(n==='ingredients') loadIngredients();
+  if(n==='packaging') loadPackaging();
 }
 
 function loadInvSettings(){
@@ -770,14 +804,19 @@ const DEFAULT_INGREDIENTS = [
   {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:3},
   {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:3},
   {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:3},
-  // 耗材
-  {id:'cup',        name:'布丁杯',      unit:'個', stock:0, warnDays:7},
-  {id:'cup_lid',    name:'布丁杯蓋',    unit:'個', stock:0, warnDays:7},
-  {id:'box_small',  name:'小紙箱（宅配）', unit:'個', stock:0, warnDays:7},
-  {id:'box_large',  name:'大紙箱（宅配）', unit:'個', stock:0, warnDays:7},
-  {id:'box_muffin', name:'馬芬包裝盒（面交）', unit:'個', stock:0, warnDays:7},
-  {id:'bag_kraft',  name:'白牛皮袋（面交）',   unit:'個', stock:0, warnDays:7},
 ];
+
+// 預設包材清單
+const DEFAULT_PACKAGING = [
+  {id:'cup',        name:'布丁杯',           unit:'個', stock:0, warnDays:7},
+  {id:'cup_lid',    name:'布丁杯蓋',         unit:'個', stock:0, warnDays:7},
+  {id:'box_small',  name:'小紙箱（宅配）',   unit:'個', stock:0, warnDays:7},
+  {id:'box_large',  name:'大紙箱（宅配）',   unit:'個', stock:0, warnDays:7},
+  {id:'box_muffin', name:'馬芬盒（面交）',   unit:'個', stock:0, warnDays:7},
+  {id:'bag_kraft',  name:'白牛皮袋（面交）', unit:'個', stock:0, warnDays:7},
+];
+
+let pkgData = {}; // 包材庫存
 
 // 每盒配方（6杯 = 10杯食譜 × 6/10）
 // 原味：日式昭和布丁
@@ -873,15 +912,254 @@ function calcPackagingDemand(){
     pkg.cup_lid += cups;
 
     if(o.delivery === '宅配'){
-      pkg.box_small += boxes;           // 每盒一個小紙箱
-      if(boxes >= 2) pkg.box_large += 2; // 2盒以上用一組大紙箱（2個）
+      pkg.box_small += boxes;
+      if(boxes >= 2) pkg.box_large += 2;
     } else {
-      // 面交
-      pkg.box_muffin += boxes;          // 每盒一個馬芬盒
-      pkg.bag_kraft  += 1;              // 3盒以下共用一個牛皮袋
+      pkg.box_muffin += boxes;
+      pkg.bag_kraft  += 1;
     }
   });
   return pkg;
+}
+
+// ═══════════════════════════════════════
+// 📦 包材庫存模組
+// ═══════════════════════════════════════
+
+function loadPackaging(){
+  db.ref('settings/packaging').once('value').then(snap => {
+    if(!snap.val()){
+      const defaults = {};
+      DEFAULT_PACKAGING.forEach(i => { defaults[i.id] = {...i}; delete defaults[i.id].id; });
+      db.ref('settings/packaging').set(defaults);
+      pkgData = defaults;
+    } else {
+      pkgData = snap.val();
+    }
+    renderPkgAll();
+    renderPkgRestockLog();
+  });
+}
+
+function renderPkgAll(){
+  renderPkgAlerts();
+  renderPkgDemand();
+  renderPkgList();
+}
+
+function renderPkgAlerts(){
+  const el = document.getElementById('pkg-alerts');
+  if(!el) return;
+  const demand = calcPackagingDemand();
+  const alerts = [];
+  Object.entries(demand).forEach(([id, needed]) => {
+    if(!needed) return;
+    const pkg = pkgData[id];
+    if(!pkg) return;
+    const stock = pkg.stock || 0;
+    if(stock < needed) alerts.push({
+      name: pkg.name, unit: pkg.unit, needed, stock, short: needed - stock
+    });
+  });
+  if(!alerts.length){
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 包材充足，可應付所有未出貨訂單</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="background:#fff3e0;border:1px solid #F0D5A8;border-radius:4px;padding:14px 16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--caramel);margin-bottom:8px">⚠️ 以下包材庫存不足</div>
+      ${alerts.map(a=>`
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(196,131,42,0.15)">
+          <span style="font-weight:500">${a.name}</span>
+          <span style="color:var(--caramel)">缺 ${a.short} ${a.unit}（現有 ${a.stock} / 需要 ${a.needed}）</span>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderPkgDemand(){
+  const el = document.getElementById('pkg-demand');
+  if(!el) return;
+  const demand = calcPackagingDemand();
+  const total = Object.values(demand).reduce((a,b)=>a+b,0);
+  if(!total){ el.innerHTML=`<div style="font-size:12px;color:var(--ink-soft)">目前沒有未出貨訂單</div>`; return; }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">包材</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">需要量</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">現有庫存</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${Object.entries(demand).filter(([,v])=>v>0).map(([id,needed])=>{
+          const pkg = pkgData[id] || {name:id, unit:'個', stock:0};
+          const stock = pkg.stock || 0;
+          const ok = stock >= needed;
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;font-weight:500">${pkg.name}</td>
+            <td style="padding:7px 6px;text-align:right">${needed} ${pkg.unit}</td>
+            <td style="padding:7px 6px;text-align:right;color:${ok?'var(--matcha)':'var(--red)'}">${stock} ${pkg.unit}</td>
+            <td style="padding:7px 6px;text-align:right">${ok?'✅ 充足':'🚨 不足'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderPkgList(){
+  const el = document.getElementById('pkg-list');
+  if(!el) return;
+  const keys = Object.keys(pkgData);
+  if(!keys.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無包材</div>'; return; }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">包材名稱</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">現有庫存</th>
+          <th style="padding:7px 6px;text-align:center;color:var(--ink-soft)">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${keys.map(id => {
+          const pkg = pkgData[id];
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;font-weight:500">${pkg.name}</td>
+            <td style="padding:7px 6px;text-align:right">
+              <input type="number" min="0" value="${pkg.stock||0}"
+                onblur="savePkgField('${id}','stock',this.value)"
+                onkeydown="if(event.key==='Enter')this.blur()"
+                style="width:70px;padding:3px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:right;font-size:12px;font-family:inherit;outline:none;">
+              ${pkg.unit}
+            </td>
+            <td style="padding:7px 6px;text-align:center">
+              <button onclick="openPkgRestockModal('${id}')" style="border:none;background:var(--caramel);color:#fff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit">＋補貨</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function savePkgField(id, field, val){
+  pkgData[id][field] = +val;
+  db.ref('settings/packaging/'+id+'/'+field).set(+val).then(()=>{
+    showToast(`✅ ${pkgData[id].name} 已更新`);
+    renderPkgAll();
+  });
+}
+
+function resetPackaging(){
+  if(!confirm('確定重置包材清單？會補上缺少的包材，現有庫存不變。')) return;
+  const updates = {};
+  DEFAULT_PACKAGING.forEach(i => {
+    const {id, ...data} = i;
+    if(!pkgData[id]){
+      updates[id] = data;
+      pkgData[id] = data;
+    } else {
+      if(pkgData[id].name !== data.name){
+        updates[id] = {...pkgData[id], name: data.name};
+        pkgData[id].name = data.name;
+      }
+    }
+  });
+  if(!Object.keys(updates).length){ showToast('✅ 包材清單已是最新'); return; }
+  db.ref('settings/packaging').update(updates).then(()=>{
+    showToast('✅ 包材清單已更新');
+    renderPkgAll();
+  });
+}
+
+function openPkgRestockModal(id){
+  const pkg = pkgData[id];
+  const overlay = document.createElement('div');
+  overlay.id = 'pkg-restock-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:4px;padding:28px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">補貨：${pkg.name}</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:18px">現有庫存：${pkg.stock||0} ${pkg.unit}</div>
+      <div style="display:grid;gap:10px">
+        <div>
+          <label class="form-label">補貨數量（${pkg.unit}）</label>
+          <input class="form-ctrl" id="pkg-restock-qty" type="number" min="1" placeholder="0">
+        </div>
+        <div>
+          <label class="form-label">本次採購金額（NT$，選填）</label>
+          <input class="form-ctrl" id="pkg-restock-cost" type="number" min="0" placeholder="選填">
+        </div>
+        <div>
+          <label class="form-label">備註（選填）</label>
+          <input class="form-ctrl" id="pkg-restock-note" placeholder="例：蝦皮購入">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn-save" style="flex:1;background:var(--caramel)" onclick="savePkgRestock('${id}')">確認補貨</button>
+        <button onclick="document.getElementById('pkg-restock-overlay').remove()" style="padding:9px 18px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>document.getElementById('pkg-restock-qty').focus(),100);
+}
+
+function savePkgRestock(id){
+  const qty  = +document.getElementById('pkg-restock-qty').value || 0;
+  const cost = +document.getElementById('pkg-restock-cost').value || 0;
+  const note = document.getElementById('pkg-restock-note').value.trim();
+  if(!qty){ showToast('請填寫補貨數量'); return; }
+  const pkg = pkgData[id];
+  const newStock = (pkg.stock||0) + qty;
+  const record = { id, name:pkg.name, unit:pkg.unit, qty, cost, note,
+    ts: new Date().toISOString(), stockBefore:pkg.stock||0, stockAfter:newStock };
+  const updates = {};
+  updates['settings/packaging/'+id+'/stock'] = newStock;
+  updates['settings/pkgRestockLog/'+Date.now()] = record;
+  db.ref().update(updates).then(()=>{
+    pkgData[id].stock = newStock;
+    showToast(`✅ ${pkg.name} +${qty}${pkg.unit}${cost?' · NT$'+cost:''}`);
+    document.getElementById('pkg-restock-overlay').remove();
+    renderPkgAll();
+    renderPkgRestockLog();
+  });
+}
+
+function renderPkgRestockLog(){
+  const el = document.getElementById('pkg-restock-log');
+  if(!el || !db) return;
+  db.ref('settings/pkgRestockLog').orderByChild('ts').limitToLast(20).once('value').then(snap=>{
+    const records = [];
+    snap.forEach(c => records.unshift(c.val()));
+    if(!records.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>'; return; }
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:2px solid var(--rule)">
+            <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">時間</th>
+            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">包材</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨量</th>
+            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">金額</th>
+            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">備註</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map(r=>{
+            const d = new Date(r.ts);
+            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return `<tr style="border-bottom:1px solid var(--rule)">
+              <td style="padding:7px 10px;color:var(--ink-soft)">${dateStr}</td>
+              <td style="padding:7px 6px;font-weight:500">${r.name}</td>
+              <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:600">+${r.qty} ${r.unit}</td>
+              <td style="padding:7px 6px;text-align:right">${r.cost?'NT$'+r.cost:'—'}</td>
+              <td style="padding:7px 6px;color:var(--ink-soft)">${r.note||'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  });
 }
 
 function calcDemand(){
@@ -986,7 +1264,7 @@ function renderIngAlerts(){
     el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天食材充足（製作日：${urgentList}）</div>`;
   } else {
     el.innerHTML = `
-      <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;margin-bottom:8px">
+      <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;">
         <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來2天食材不足，請盡快補貨</div>
         ${alerts.filter(a=>a.shortages.length>0).map(a=>`
           <div style="margin-bottom:10px">
@@ -999,37 +1277,7 @@ function renderIngAlerts(){
           </div>`).join('')}
       </div>`;
   }
-
-  // 耗材庫存警示（所有未出貨訂單）
-  const pkg = calcPackagingDemand();
-  const pkgAlerts = [];
-  Object.entries(pkg).forEach(([id, needed]) => {
-    if(!needed) return;
-    const ing = ingData[id];
-    if(!ing) return;
-    const stock = ing.stock || 0;
-    if(stock < needed) pkgAlerts.push({
-      name: ing.name, unit: ing.unit,
-      needed, stock, short: needed - stock,
-    });
-  });
-
-  if(pkgAlerts.length){
-    const existingHtml = el.innerHTML;
-    el.innerHTML = existingHtml + `
-      <div style="background:#fff3e0;border:1px solid #F0D5A8;border-radius:4px;padding:14px 16px;margin-top:8px">
-        <div style="font-size:12px;font-weight:600;color:var(--caramel);margin-bottom:8px">📦 耗材庫存不足（所有未出貨訂單）</div>
-        ${pkgAlerts.map(a=>`
-          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 10px;background:rgba(196,131,42,0.08);border-radius:4px;margin-bottom:2px">
-            <span>${a.name}</span>
-            <span style="color:var(--caramel);font-weight:600">缺 ${a.short} ${a.unit}（現有 ${a.stock} / 需要 ${a.needed}）</span>
-          </div>`).join('')}
-      </div>`;
-  }
-}
-
-
-// ── 食材清單 ──
+}// ── 食材清單 ──
 function renderIngList(){
   const el = document.getElementById('ing-list');
   const keys = Object.keys(ingData);
