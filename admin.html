@@ -148,71 +148,136 @@ tr.done-row td{opacity:.45;}
 .addr-cell{max-width:165px;font-size:11px;word-break:break-all;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--matcha);color:white;padding:10px 22px;border-radius:2px;font-size:12px;letter-spacing:1px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;}
 .toast.show{transform:translateX(-50%) translateY(0);}
-/* ── MOBILE ── */
+/* ── MOBILE（手機：≤ 640px）── */
 @media(max-width:640px){
   body { font-size: 15px; }
-  .topbar { padding: 0 14px; }
+
+  /* ── Topbar ── */
+  .topbar { padding: 10px 14px; min-height: 48px; }
   .topbar-brand { font-size: 15px; }
-  .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding: 0 8px; }
-  .tab-btn { padding: 12px 16px; font-size: 13px; letter-spacing: 0.3px; }
-  .content { padding: 14px; }
-  .stats-bar { grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 14px; }
-  .stat-value { font-size: 22px; }
-  .stat-label { font-size: 12px; }
-  .filters { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
-  .filter-select, .filter-input, input[type=date].filter-input { font-size: 15px; padding: 9px 11px; }
+  #topbar-date { display: none; }               /* 手機隱藏日期，節省空間 */
+  .topbar-right { gap: 8px; }
+  .topbar-right .act-btn { padding: 6px 10px; font-size: 11px; letter-spacing: 0.3px; }
+  .logout-btn { padding: 6px 10px; font-size: 11px; }
+
+  /* ── Stats bar：改成 2 欄 grid ── */
+  .stats-bar {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .stat-item { padding: 4px 0; }
+  .stat-value { font-size: 20px; }
+  .stat-label { font-size: 10px; }
+
+  /* ── Tabs：修正 class 名稱，讓 6 個 tab 可橫向捲動 ── */
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    padding: 0 6px;
+    scrollbar-width: none;           /* Firefox：隱藏捲軸 */
+  }
+  .tabs::-webkit-scrollbar { display: none; }  /* Chrome/Safari：隱藏捲軸 */
+  .tab-btn { padding: 11px 14px; font-size: 12px; letter-spacing: 0.3px; }
+
+  /* ── Filters ── */
+  .filters { padding: 10px 14px; gap: 8px; }
+  .filter-select,
+  .filter-input,
+  input[type=date].filter-input { font-size: 16px; padding: 9px 11px; }
   .filter-label { font-size: 13px; }
-  /* 訂單總覽 */
-  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── 訂單總覽：表格橫向捲動，隱藏次要欄位 ── */
+  .table-wrap { padding: 12px 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .table-wrap table { min-width: 560px; font-size: 13px; }
   .table-wrap th, .table-wrap td { padding: 8px 7px; }
-  .table-wrap th:nth-child(4),.table-wrap td:nth-child(4),
-  .table-wrap th:nth-child(8),.table-wrap td:nth-child(8),
-  .table-wrap th:nth-child(9),.table-wrap td:nth-child(9),
-  .table-wrap th:nth-child(11),.table-wrap td:nth-child(11) { display:none; }
-  .act-btn { padding: 7px 10px; font-size: 13px; }
-  /* 每日出貨 */
-  .shipping-cards { grid-template-columns: 1fr !important; }
+  /* 隱藏：Email(4)、地址(8)、末五碼(9)、備註(11) */
+  .table-wrap th:nth-child(4), .table-wrap td:nth-child(4),
+  .table-wrap th:nth-child(8), .table-wrap td:nth-child(8),
+  .table-wrap th:nth-child(9), .table-wrap td:nth-child(9),
+  .table-wrap th:nth-child(11),.table-wrap td:nth-child(11) { display: none; }
+  .act-btn { padding: 7px 10px; font-size: 12px; }
+  .action-btns { gap: 3px; }
+
+  /* ── 每日出貨：單欄卡片 ── */
+  .day-section { padding: 14px 14px 0; }
+  .shipping-cards { grid-template-columns: 1fr !important; gap: 10px; }
   .s-card { padding: 14px; }
   .card-name { font-size: 16px; }
   .card-meta { font-size: 13px; }
   .card-addr { font-size: 13px; }
   .ship-btn { font-size: 14px; padding: 10px; }
-  .badge { font-size: 13px; padding: 4px 10px; }
-  /* 生產排程 */
-  .schedule-wrap { padding: 0; }
-  .sch-block { padding: 14px; font-size: 13px; }
-  /* 食材庫存 */
+  .badge { font-size: 12px; padding: 4px 9px; }
+
+  /* ── 生產排程：雙欄 → 單欄 ── */
+  .schedule-wrap { padding: 10px 14px; }
+  .sch-day { margin-bottom: 14px; }
+  .sch-hdr { padding: 10px 14px; gap: 8px; }
+  .sch-title { font-size: 15px; }
+  .sch-body {
+    grid-template-columns: 1fr !important;  /* 覆蓋 JS 或行內 1fr 1fr */
+    padding: 12px 14px;
+    gap: 14px;
+  }
+
+  /* ── 庫存設定：4 欄 → 2 欄 ── */
+  #tab-inventory { padding: 0 14px; }
+  #tab-inventory > div { padding: 16px 0 !important; }
+  /* 覆蓋 inline style 的 4 欄格線 */
+  #tab-inventory div[style*="grid-template-columns:1fr 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #inv-calendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── 食材庫存 ── */
   #tab-ingredients > div { padding: 14px 0; }
   #tab-ingredients .form-row { grid-template-columns: 1fr !important; }
-  #tab-ingredients div[style*="font-size:13px"] { font-size: 15px !important; }
-  #tab-ingredients div[style*="font-size:11px"] { font-size: 13px !important; }
-  #tab-ingredients div[style*="font-size:12px"] { font-size: 14px !important; }
   #ing-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   #ing-list table { min-width: 360px; font-size: 13px; }
-  #ing-list th:nth-child(4),#ing-list td:nth-child(4) { display:none; }
+  #ing-list th:nth-child(4), #ing-list td:nth-child(4) { display: none; }
   #ing-list input[type=number] { font-size: 14px !important; width: 80px !important; }
   #ing-recipe { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   #ing-recipe table { min-width: 340px; font-size: 13px; }
-  #inv-calendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  /* 包材庫存 */
+  #ing-alerts { padding: 0 14px; }
+
+  /* ── 包材庫存 ── */
   #tab-packaging > div { padding: 14px 0; }
-  #pkg-list table { font-size: 13px; }
+  #pkg-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #pkg-list table { font-size: 13px; min-width: 320px; }
   #pkg-list input[type=number] { font-size: 14px !important; width: 80px !important; }
-  #pkg-demand table { font-size: 13px; }
-  /* 按鈕 */
+  #pkg-demand { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #pkg-demand table { font-size: 13px; min-width: 300px; }
+
+  /* ── 表單 / 按鈕 ── */
+  .form-row { grid-template-columns: 1fr !important; }
   .btn-save { font-size: 14px; padding: 11px 18px; }
+  .btn-cancel { font-size: 13px; padding: 10px 14px; }
   .form-label { font-size: 13px; }
-  .form-ctrl { font-size: 15px; padding: 10px 12px; }
-  /* Modal */
-  .modal { width: 96vw; max-height: 92vh; margin: 10px auto; }
-  .modal-body { padding: 16px; }
+  .form-ctrl { font-size: 16px; padding: 10px 12px; }
+
+  /* ── Modal：全寬、底部滑出 ── */
+  .modal-overlay { align-items: flex-end; }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88vh;
+    margin: 0;
+    border-radius: 12px 12px 0 0;
+  }
+  .modal-hdr { padding: 16px 18px 12px; }
+  .modal-body { padding: 14px 18px; }
+  .modal-footer { padding: 12px 18px 20px; }
   .modal-title { font-size: 16px; }
   .flavor-inputs { gap: 8px; flex-wrap: wrap; }
   .fi-group { min-width: 80px; }
   .fi-group .form-label { font-size: 13px; }
-  /* Toast */
+
+  /* ── Toast ── */
   .toast { font-size: 14px; padding: 13px 20px; }
+
+  /* ── 通用隱藏 ── */
   .hide-mobile { display: none !important; }
 }
 </style>
