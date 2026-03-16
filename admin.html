@@ -13,6 +13,10 @@
   const EMAILJS_SERVICE_ID       = 'service_iig5un9';
   const EMAILJS_TEMPLATE_SHIP    = 'template_j3nl8y3'; // 出貨通知
   emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+  // ── AI 生產線設定 ──────────────────────────────────────────────────────────
+  const AIWRITTING_URL   = 'https://aiwritting.up.railway.app'; // Railway 服務 URL
+  const AIWRITTING_TOKEN = '';  // 填入 Railway Variables 中設定的 RUN_TOKEN
 </script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;}
@@ -325,6 +329,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn" onclick="switchTab('inventory',this)">⚙️ 庫存設定</button>
     <button class="tab-btn" onclick="switchTab('ingredients',this)">🥛 食材庫存</button>
     <button class="tab-btn" onclick="switchTab('packaging',this)">📦 包材庫存</button>
+    <button class="tab-btn" onclick="switchTab('aiwriter',this)">✍️ AI 生產線</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -520,6 +525,47 @@ tr.done-row td{opacity:.45;}
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
         <div style="font-size:13px;font-weight:600;margin-bottom:14px">📝 補貨紀錄（最近20筆）</div>
         <div id="pkg-restock-log"><div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB AI 生產線 -->
+  <div class="tab-panel" id="tab-aiwriter">
+    <div style="max-width:680px;margin:0 auto;padding:32px 24px">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:6px">AI 內容生產線</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:28px;letter-spacing:.5px">搜尋 YouTube 外文影片 → 抓字幕 → Claude 生成臉書貼文草稿（6 步驟管線）</div>
+
+      <!-- 執行按鈕 -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px">
+        <button id="ai-run-btn" onclick="aiRun()" style="padding:13px 28px;background:var(--ink);color:var(--paper);border:none;border-radius:2px;font-family:'Noto Serif TC',serif;font-size:13px;letter-spacing:2px;cursor:pointer;transition:background .2s">▶ 立即執行</button>
+        <button onclick="aiRefreshStatus()" style="padding:11px 18px;background:transparent;border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer;color:var(--ink-soft);transition:all .2s">↻ 更新狀態</button>
+        <span id="ai-status-badge" style="font-size:12px;color:var(--ink-soft)">—</span>
+      </div>
+
+      <!-- 狀態卡 -->
+      <div id="ai-status-card" style="display:none;background:var(--paper-dark);border-radius:4px;padding:18px 20px;margin-bottom:24px;font-size:13px;line-height:1.8">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:600;letter-spacing:.5px">執行狀態</div>
+          <div id="ai-status-dot" style="width:8px;height:8px;border-radius:50%;background:#ccc"></div>
+        </div>
+        <div id="ai-status-msg" style="color:var(--ink-mid)"></div>
+        <div id="ai-status-time" style="font-size:11px;color:var(--ink-soft);margin-top:4px"></div>
+      </div>
+
+      <!-- 草稿列表 -->
+      <div id="ai-drafts-wrap" style="display:none">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px">今日草稿</div>
+        <div id="ai-drafts-list"></div>
+      </div>
+
+      <!-- 草稿預覽 -->
+      <div id="ai-preview-wrap" style="display:none;margin-top:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div id="ai-preview-title" style="font-size:13px;font-weight:600"></div>
+          <button onclick="document.getElementById('ai-preview-wrap').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--ink-soft)">✕</button>
+        </div>
+        <pre id="ai-preview-content" style="background:var(--paper-warm);border:1px solid var(--rule);border-radius:4px;padding:18px;font-family:'Noto Serif TC',serif;font-size:13px;line-height:1.9;white-space:pre-wrap;word-break:break-all;max-height:520px;overflow-y:auto"></pre>
+        <button onclick="aiCopyDraft()" style="margin-top:10px;padding:9px 18px;background:var(--caramel);color:white;border:none;border-radius:2px;font-size:12px;cursor:pointer;font-family:'Noto Serif TC',serif;letter-spacing:1px">複製全文</button>
       </div>
     </div>
   </div>
@@ -2803,6 +2849,100 @@ function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;void t.offsetWidth;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ── AI 生產線 ───────────────────────────────────────────────────────────────
+async function aiRun(){
+  const btn=document.getElementById('ai-run-btn');
+  btn.disabled=true; btn.textContent='執行中…';
+  try{
+    const res=await fetch(AIWRITTING_URL+'/run',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+AIWRITTING_TOKEN}
+    });
+    const data=await res.json();
+    if(!res.ok) throw new Error(data.error||res.status);
+    showToast('已開始執行，約需 2-5 分鐘');
+    setTimeout(aiRefreshStatus,3000);
+    aiPollStatus();
+  }catch(e){
+    showToast('執行失敗：'+e.message);
+    btn.disabled=false; btn.textContent='▶ 立即執行';
+  }
+}
+
+let _aiPollTimer=null;
+function aiPollStatus(){
+  if(_aiPollTimer) clearInterval(_aiPollTimer);
+  _aiPollTimer=setInterval(async()=>{
+    const st=await aiRefreshStatus();
+    if(st==='done'||st==='error'){
+      clearInterval(_aiPollTimer);
+      const btn=document.getElementById('ai-run-btn');
+      btn.disabled=false; btn.textContent='▶ 立即執行';
+    }
+  },5000);
+}
+
+async function aiRefreshStatus(){
+  try{
+    const res=await fetch(AIWRITTING_URL+'/status');
+    const data=await res.json();
+    aiUpdateStatusUI(data);
+    return data.status;
+  }catch(e){
+    document.getElementById('ai-status-badge').textContent='無法連線';
+  }
+}
+
+function aiUpdateStatusUI(data){
+  const card=document.getElementById('ai-status-card');
+  const msg=document.getElementById('ai-status-msg');
+  const dot=document.getElementById('ai-status-dot');
+  const time=document.getElementById('ai-status-time');
+  const badge=document.getElementById('ai-status-badge');
+  card.style.display='block';
+  msg.textContent=data.message||'—';
+  const colors={idle:'#ccc',running:'var(--caramel)',done:'var(--matcha)',error:'var(--red)'};
+  const labels={idle:'待機',running:'執行中',done:'完成',error:'錯誤'};
+  dot.style.background=colors[data.status]||'#ccc';
+  badge.textContent=labels[data.status]||data.status;
+  badge.style.color=colors[data.status]||'#ccc';
+  const ts=data.finished_at||data.started_at;
+  time.textContent=ts?'時間：'+ts.replace('T',' ').replace('Z',''):'';
+  if(data.drafts&&data.drafts.length){
+    const wrap=document.getElementById('ai-drafts-wrap');
+    const list=document.getElementById('ai-drafts-list');
+    wrap.style.display='block';
+    list.innerHTML=data.drafts.map((f,i)=>
+      `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--rule)">
+        <div style="font-size:13px;color:var(--ink)">草稿 ${i+1}</div>
+        <div style="font-size:11px;color:var(--ink-soft);flex:1">${f}</div>
+        <button onclick="aiViewDraft('${f}')" style="padding:5px 12px;border:1px solid var(--caramel);color:var(--caramel);background:transparent;border-radius:2px;font-size:11px;cursor:pointer;font-family:'Noto Serif TC',serif">檢視</button>
+      </div>`
+    ).join('');
+  }
+}
+
+async function aiViewDraft(filename){
+  try{
+    const res=await fetch(AIWRITTING_URL+'/results/'+filename,{
+      headers:{'Authorization':'Bearer '+AIWRITTING_TOKEN}
+    });
+    if(!res.ok) throw new Error(res.status);
+    const text=await res.text();
+    document.getElementById('ai-preview-title').textContent=filename;
+    document.getElementById('ai-preview-content').textContent=text;
+    document.getElementById('ai-preview-wrap').style.display='block';
+    document.getElementById('ai-preview-wrap').scrollIntoView({behavior:'smooth'});
+  }catch(e){
+    showToast('無法載入草稿：'+e.message);
+  }
+}
+
+function aiCopyDraft(){
+  const text=document.getElementById('ai-preview-content').textContent;
+  navigator.clipboard.writeText(text).then(()=>showToast('已複製到剪貼簿'));
 }
 </script>
 </body>
