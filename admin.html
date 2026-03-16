@@ -1089,6 +1089,25 @@ function renderPkgDemand(){
   const demand = calcPackagingDemand();
   const total = Object.values(demand).reduce((a,b)=>a+b,0);
   if(!total){ el.innerHTML=`<div style="font-size:12px;color:var(--ink-soft)">目前沒有未出貨訂單</div>`; return; }
+  const rows = Object.entries(demand).filter(([,v])=>v>0).map(([id,needed])=>{
+    const pkg = pkgData[id] || {name:id, unit:'個', stock:0};
+    const stock = pkg.stock || 0;
+    const ok = stock >= needed;
+    return {pkg, needed, stock, ok};
+  });
+  if(isMobile()){
+    el.innerHTML = rows.map(({pkg,needed,stock,ok})=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--rule)">
+        <div style="font-size:13px;font-weight:500">${pkg.name}</div>
+        <div style="text-align:right;font-size:12px">
+          <span style="color:var(--ink-soft)">需 </span><span style="font-weight:600">${needed}${pkg.unit}</span>
+          <span style="color:var(--rule);margin:0 4px">·</span>
+          <span style="color:var(--ink-soft)">庫存 </span><span style="color:${ok?'var(--matcha)':'var(--red)'};font-weight:600">${stock}${pkg.unit}</span>
+          <span style="margin-left:5px">${ok?'✅':'🚨'}</span>
+        </div>
+      </div>`).join('');
+    return;
+  }
   el.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
@@ -1100,17 +1119,12 @@ function renderPkgDemand(){
         </tr>
       </thead>
       <tbody>
-        ${Object.entries(demand).filter(([,v])=>v>0).map(([id,needed])=>{
-          const pkg = pkgData[id] || {name:id, unit:'個', stock:0};
-          const stock = pkg.stock || 0;
-          const ok = stock >= needed;
-          return `<tr style="border-bottom:1px solid var(--rule)">
+        ${rows.map(({pkg,needed,stock,ok})=>`<tr style="border-bottom:1px solid var(--rule)">
             <td style="padding:7px 10px;font-weight:500">${pkg.name}</td>
             <td style="padding:7px 6px;text-align:right">${needed} ${pkg.unit}</td>
             <td style="padding:7px 6px;text-align:right;color:${ok?'var(--matcha)':'var(--red)'}">${stock} ${pkg.unit}</td>
             <td style="padding:7px 6px;text-align:right">${ok?'✅ 充足':'🚨 不足'}</td>
-          </tr>`;
-        }).join('')}
+          </tr>`).join('')}
       </tbody>
     </table>`;
 }
@@ -1120,6 +1134,21 @@ function renderPkgList(){
   if(!el) return;
   const keys = Object.keys(pkgData);
   if(!keys.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無包材</div>'; return; }
+  if(isMobile()){
+    el.innerHTML = keys.map(id => {
+      const pkg = pkgData[id];
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--rule)">
+        <div style="flex:1;font-size:13px;font-weight:500">${pkg.name}</div>
+        <input type="number" min="0" value="${pkg.stock||0}"
+          onblur="savePkgField('${id}','stock',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"
+          style="width:62px;padding:5px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:right;font-size:13px;font-family:inherit;outline:none;">
+        <span style="font-size:12px;color:var(--ink-soft)">${pkg.unit}</span>
+        <button onclick="openPkgRestockModal('${id}')" style="border:none;background:var(--caramel);color:#fff;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap">＋補貨</button>
+      </div>`;
+    }).join('');
+    return;
+  }
   el.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
@@ -1241,6 +1270,20 @@ function renderPkgRestockLog(){
     const records = [];
     snap.forEach(c => records.unshift(c.val()));
     if(!records.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>'; return; }
+    if(isMobile()){
+      el.innerHTML = records.map(r=>{
+        const d = new Date(r.ts);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--rule)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:13px;font-weight:500">${r.name}</span>
+            <span style="color:var(--caramel);font-weight:600;font-size:13px">+${r.qty} ${r.unit}</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">${dateStr}${r.cost?' · NT$'+r.cost:''}${r.note?' · '+r.note:''}</div>
+        </div>`;
+      }).join('');
+      return;
+    }
     el.innerHTML = `
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
@@ -1456,6 +1499,26 @@ function renderIngRecipe(){
   const el = document.getElementById('ing-recipe');
   const flavors = [{id:'original',label:'原味',color:'var(--caramel)'},{id:'matcha',label:'抹茶',color:'var(--matcha)'},{id:'cocoa',label:'可可',color:'var(--cocoa)'}];
   const ingKeys = Object.keys(ingData);
+
+  if(isMobile()){
+    el.innerHTML = ingKeys.map(id => {
+      const ing = ingData[id];
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--rule)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:7px">${ing.name} <span style="font-size:11px;color:var(--ink-soft);font-weight:400">(${ing.unit})</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          ${flavors.map(f=>{
+            const val = (recipeData[f.id]||{})[id] || '';
+            return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+              <span style="font-size:11px;color:${f.color};font-weight:600">${f.label}</span>
+              <input type="number" min="0" id="rec-${f.id}-${id}" value="${val}" placeholder="0"
+                style="width:100%;padding:5px 4px;border:1.5px solid var(--rule);border-radius:4px;text-align:center;font-size:13px;font-family:inherit;outline:none;">
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
 
   el.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -1703,6 +1766,26 @@ function renderRestockLog(){
     snap.forEach(c => records.unshift(c.val())); // 最新的在前
     if(!records.length){
       el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>';
+      return;
+    }
+    if(isMobile()){
+      el.innerHTML = records.map(r=>{
+        const d = new Date(r.ts);
+        const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        return `<div style="padding:9px 0;border-bottom:1px solid var(--rule)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+            <span style="font-size:13px;font-weight:600">${r.ingName}</span>
+            <span style="color:var(--caramel);font-weight:600;font-size:13px">+${r.qty} ${r.unit}</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px;color:var(--ink-soft);flex-wrap:wrap">
+            <span>${dateStr}</span>
+            ${r.unitCost ? `<span>單價 NT$${r.unitCost}</span>` : ''}
+            ${r.totalCost ? `<span>金額 NT$${Math.round(r.totalCost)}</span>` : ''}
+            <span style="color:var(--matcha)">補後 ${r.stockAfter} ${r.unit}</span>
+            ${r.note ? `<span>${r.note}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
       return;
     }
     el.innerHTML = `
