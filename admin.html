@@ -150,43 +150,69 @@ tr.done-row td{opacity:.45;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 /* ── MOBILE ── */
 @media(max-width:640px){
+  body { font-size: 15px; }
   .topbar { padding: 0 14px; }
-  .topbar-brand { font-size: 14px; }
-  .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding: 0 12px; }
-  .tab-btn { padding: 10px 14px; font-size: 11px; letter-spacing: 0.5px; }
+  .topbar-brand { font-size: 15px; }
+  .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding: 0 8px; }
+  .tab-btn { padding: 12px 16px; font-size: 13px; letter-spacing: 0.3px; }
   .content { padding: 14px; }
   .stats-bar { grid-template-columns: repeat(2,1fr); gap: 8px; margin-bottom: 14px; }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 12px; }
   .filters { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
-  .filter-select, .filter-input, input[type=date].filter-input { font-size: 13px; }
-  /* 訂單總覽：可橫向滑動，隱藏次要欄 */
+  .filter-select, .filter-input, input[type=date].filter-input { font-size: 15px; padding: 9px 11px; }
+  .filter-label { font-size: 13px; }
+  /* 訂單總覽 */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table-wrap table { min-width: 560px; font-size: 11px; }
-  .table-wrap th, .table-wrap td { padding: 6px 7px; }
+  .table-wrap table { min-width: 560px; font-size: 13px; }
+  .table-wrap th, .table-wrap td { padding: 8px 7px; }
   .table-wrap th:nth-child(4),.table-wrap td:nth-child(4),
   .table-wrap th:nth-child(8),.table-wrap td:nth-child(8),
   .table-wrap th:nth-child(9),.table-wrap td:nth-child(9),
   .table-wrap th:nth-child(11),.table-wrap td:nth-child(11) { display:none; }
+  .act-btn { padding: 7px 10px; font-size: 13px; }
   /* 每日出貨 */
   .shipping-cards { grid-template-columns: 1fr !important; }
-  .s-card { padding: 12px; }
-  .card-name { font-size: 14px; }
+  .s-card { padding: 14px; }
+  .card-name { font-size: 16px; }
+  .card-meta { font-size: 13px; }
+  .card-addr { font-size: 13px; }
+  .ship-btn { font-size: 14px; padding: 10px; }
+  .badge { font-size: 13px; padding: 4px 10px; }
   /* 生產排程 */
   .schedule-wrap { padding: 0; }
-  .sch-block { padding: 12px; }
+  .sch-block { padding: 14px; font-size: 13px; }
   /* 食材庫存 */
   #tab-ingredients > div { padding: 14px 0; }
   #tab-ingredients .form-row { grid-template-columns: 1fr !important; }
+  #tab-ingredients div[style*="font-size:13px"] { font-size: 15px !important; }
+  #tab-ingredients div[style*="font-size:11px"] { font-size: 13px !important; }
+  #tab-ingredients div[style*="font-size:12px"] { font-size: 14px !important; }
   #ing-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #ing-list table { min-width: 360px; font-size: 11px; }
+  #ing-list table { min-width: 360px; font-size: 13px; }
   #ing-list th:nth-child(4),#ing-list td:nth-child(4) { display:none; }
+  #ing-list input[type=number] { font-size: 14px !important; width: 80px !important; }
   #ing-recipe { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #ing-recipe table { min-width: 340px; font-size: 11px; }
+  #ing-recipe table { min-width: 340px; font-size: 13px; }
   #inv-calendar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* 包材庫存 */
+  #tab-packaging > div { padding: 14px 0; }
+  #pkg-list table { font-size: 13px; }
+  #pkg-list input[type=number] { font-size: 14px !important; width: 80px !important; }
+  #pkg-demand table { font-size: 13px; }
+  /* 按鈕 */
+  .btn-save { font-size: 14px; padding: 11px 18px; }
+  .form-label { font-size: 13px; }
+  .form-ctrl { font-size: 15px; padding: 10px 12px; }
   /* Modal */
   .modal { width: 96vw; max-height: 92vh; margin: 10px auto; }
-  .modal-body { padding: 14px; }
+  .modal-body { padding: 16px; }
+  .modal-title { font-size: 16px; }
   .flavor-inputs { gap: 8px; flex-wrap: wrap; }
-  .fi-group { min-width: 70px; }
+  .fi-group { min-width: 80px; }
+  .fi-group .form-label { font-size: 13px; }
+  /* Toast */
+  .toast { font-size: 14px; padding: 13px 20px; }
   .hide-mobile { display: none !important; }
 }
 </style>
