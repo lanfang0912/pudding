@@ -1096,7 +1096,7 @@ footer {
             <span style="font-size:10px;background:var(--caramel);color:white;padding:1px 8px;border-radius:10px;letter-spacing:.5px">推薦</span>
           </div>
           <div style="font-size:12px;color:var(--ink-soft)">🍮 原味×2 ・ 🍵 抹茶×2 ・ 🍫 可可×2</div>
-          <div style="font-size:11px;color:var(--caramel);margin-top:3px">共 6 盒・NT$2,280・免運費</div>
+          <div style="font-size:11px;color:var(--caramel);margin-top:3px">共 6 杯・NT$380（宅配 +NT$160）</div>
         </div>
         <div id="combo-check" style="font-size:22px;opacity:0;transition:opacity .3s;flex-shrink:0">✓</div>
       </div>
@@ -1397,7 +1397,7 @@ try {
   console.warn('Firebase init error:', e);
 }
 
-const order = { flavors:{}, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
+const order = { flavors:{}, isCombo:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
 
 let calY, calM;
 
@@ -1421,8 +1421,8 @@ function animateProgress(){
 // ─── FLAVORS ───
 function renderFlavors(){
   document.getElementById('flavor-grid').innerHTML = FLAVORS.map(f=>{
-    const sel = !!order.flavors[f.id];
-    const q = order.flavors[f.id] || 1;
+    const sel = order.isCombo || !!order.flavors[f.id];
+    const q = order.isCombo ? 1 : (order.flavors[f.id] || 1);
     return `
     <div class="flavor-card ${f.cls}${sel?' selected':''}" id="card-${f.id}" onclick="toggleFlavor('${f.id}')">
       <div class="flavor-check">✓</div>
@@ -1431,7 +1431,7 @@ function renderFlavors(){
       <div class="flavor-name-en">${f.en}</div>
       <div class="flavor-price">NT$ ${f.price.toLocaleString()}</div>
       <div class="flavor-price-sub">6杯 / 盒</div>
-      <div class="qty-row">
+      <div class="qty-row" style="${order.isCombo?'opacity:0.4;pointer-events:none':''}">
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',-1)">−</button>
         <div class="qty-display" id="qv-${f.id}">${q}</div>
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',1)">+</button>
@@ -1453,19 +1453,27 @@ function setDelivery(mode){
 }
 
 function isComboSelected(){
-  return order.flavors['original']===2 && order.flavors['matcha']===2 && order.flavors['cocoa']===2;
+  return order.isCombo;
 }
 
 function selectCombo(){
-  if(isComboSelected()){
+  if(order.isCombo){
+    order.isCombo = false;
     order.flavors = {};
   } else {
-    order.flavors = { original:2, matcha:2, cocoa:2 };
+    order.isCombo = true;
+    // 以 1/3 盒計入各口味，供庫存計算使用
+    order.flavors = { original: 2/6, matcha: 2/6, cocoa: 2/6 };
   }
   renderFlavors();
 }
 
 function toggleFlavor(id){
+  if(order.isCombo){
+    // 點單品時取消三拼，重設為普通選擇
+    order.isCombo = false;
+    order.flavors = {};
+  }
   if(order.flavors[id]) delete order.flavors[id]; else order.flavors[id]=1;
   renderFlavors();
 }
@@ -1595,17 +1603,24 @@ function goTo(n){
 // ─── SUMMARY ───
 function renderSummary(){
   let total=0, rows='';
-  for(const fid of Object.keys(order.flavors)){
-    const f=FLAVORS.find(x=>x.id===fid);
-    const q=order.flavors[fid];
-    const sub=q*f.price;
-    total+=sub;
-    rows+=`<div class="summary-row"><span class="summary-row-label">${f.icon} ${f.zh} × ${q} 盒</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
+  const isPickup = order.deliveryMode === 'pickup';
+
+  if(order.isCombo){
+    const comboPrice = 2*60 + 2*65 + 2*65; // 380
+    total = comboPrice;
+    rows += `<div class="summary-row"><span class="summary-row-label">🎁 三拼（原味×2杯・抹茶×2杯・可可×2杯）</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
+  } else {
+    for(const fid of Object.keys(order.flavors)){
+      const f=FLAVORS.find(x=>x.id===fid);
+      const q=order.flavors[fid];
+      const sub=q*f.price;
+      total+=sub;
+      rows+=`<div class="summary-row"><span class="summary-row-label">${f.icon} ${f.zh} × ${q} 盒</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
+    }
   }
 
   // Shipping
-  const boxes=Object.values(order.flavors).reduce((a,b)=>a+b,0);
-  const isPickup = order.deliveryMode === 'pickup';
+  const boxes = order.isCombo ? 1 : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
   if(isPickup){
     rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🤝 宜蘭面交（凱旋國小）</span></div>`;
@@ -1641,9 +1656,16 @@ function submitOrder(){
   }
 
   // Reserve stock
-  for(const fid of Object.keys(order.flavors)){
-    reserve(order.date, fid, order.flavors[fid]);
-    totalSold += order.flavors[fid];
+  if(order.isCombo){
+    reserve(order.date, 'original', 2/6);
+    reserve(order.date, 'matcha',   2/6);
+    reserve(order.date, 'cocoa',    2/6);
+    totalSold += 1;
+  } else {
+    for(const fid of Object.keys(order.flavors)){
+      reserve(order.date, fid, order.flavors[fid]);
+      totalSold += order.flavors[fid];
+    }
   }
 
   const num = 'WD' + Date.now().toString().slice(-8);
@@ -1652,15 +1674,21 @@ function submitOrder(){
   order.transferCode = transferCode;
 
   // 計算總金額
-  let total = 0;
-  const flavorLines = Object.keys(order.flavors).map(fid => {
-    const f = FLAVORS.find(x=>x.id===fid);
-    const sub = order.flavors[fid] * f.price;
-    total += sub;
-    return `${f.zh} × ${order.flavors[fid]} 盒 = NT$${sub}`;
-  }).join('\n');
-  const boxes = Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const isPickup = order.deliveryMode === 'pickup';
+  let total = 0;
+  let flavorLines;
+  if(order.isCombo){
+    total = 2*60 + 2*65 + 2*65; // 380
+    flavorLines = '🎁 三拼 原味×2杯・抹茶×2杯・可可×2杯 = NT$380';
+  } else {
+    flavorLines = Object.keys(order.flavors).map(fid => {
+      const f = FLAVORS.find(x=>x.id===fid);
+      const sub = order.flavors[fid] * f.price;
+      total += sub;
+      return `${f.zh} × ${order.flavors[fid]} 盒 = NT$${sub}`;
+    }).join('\n');
+  }
+  const boxes = order.isCombo ? 1 : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
   total += ship;
 
@@ -1695,9 +1723,9 @@ function submitOrder(){
     email: order.email || '',
     date: order.date,
     time: '未指定',
-    orig:   order.flavors['original'] || 0,
-    matcha: order.flavors['matcha']   || 0,
-    cocoa:  order.flavors['cocoa']    || 0,
+    orig:   order.isCombo ? +(2/6).toFixed(4) : (order.flavors['original'] || 0),
+    matcha: order.isCombo ? +(2/6).toFixed(4) : (order.flavors['matcha']   || 0),
+    cocoa:  order.isCombo ? +(2/6).toFixed(4) : (order.flavors['cocoa']    || 0),
     delivery: order.deliveryMode === 'pickup' ? '面交' : '宅配',
     address: order.deliveryMode === 'pickup' ? '宜蘭凱旋國小' : order.address,
     code: transferCode,
@@ -1705,6 +1733,7 @@ function submitOrder(){
     total: total,
     status: 'pending',
   };
+  if(order.isCombo) firebaseOrder.comboItems = { origCup: 2, matchaCup: 2, cocoaCup: 2 };
 
   // 先寫入 Firebase（不等信寄出）
   if(db){
