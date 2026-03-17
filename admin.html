@@ -1684,10 +1684,21 @@ function saveNewIngredient(){
   if(!name){ showToast('請填寫食材名稱'); return; }
   const id = 'ing_' + Date.now();
   ingData[id] = {name, unit, stock, warnDays:warn};
-  db.ref('settings/ingredients/'+id).set(ingData[id]).then(()=>{
+  const updates = {};
+  updates['settings/ingredients/'+id] = ingData[id];
+  if(stock > 0){
+    const ts = new Date().toISOString();
+    updates['settings/restockLog/'+Date.now()] = {
+      ingId:id, ingName:name, unit, qty:stock,
+      totalCost:0, unitCost:0, note:'新增食材初始庫存',
+      ts, stockBefore:0, stockAfter:stock
+    };
+  }
+  db.ref().update(updates).then(()=>{
     showToast(`✅ 已新增「${name}」`);
     document.getElementById('ing-modal-overlay').remove();
     renderIngAll();
+    if(stock > 0) renderRestockLog();
   });
 }
 
