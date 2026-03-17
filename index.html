@@ -1095,8 +1095,14 @@ footer {
             <span style="font-family:'DM Serif Display',serif;font-size:17px">綜合三拼</span>
             <span style="font-size:10px;background:var(--caramel);color:white;padding:1px 8px;border-radius:10px;letter-spacing:.5px">推薦</span>
           </div>
-          <div style="font-size:12px;color:var(--ink-soft)">🍮 原味×2 ・ 🍵 抹茶×2 ・ 🍫 可可×2</div>
-          <div style="font-size:11px;color:var(--caramel);margin-top:3px">共 6 杯・NT$380（宅配 +NT$160）</div>
+          <div style="font-size:12px;color:var(--ink-soft)">🍮 原味×2 ・ 🍵 抹茶×2 ・ 🍫 可可×2（每組 6 杯）</div>
+          <div id="combo-info" style="font-size:11px;color:var(--caramel);margin-top:3px">共 6 杯・NT$380（宅配 +NT$160）</div>
+          <div id="combo-qty-row" style="display:none;margin-top:8px;display:none;align-items:center;gap:10px" onclick="event.stopPropagation()">
+            <span style="font-size:12px;color:var(--ink-soft)">組數：</span>
+            <button class="qty-btn" onclick="comboChg(-1)">−</button>
+            <div class="qty-display" id="combo-qv">1</div>
+            <button class="qty-btn" onclick="comboChg(1)">+</button>
+          </div>
         </div>
         <div id="combo-check" style="font-size:22px;opacity:0;transition:opacity .3s;flex-shrink:0">✓</div>
       </div>
@@ -1397,7 +1403,7 @@ try {
   console.warn('Firebase init error:', e);
 }
 
-const order = { flavors:{}, isCombo:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
+const order = { flavors:{}, isCombo:false, comboQty:1, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
 
 let calY, calM;
 
@@ -1441,8 +1447,11 @@ function renderFlavors(){
   const combo = isComboSelected();
   const card = document.getElementById('combo-card');
   const check = document.getElementById('combo-check');
+  const qtyRow = document.getElementById('combo-qty-row');
   if(card) card.classList.toggle('combo-selected', combo);
   if(check) check.style.opacity = combo ? '1' : '0';
+  if(qtyRow) qtyRow.style.display = combo ? 'flex' : 'none';
+  if(combo) updateComboCard();
 }
 
 function setDelivery(mode){
@@ -1459,11 +1468,26 @@ function isComboSelected(){
 function selectCombo(){
   if(order.isCombo){
     order.isCombo = false;
+    order.comboQty = 1;
   } else {
     order.isCombo = true;
+    order.comboQty = 1;
     order.flavors = {};   // 清空單品選擇
   }
   renderFlavors();
+}
+
+function comboChg(d){
+  order.comboQty = Math.max(1, Math.min(MAX, order.comboQty + d));
+  updateComboCard();
+}
+
+function updateComboCard(){
+  const qty = order.comboQty;
+  const price = qty * 380;
+  document.getElementById('combo-qv').textContent = qty;
+  document.getElementById('combo-info').textContent =
+    `共 ${qty*6} 杯・NT$${price.toLocaleString()}（宅配 +NT$${qty>=3?0:160}）`;
 }
 
 function toggleFlavor(id){
@@ -1498,7 +1522,8 @@ function renderCal(){
 
   for(let i=0;i<first;i++) h+=`<div class="cal-day empty"></div>`;
 
-  const COMBO_QTYS = { original: 2/6, matcha: 2/6, cocoa: 2/6 };
+  const comboBoxPerFlavor = order.comboQty * 2/6;
+  const COMBO_QTYS = { original: comboBoxPerFlavor, matcha: comboBoxPerFlavor, cocoa: comboBoxPerFlavor };
   const sel = order.isCombo ? Object.keys(COMBO_QTYS) : Object.keys(order.flavors);
   const activeQtys = order.isCombo ? COMBO_QTYS : order.flavors;
 
@@ -1604,9 +1629,10 @@ function renderSummary(){
   const isPickup = order.deliveryMode === 'pickup';
 
   if(order.isCombo){
-    const comboPrice = 2*60 + 2*65 + 2*65; // 380
+    const comboPrice = order.comboQty * 380;
     total = comboPrice;
-    rows += `<div class="summary-row"><span class="summary-row-label">🎁 三拼（原味×2杯・抹茶×2杯・可可×2杯）</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
+    const cups = order.comboQty * 2;
+    rows += `<div class="summary-row"><span class="summary-row-label">🎁 三拼 ×${order.comboQty} 組（原味×${cups}杯・抹茶×${cups}杯・可可×${cups}杯）</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
   } else {
     for(const fid of Object.keys(order.flavors)){
       const f=FLAVORS.find(x=>x.id===fid);
@@ -1618,7 +1644,7 @@ function renderSummary(){
   }
 
   // Shipping
-  const boxes = order.isCombo ? 1 : Object.values(order.flavors).reduce((a,b)=>a+b,0);
+  const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
   if(isPickup){
     rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🤝 宜蘭面交（凱旋國小）</span></div>`;
@@ -1655,8 +1681,8 @@ function submitOrder(){
 
   // Reserve stock
   if(order.isCombo){
-    ['original','matcha','cocoa'].forEach(fid => reserve(order.date, fid, 2/6));
-    totalSold += 1;
+    ['original','matcha','cocoa'].forEach(fid => reserve(order.date, fid, order.comboQty * 2/6));
+    totalSold += order.comboQty;
   } else {
     for(const fid of Object.keys(order.flavors)){
       reserve(order.date, fid, order.flavors[fid]);
@@ -1674,8 +1700,9 @@ function submitOrder(){
   let total = 0;
   let flavorLines;
   if(order.isCombo){
-    total = 2*60 + 2*65 + 2*65; // 380
-    flavorLines = '🎁 三拼 原味×2杯・抹茶×2杯・可可×2杯 = NT$380';
+    total = order.comboQty * 380;
+    const cups = order.comboQty * 2;
+    flavorLines = `🎁 三拼 ×${order.comboQty} 組 原味×${cups}杯・抹茶×${cups}杯・可可×${cups}杯 = NT$${total}`;
   } else {
     flavorLines = Object.keys(order.flavors).map(fid => {
       const f = FLAVORS.find(x=>x.id===fid);
@@ -1684,7 +1711,7 @@ function submitOrder(){
       return `${f.zh} × ${order.flavors[fid]} 盒 = NT$${sub}`;
     }).join('\n');
   }
-  const boxes = order.isCombo ? 1 : Object.values(order.flavors).reduce((a,b)=>a+b,0);
+  const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
   total += ship;
 
@@ -1729,7 +1756,7 @@ function submitOrder(){
     total: total,
     status: 'pending',
   };
-  if(order.isCombo) firebaseOrder.comboItems = { origCup: 2, matchaCup: 2, cocoaCup: 2 };
+  if(order.isCombo) firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };
 
   // 先寫入 Firebase（不等信寄出）
   if(db){
