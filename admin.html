@@ -2089,7 +2089,12 @@ function saveInvCell(input){
 
 // ── helpers ──
 function isMobile(){ return window.innerWidth <= 640; }
-function isComboOrder(o){ return o.orig===2 && o.matcha===2 && o.cocoa===2; }
+function isComboOrder(o){
+  const yi = o.yixinItems;
+  if(!yi) return false;
+  return yi.origCup===2 && yi.matchaCup===2 && yi.cocoaCup===2 &&
+         !yi.origCard && !yi.matchaCard && !yi.cocoaCard && !yi.mixCard;
+}
 function fhtml(o){
   const tags = [o.orig?`<span class="flavor-tag tag-original">原味×${o.orig}</span>`:'',
          o.matcha?`<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>`:'',
