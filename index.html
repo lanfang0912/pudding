@@ -441,6 +441,38 @@ body::before {
   text-align: center;
 }
 
+/* ── COMBO CARD ── */
+.combo-card {
+  border: 1.5px dashed var(--caramel);
+  border-radius: 4px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: var(--paper);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.combo-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(to right, var(--caramel), var(--matcha), var(--cocoa));
+  transform: scaleX(0);
+  transition: transform 0.3s;
+}
+.combo-card:hover::after,
+.combo-card.combo-selected::after { transform: scaleX(1); }
+.combo-card.combo-selected {
+  border-style: solid;
+  border-color: var(--caramel);
+  background: linear-gradient(135deg, #fdf8f0, #f7faf5, #faf5f0);
+}
+
 /* ── NOTICE ── */
 .notice {
   background: var(--paper-dark);
@@ -1056,6 +1088,19 @@ footer {
       <div class="sec-title">選擇口味</div>
       <div class="sec-sub">可複選多種口味，選取後調整數量</div>
 
+      <div id="combo-card" class="combo-card" onclick="selectCombo()">
+        <div style="flex-shrink:0;font-size:28px;line-height:1">🎁</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="font-family:'DM Serif Display',serif;font-size:17px">綜合三拼</span>
+            <span style="font-size:10px;background:var(--caramel);color:white;padding:1px 8px;border-radius:10px;letter-spacing:.5px">推薦</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-soft)">🍮 原味×2 ・ 🍵 抹茶×2 ・ 🍫 可可×2</div>
+          <div style="font-size:11px;color:var(--caramel);margin-top:3px">共 6 盒・NT$2,280・免運費</div>
+        </div>
+        <div id="combo-check" style="font-size:22px;opacity:0;transition:opacity .3s;flex-shrink:0">✓</div>
+      </div>
+
       <div class="flavor-grid" id="flavor-grid"></div>
 
       <div style="margin-bottom:20px;">
@@ -1393,6 +1438,11 @@ function renderFlavors(){
       </div>
     </div>`;
   }).join('');
+  const combo = isComboSelected();
+  const card = document.getElementById('combo-card');
+  const check = document.getElementById('combo-check');
+  if(card) card.classList.toggle('combo-selected', combo);
+  if(check) check.style.opacity = combo ? '1' : '0';
 }
 
 function setDelivery(mode){
@@ -1400,6 +1450,19 @@ function setDelivery(mode){
   order.date = null;
   document.getElementById('opt-delivery').classList.toggle('selected', mode==='delivery');
   document.getElementById('opt-pickup').classList.toggle('selected', mode==='pickup');
+}
+
+function isComboSelected(){
+  return order.flavors['original']===2 && order.flavors['matcha']===2 && order.flavors['cocoa']===2;
+}
+
+function selectCombo(){
+  if(isComboSelected()){
+    order.flavors = {};
+  } else {
+    order.flavors = { original:2, matcha:2, cocoa:2 };
+  }
+  renderFlavors();
 }
 
 function toggleFlavor(id){
