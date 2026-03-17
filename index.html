@@ -1421,8 +1421,8 @@ function animateProgress(){
 // ─── FLAVORS ───
 function renderFlavors(){
   document.getElementById('flavor-grid').innerHTML = FLAVORS.map(f=>{
-    const sel = order.isCombo || !!order.flavors[f.id];
-    const q = order.isCombo ? 1 : (order.flavors[f.id] || 1);
+    const sel = !order.isCombo && !!order.flavors[f.id];
+    const q = order.flavors[f.id] || 1;
     return `
     <div class="flavor-card ${f.cls}${sel?' selected':''}" id="card-${f.id}" onclick="toggleFlavor('${f.id}')">
       <div class="flavor-check">✓</div>
@@ -1431,7 +1431,7 @@ function renderFlavors(){
       <div class="flavor-name-en">${f.en}</div>
       <div class="flavor-price">NT$ ${f.price.toLocaleString()}</div>
       <div class="flavor-price-sub">6杯 / 盒</div>
-      <div class="qty-row" style="${order.isCombo?'opacity:0.4;pointer-events:none':''}">
+      <div class="qty-row">
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',-1)">−</button>
         <div class="qty-display" id="qv-${f.id}">${q}</div>
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',1)">+</button>
@@ -1459,20 +1459,16 @@ function isComboSelected(){
 function selectCombo(){
   if(order.isCombo){
     order.isCombo = false;
-    order.flavors = {};
   } else {
     order.isCombo = true;
-    // 以 1/3 盒計入各口味，供庫存計算使用
-    order.flavors = { original: 2/6, matcha: 2/6, cocoa: 2/6 };
+    order.flavors = {};   // 清空單品選擇
   }
   renderFlavors();
 }
 
 function toggleFlavor(id){
   if(order.isCombo){
-    // 點單品時取消三拼，重設為普通選擇
-    order.isCombo = false;
-    order.flavors = {};
+    order.isCombo = false;   // 點單品時取消三拼
   }
   if(order.flavors[id]) delete order.flavors[id]; else order.flavors[id]=1;
   renderFlavors();
@@ -1502,7 +1498,9 @@ function renderCal(){
 
   for(let i=0;i<first;i++) h+=`<div class="cal-day empty"></div>`;
 
-  const sel=Object.keys(order.flavors);
+  const COMBO_QTYS = { original: 2/6, matcha: 2/6, cocoa: 2/6 };
+  const sel = order.isCombo ? Object.keys(COMBO_QTYS) : Object.keys(order.flavors);
+  const activeQtys = order.isCombo ? COMBO_QTYS : order.flavors;
 
   for(let d=1;d<=days;d++){
     const dt=new Date(calY,calM,d);
@@ -1515,11 +1513,11 @@ function renderCal(){
     if(!past&&sel.length>0){
       for(const fid of sel){
         const stock=getStock(ds,fid);
-        if(stock<(order.flavors[fid]||1)) canBook=false;
+        if(stock<(activeQtys[fid]||1)) canBook=false;
         dots.push(`<div class="cal-dot ${stock>0?fid:'full'}"></div>`);
       }
       // 檢查製作日總量
-      const totalNeeded = Object.values(order.flavors).reduce((a,b)=>a+b,0);
+      const totalNeeded = Object.values(activeQtys).reduce((a,b)=>a+b,0);
       if(getProdDayTotal(ds) < totalNeeded) canBook=false;
     }
 
@@ -1573,7 +1571,7 @@ function nextMonth(){ calM++; if(calM>11){calM=0;calY++;} renderCal(); }
 // ─── NAV ───
 function goTo(n){
   if(n===2){
-    if(!Object.keys(order.flavors).length){ toast('請至少選擇一種口味 🍮','error'); return; }
+    if(!order.isCombo && !Object.keys(order.flavors).length){ toast('請至少選擇一種口味 🍮','error'); return; }
     renderCal();
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
@@ -1657,9 +1655,7 @@ function submitOrder(){
 
   // Reserve stock
   if(order.isCombo){
-    reserve(order.date, 'original', 2/6);
-    reserve(order.date, 'matcha',   2/6);
-    reserve(order.date, 'cocoa',    2/6);
+    ['original','matcha','cocoa'].forEach(fid => reserve(order.date, fid, 2/6));
     totalSold += 1;
   } else {
     for(const fid of Object.keys(order.flavors)){
