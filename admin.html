@@ -1296,7 +1296,7 @@ function savePkgRestock(id){
 function renderPkgRestockLog(){
   const el = document.getElementById('pkg-restock-log');
   if(!el || !db) return;
-  db.ref('settings/pkgRestockLog').orderByChild('ts').limitToLast(20).once('value').then(snap=>{
+  db.ref('settings/pkgRestockLog').limitToLast(20).once('value').then(snap=>{
     const records = [];
     snap.forEach(c => records.unshift(c.val()));
     if(!records.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>'; return; }
@@ -1802,7 +1802,7 @@ function saveRestock(id){
 function renderRestockLog(){
   const el = document.getElementById('restock-log');
   if(!el) return;
-  db.ref('settings/restockLog').orderByChild('ts').limitToLast(20).once('value').then(snap=>{
+  db.ref('settings/restockLog').limitToLast(20).once('value').then(snap=>{
     const records = [];
     snap.forEach(c => records.unshift(c.val())); // 最新的在前
     if(!records.length){
