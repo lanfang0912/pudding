@@ -1499,7 +1499,16 @@ function toggleFlavor(id){
 }
 
 function chg(id,d){
-  order.flavors[id] = Math.max(1, Math.min(MAX, (order.flavors[id]||1)+d));
+  const newVal = (order.flavors[id]||1) + d;
+  if(newVal < 1){
+    order.flavors[id] = 1;
+  } else {
+    const otherTotal = Object.entries(order.flavors)
+      .filter(([k]) => k !== id)
+      .reduce((s,[,v]) => s+v, 0);
+    const cap = maxPerDay.total ?? 9;
+    order.flavors[id] = Math.min(newVal, Math.max(1, cap - otherTotal));
+  }
   document.getElementById('qv-'+id).textContent = order.flavors[id];
 }
 
