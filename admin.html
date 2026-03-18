@@ -2327,7 +2327,7 @@ function sendShipNotify(id){
 
 function togglePacked(id, currentPacked){
   const newPacked = !currentPacked;
-  db.ref('orders/'+id).update({packed: newPacked});
+  db.ref('orders/'+id).update({packed: newPacked, status: newPacked ? 'shipped' : 'paid'});
   if(newPacked){
     sendShipNotify(id);
   } else {
@@ -2359,7 +2359,7 @@ function sendMeetNotify(id){
 
 function toggleMeet(id, currentMet){
   const newMet = !currentMet;
-  db.ref('orders/'+id).update({met: newMet});
+  db.ref('orders/'+id).update({met: newMet, status: newMet ? 'shipped' : 'paid'});
   if(newMet){
     sendMeetNotify(id);
   } else {
