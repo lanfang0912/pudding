@@ -3017,81 +3017,151 @@ function syncToGCal(){
   tokenClient.requestAccessToken();
 }
 
+function _buildGCalEventBody(date){
+  const make  = _schedMakeMap[date];
+  const ships = _schedShipMap[date] || [];
+  const meets = _schedMeetMap[date] || [];
+
+  const parts = [];
+  if(make){
+    const items = [];
+    if(make.orig)   items.push(`原味×${make.orig}`);
+    if(make.matcha) items.push(`抹茶×${make.matcha}`);
+    if(make.cocoa)  items.push(`可可×${make.cocoa}`);
+    parts.push(`🧁 製作 ${items.join(' ')}`);
+  }
+  if(ships.length) parts.push(`📦 出貨 ${ships.length} 筆`);
+  if(meets.length) parts.push(`🤝 面交 ${meets.length} 筆`);
+  if(!parts.length) return null;
+
+  let desc = '';
+  if(make){
+    const items = [];
+    if(make.orig)   items.push(`原味 ${make.orig} 盒`);
+    if(make.matcha) items.push(`抹茶 ${make.matcha} 盒`);
+    if(make.cocoa)  items.push(`可可 ${make.cocoa} 盒`);
+    desc += `【製作】${items.join('、')}\n`;
+  }
+  if(ships.length){
+    desc += `\n【出貨 ${ships.length} 筆】\n`;
+    ships.forEach(s => {
+      const fl = [s.orig&&`原×${s.orig}`,s.matcha&&`抹×${s.matcha}`,s.cocoa&&`可×${s.cocoa}`].filter(Boolean).join(' ');
+      desc += `  ${s.name}  ${fl}  ${s.address}\n`;
+    });
+  }
+  if(meets.length){
+    desc += `\n【面交 ${meets.length} 筆】\n`;
+    meets.forEach(m => {
+      const fl = [m.orig&&`原×${m.orig}`,m.matcha&&`抹×${m.matcha}`,m.cocoa&&`可×${m.cocoa}`].filter(Boolean).join(' ');
+      desc += `  ${m.name}  ${fl}  ${m.address}\n`;
+    });
+  }
+
+  const endDate = new Date(date);
+  endDate.setDate(endDate.getDate() + 1);
+  return {
+    summary: parts.join('・'),
+    description: desc.trim(),
+    start: { date },
+    end: { date: endDate.toISOString().slice(0,10) },
+    extendedProperties: { private: { puddingSync: 'true', puddingDate: date } },
+  };
+}
+
+async function _listPuddingEvents(token){
+  // 取得所有帶有 puddingSync 標記的事件（分頁處理）
+  const events = [];
+  let pageToken = null;
+  const base = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+    + '?privateExtendedProperty=puddingSync%3Dtrue&maxResults=250';
+  do {
+    const url = pageToken ? `${base}&pageToken=${pageToken}` : base;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer '+token } });
+    if(!res.ok) break;
+    const data = await res.json();
+    if(data.items) events.push(...data.items);
+    pageToken = data.nextPageToken || null;
+  } while(pageToken);
+  return events;
+}
+
 async function doGCalSync(token){
   const btn = document.getElementById('gcal-sync-btn');
-  btn.textContent = '同步中...';
+  btn.textContent = '讀取中...';
 
+  // 目前排程的日期（只同步今天以後）
   const today = new Date().toISOString().slice(0,10);
-  const allDates = [...new Set([
+  const scheduleDates = new Set([
     ...Object.keys(_schedMakeMap),
     ...Object.keys(_schedShipMap),
     ...Object.keys(_schedMeetMap),
-  ])].filter(d => d >= today).sort();
+  ].filter(d => d >= today));
 
-  if(!allDates.length){
-    showToast('沒有未來的排程需要同步');
-    return;
-  }
+  // 取得已在 Google Calendar 的布丁事件
+  let existing;
+  try { existing = await _listPuddingEvents(token); }
+  catch(e){ showToast('❌ 無法讀取 Google Calendar'); return; }
 
-  let ok = 0, fail = 0;
-  for(const date of allDates){
-    const make  = _schedMakeMap[date];
-    const ships = _schedShipMap[date] || [];
-    const meets = _schedMeetMap[date] || [];
+  // 建立 date → eventId 的對應表
+  const existingMap = {};
+  existing.forEach(ev => {
+    const d = ev.extendedProperties?.private?.puddingDate;
+    if(d) existingMap[d] = ev.id;
+  });
 
-    // 標題
-    const parts = [];
-    if(make){
-      const items = [];
-      if(make.orig)   items.push(`原味×${make.orig}`);
-      if(make.matcha) items.push(`抹茶×${make.matcha}`);
-      if(make.cocoa)  items.push(`可可×${make.cocoa}`);
-      parts.push(`🧁 製作 ${items.join(' ')}`);
-    }
-    if(ships.length) parts.push(`📦 出貨 ${ships.length} 筆`);
-    if(meets.length) parts.push(`🤝 面交 ${meets.length} 筆`);
-    if(!parts.length) continue;
+  btn.textContent = '同步中...';
 
-    // 描述
-    let desc = '';
-    if(make){
-      const items = [];
-      if(make.orig)   items.push(`原味 ${make.orig} 盒`);
-      if(make.matcha) items.push(`抹茶 ${make.matcha} 盒`);
-      if(make.cocoa)  items.push(`可可 ${make.cocoa} 盒`);
-      desc += `【製作】${items.join('、')}\n`;
-    }
-    if(ships.length){
-      desc += `\n【出貨 ${ships.length} 筆】\n`;
-      ships.forEach(s => {
-        const fl = [s.orig&&`原×${s.orig}`,s.matcha&&`抹×${s.matcha}`,s.cocoa&&`可×${s.cocoa}`].filter(Boolean).join(' ');
-        desc += `  ${s.name}  ${fl}  ${s.address}\n`;
-      });
-    }
-    if(meets.length){
-      desc += `\n【面交 ${meets.length} 筆】\n`;
-      meets.forEach(m => {
-        const fl = [m.orig&&`原×${m.orig}`,m.matcha&&`抹×${m.matcha}`,m.cocoa&&`可×${m.cocoa}`].filter(Boolean).join(' ');
-        desc += `  ${m.name}  ${fl}  ${m.address}\n`;
-      });
-    }
+  let created = 0, updated = 0, deleted = 0, fail = 0;
+  const BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+  const hdrs = tok => ({ 'Authorization': 'Bearer '+tok, 'Content-Type': 'application/json' });
 
-    // 結束日（Google Calendar 全天事件的 end.date 要 +1 天）
-    const endDate = new Date(date);
-    endDate.setDate(endDate.getDate() + 1);
-    const endStr = endDate.toISOString().slice(0,10);
-
+  // 新增 / 更新
+  for(const date of scheduleDates){
+    const body = _buildGCalEventBody(date);
+    if(!body) continue;
     try{
-      const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ summary: parts.join('・'), description: desc.trim(), start:{date}, end:{date:endStr} }),
-      });
-      if(res.ok) ok++; else fail++;
+      if(existingMap[date]){
+        // 已存在 → PATCH 更新
+        const res = await fetch(`${BASE}/${existingMap[date]}`, {
+          method: 'PATCH',
+          headers: hdrs(token),
+          body: JSON.stringify(body),
+        });
+        if(res.ok) updated++; else fail++;
+      } else {
+        // 不存在 → POST 新增
+        const res = await fetch(BASE, {
+          method: 'POST',
+          headers: hdrs(token),
+          body: JSON.stringify(body),
+        });
+        if(res.ok) created++; else fail++;
+      }
     } catch(e){ fail++; }
   }
 
-  showToast(fail===0 ? `✅ 已新增 ${ok} 個事件到 Google Calendar` : `⚠️ 成功 ${ok} 個，失敗 ${fail} 個`);
+  // 刪除已不在排程的舊事件
+  for(const [date, eventId] of Object.entries(existingMap)){
+    if(scheduleDates.has(date)) continue;  // 還在排程，已處理
+    try{
+      const res = await fetch(`${BASE}/${eventId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer '+token },
+      });
+      if(res.ok || res.status===204) deleted++; else fail++;
+    } catch(e){ fail++; }
+  }
+
+  const parts = [];
+  if(created) parts.push(`新增 ${created}`);
+  if(updated) parts.push(`更新 ${updated}`);
+  if(deleted) parts.push(`刪除 ${deleted}`);
+  if(!parts.length && !fail) parts.push('無異動');
+
+  showToast(fail===0
+    ? `✅ Google Calendar 同步完成：${parts.join('・')}`
+    : `⚠️ ${parts.join('・')}，失敗 ${fail} 個`
+  );
 }
 
 function showToast(msg){
