@@ -2989,7 +2989,8 @@ function renderSchedule(){
 
 // ── Google Calendar 同步 ──
 const GCAL_CLIENT_ID = '685560724697-ha67vl9jo8l2emah9hp2rc4m29hk7f6r.apps.googleusercontent.com';
-const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar';
+const GCAL_CAL_NAME = '🧁 布丁排程';
 
 function syncToGCal(){
   if(!window.google?.accounts?.oauth2){
@@ -3068,11 +3069,30 @@ function _buildGCalEventBody(date){
   };
 }
 
-async function _listPuddingEvents(token){
+async function _getOrCreatePuddingCalendar(token){
+  // 先查有沒有「🧁 布丁排程」日曆
+  const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+    headers: { 'Authorization': 'Bearer '+token }
+  });
+  const listData = await listRes.json();
+  const found = (listData.items||[]).find(c => c.summary === GCAL_CAL_NAME);
+  if(found) return found.id;
+
+  // 沒有就建一個
+  const createRes = await fetch('https://www.googleapis.com/calendar/v3/calendars', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ summary: GCAL_CAL_NAME }),
+  });
+  const cal = await createRes.json();
+  return cal.id;
+}
+
+async function _listPuddingEvents(token, calId){
   // 取得所有帶有 puddingSync 標記的事件（分頁處理）
   const events = [];
   let pageToken = null;
-  const base = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+  const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`
     + '?privateExtendedProperty=puddingSync%3Dtrue&maxResults=250';
   do {
     const url = pageToken ? `${base}&pageToken=${pageToken}` : base;
@@ -3087,6 +3107,13 @@ async function _listPuddingEvents(token){
 
 async function doGCalSync(token){
   const btn = document.getElementById('gcal-sync-btn');
+  btn.textContent = '準備中...';
+
+  // 找或建「🧁 布丁排程」專屬日曆
+  let calId;
+  try { calId = await _getOrCreatePuddingCalendar(token); }
+  catch(e){ showToast('❌ 無法建立布丁日曆'); return; }
+
   btn.textContent = '讀取中...';
 
   // 目前排程的日期（只同步今天以後）
@@ -3097,10 +3124,10 @@ async function doGCalSync(token){
     ...Object.keys(_schedMeetMap),
   ].filter(d => d >= today));
 
-  // 取得已在 Google Calendar 的布丁事件
+  // 取得已在布丁日曆的事件
   let existing;
-  try { existing = await _listPuddingEvents(token); }
-  catch(e){ showToast('❌ 無法讀取 Google Calendar'); return; }
+  try { existing = await _listPuddingEvents(token, calId); }
+  catch(e){ showToast('❌ 無法讀取布丁日曆'); return; }
 
   // 建立 date → eventId 的對應表
   const existingMap = {};
@@ -3112,7 +3139,7 @@ async function doGCalSync(token){
   btn.textContent = '同步中...';
 
   let created = 0, updated = 0, deleted = 0, fail = 0;
-  const BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+  const BASE = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`;
   const hdrs = tok => ({ 'Authorization': 'Bearer '+tok, 'Content-Type': 'application/json' });
 
   // 新增 / 更新
