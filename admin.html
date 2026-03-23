@@ -852,6 +852,7 @@ function startFirebaseListener(){
     snap.forEach(child => { orders.push(child.val()); });
     orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
     renderStats(); renderTable(); renderDaily(); renderSchedule();
+    autoSyncToGCal();
   });
 }
 
@@ -2991,6 +2992,7 @@ function renderSchedule(){
 const GCAL_CLIENT_ID = '685560724697-ha67vl9jo8l2emah9hp2rc4m29hk7f6r.apps.googleusercontent.com';
 const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar';
 const GCAL_CAL_NAME = '🧁 布丁排程';
+let _gcalToken = null, _gcalTokenExpiry = 0;
 
 function syncToGCal(){
   if(!window.google?.accounts?.oauth2){
@@ -3010,12 +3012,21 @@ function syncToGCal(){
         btn.innerHTML = '🗓 同步到 Google Calendar';
         return;
       }
+      // 快取 token（有效期通常 3600 秒，保留 60 秒緩衝）
+      _gcalToken = resp.access_token;
+      _gcalTokenExpiry = Date.now() + ((resp.expires_in || 3600) - 60) * 1000;
       await doGCalSync(resp.access_token);
       btn.disabled = false;
       btn.innerHTML = '🗓 同步到 Google Calendar';
     }
   });
   tokenClient.requestAccessToken();
+}
+
+// 自動觸發：有快取 token 才同步，否則靜默略過
+function autoSyncToGCal(){
+  if(!_gcalToken || Date.now() > _gcalTokenExpiry) return;
+  doGCalSync(_gcalToken);
 }
 
 function _buildGCalEventBody(date){
