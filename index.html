@@ -1574,17 +1574,8 @@ function fmtDisplay(s){
 }
 
 function getStock(ds, fid){
-  // ds = 顧客收貨日，fid = 口味
-  // 製作日 = 收貨日 - 1（面交）或 - 2（宅配）
-  const isPickup = order.deliveryMode === 'pickup';
-  const prodDate = addDaysToDate(ds, isPickup ? -1 : -2);
-  const flavorKey = fid==='original'?'orig': fid==='matcha'?'matcha':'cocoa';
-  // 查製作日的上限（單獨設定 > 預設）
-  const override = prodOverrides[prodDate];
-  const dayMax = override && override[flavorKey] != null ? override[flavorKey] : (maxPerDay[flavorKey] ?? MAX);
-  // 已用量（該製作日所有訂單，包含面交+宅配）
-  const used = inv[prodDate+'_'+fid] || 0;
-  return dayMax - used;
+  // 口味不個別限制，回傳當天總量剩餘供日曆使用
+  return getProdDayTotal(ds);
 }
 
 // 總量檢查（製作日當天所有口味合計）
