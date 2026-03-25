@@ -519,7 +519,10 @@ tr.done-row td{opacity:.45;}
       <div style="background:var(--paper-dark);border-radius:4px;padding:20px;margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <div style="font-size:13px;font-weight:600">🗂 包材清單</div>
-          <button class="btn-save" onclick="resetPackaging()">↺ 重置包材</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn-save" onclick="openAddPkgModal()">＋ 新增包材</button>
+            <button class="btn-save" onclick="resetPackaging()">↺ 重置包材</button>
+          </div>
         </div>
         <div id="pkg-list"></div>
       </div>
@@ -961,6 +964,7 @@ const DEFAULT_PACKAGING = [
   {id:'box_large',  name:'大紙箱（宅配）',   unit:'個', stock:0, warnDays:7},
   {id:'box_muffin', name:'馬芬盒（面交）',   unit:'個', stock:0, warnDays:7},
   {id:'bag_kraft',  name:'白牛皮袋（面交）', unit:'個', stock:0, warnDays:7},
+  {id:'spoon',      name:'布丁匙（湯匙）',   unit:'支', stock:0, warnDays:7},
 ];
 
 let pkgData = {}; // 包材庫存
@@ -1049,7 +1053,7 @@ function renderIngAll(){
 // ── 耗材需求計算（按訂單配送方式+盒數）──
 function calcPackagingDemand(){
   const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled' && o.date);
-  const pkg = { cup:0, cup_lid:0, box_small:0, box_large:0, box_muffin:0, bag_kraft:0 };
+  const pkg = { cup:0, cup_lid:0, spoon:0, box_small:0, box_large:0, box_muffin:0, bag_kraft:0 };
 
   pending.forEach(o => {
     const boxes = (o.orig||0) + (o.matcha||0) + (o.cocoa||0);
@@ -1057,6 +1061,7 @@ function calcPackagingDemand(){
     const cups = boxes * 6;
     pkg.cup     += cups;
     pkg.cup_lid += cups;
+    pkg.spoon   += cups;
 
     if(o.delivery === '宅配'){
       pkg.box_small += boxes;
@@ -1177,6 +1182,7 @@ function renderPkgList(){
   if(isMobile()){
     el.innerHTML = keys.map(id => {
       const pkg = pkgData[id];
+      const isCustom = !DEFAULT_PKG_IDS.has(id);
       return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--rule)">
         <div style="flex:1;font-size:13px;font-weight:500">${pkg.name}</div>
         <input type="number" min="0" value="${pkg.stock||0}"
@@ -1185,6 +1191,7 @@ function renderPkgList(){
           style="width:62px;padding:5px 6px;border:1.5px solid var(--rule);border-radius:4px;text-align:right;font-size:13px;font-family:inherit;outline:none;">
         <span style="font-size:12px;color:var(--ink-soft)">${pkg.unit}</span>
         <button onclick="openPkgRestockModal('${id}')" style="border:none;background:var(--caramel);color:#fff;border-radius:4px;padding:6px 10px;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap">＋補貨</button>
+        ${isCustom ? `<button onclick="deletePkg('${id}')" style="border:none;background:#e0e0e0;color:#666;border-radius:4px;padding:6px 8px;cursor:pointer;font-size:12px;font-family:inherit">刪除</button>` : ''}
       </div>`;
     }).join('');
     return;
@@ -1201,6 +1208,7 @@ function renderPkgList(){
       <tbody>
         ${keys.map(id => {
           const pkg = pkgData[id];
+          const isCustom = !DEFAULT_PKG_IDS.has(id);
           return `<tr style="border-bottom:1px solid var(--rule)">
             <td style="padding:7px 10px;font-weight:500">${pkg.name}</td>
             <td style="padding:7px 6px;text-align:right">
@@ -1212,6 +1220,7 @@ function renderPkgList(){
             </td>
             <td style="padding:7px 6px;text-align:center">
               <button onclick="openPkgRestockModal('${id}')" style="border:none;background:var(--caramel);color:#fff;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit">＋補貨</button>
+              ${isCustom ? `<button onclick="deletePkg('${id}')" style="border:none;background:#e0e0e0;color:#666;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit;margin-left:4px">刪除</button>` : ''}
             </td>
           </tr>`;
         }).join('')}
@@ -1245,6 +1254,64 @@ function resetPackaging(){
   if(!Object.keys(updates).length){ showToast('✅ 包材清單已是最新'); return; }
   db.ref('settings/packaging').update(updates).then(()=>{
     showToast('✅ 包材清單已更新');
+    renderPkgAll();
+  });
+}
+
+const DEFAULT_PKG_IDS = new Set(DEFAULT_PACKAGING.map(i=>i.id));
+
+function openAddPkgModal(){
+  const overlay = document.createElement('div');
+  overlay.id = 'add-pkg-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:4px;padding:28px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:18px">＋ 新增包材</div>
+      <div style="display:grid;gap:10px">
+        <div>
+          <label class="form-label">名稱</label>
+          <input class="form-ctrl" id="add-pkg-name" placeholder="例：封口膜">
+        </div>
+        <div>
+          <label class="form-label">單位</label>
+          <input class="form-ctrl" id="add-pkg-unit" placeholder="例：個、捲、包" value="個">
+        </div>
+        <div>
+          <label class="form-label">初始庫存</label>
+          <input class="form-ctrl" id="add-pkg-stock" type="number" min="0" value="0">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button class="btn-save" style="flex:1;background:var(--caramel)" onclick="saveNewPkg()">新增</button>
+        <button onclick="document.getElementById('add-pkg-overlay').remove()" style="padding:9px 18px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>document.getElementById('add-pkg-name').focus(),100);
+}
+
+function saveNewPkg(){
+  const name  = document.getElementById('add-pkg-name').value.trim();
+  const unit  = document.getElementById('add-pkg-unit').value.trim() || '個';
+  const stock = +document.getElementById('add-pkg-stock').value || 0;
+  if(!name){ showToast('請填寫包材名稱'); return; }
+  const id = 'custom_' + Date.now();
+  const data = { name, unit, stock, warnDays:7, custom:true };
+  db.ref('settings/packaging/'+id).set(data).then(()=>{
+    pkgData[id] = data;
+    document.getElementById('add-pkg-overlay').remove();
+    showToast(`✅ 已新增「${name}」`);
+    renderPkgAll();
+  });
+}
+
+function deletePkg(id){
+  const pkg = pkgData[id];
+  if(!confirm(`確定刪除「${pkg.name}」？`)) return;
+  db.ref('settings/packaging/'+id).remove().then(()=>{
+    delete pkgData[id];
+    showToast(`✅ 已刪除「${pkg.name}」`);
     renderPkgAll();
   });
 }
