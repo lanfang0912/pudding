@@ -1974,7 +1974,7 @@ function renderInvCalendar(overrides){
   Object.keys(overrides||{}).forEach(d => prodDates.add(d));
 
   // 加入未來14天（讓你可以提前設定）
-  for(let i = 0; i <= 14; i++){
+  for(let i = 0; i <= 30; i++){
     const d = new Date(today);
     d.setDate(d.getDate() + i);
     prodDates.add(d.toISOString().slice(0,10));
