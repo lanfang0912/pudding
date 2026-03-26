@@ -441,6 +441,23 @@ body::before {
   text-align: center;
 }
 
+.low-sugar-row {
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 0.25s ease, opacity 0.25s ease;
+  display: flex; justify-content: center; margin-top: 0;
+}
+.flavor-card.selected .low-sugar-row { max-height: 40px; opacity: 1; margin-top: 8px; }
+.low-sugar-btn {
+  font-size: 11px; font-family: inherit;
+  padding: 3px 12px; border-radius: 20px; cursor: pointer;
+  border: 1.5px dashed var(--ink-soft); background: transparent;
+  color: var(--ink-soft); transition: all 0.15s;
+}
+.low-sugar-btn.active {
+  border-style: solid; border-color: var(--caramel);
+  background: rgba(196,131,42,0.1); color: var(--caramel); font-weight: 600;
+}
+
 /* ── COMBO CARD ── */
 .combo-card {
   border: 1.5px dashed var(--caramel);
@@ -1403,7 +1420,7 @@ try {
   console.warn('Firebase init error:', e);
 }
 
-const order = { flavors:{}, isCombo:false, comboQty:1, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
+const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
 
 let calY, calM;
 
@@ -1441,6 +1458,9 @@ function renderFlavors(){
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',-1)">−</button>
         <div class="qty-display" id="qv-${f.id}">${q}</div>
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',1)">+</button>
+      </div>
+      <div class="low-sugar-row">
+        <button class="low-sugar-btn${order.lowSugar[f.id]?' active':''}" onclick="event.stopPropagation();toggleLowSugar('${f.id}')">減糖</button>
       </div>
     </div>`;
   }).join('');
@@ -1494,7 +1514,13 @@ function toggleFlavor(id){
   if(order.isCombo){
     order.isCombo = false;   // 點單品時取消三拼
   }
-  if(order.flavors[id]) delete order.flavors[id]; else order.flavors[id]=1;
+  if(order.flavors[id]){ delete order.flavors[id]; delete order.lowSugar[id]; }
+  else order.flavors[id]=1;
+  renderFlavors();
+}
+
+function toggleLowSugar(id){
+  order.lowSugar[id] = !order.lowSugar[id];
   renderFlavors();
 }
 
@@ -1639,7 +1665,8 @@ function renderSummary(){
       const q=order.flavors[fid];
       const sub=q*f.price;
       total+=sub;
-      rows+=`<div class="summary-row"><span class="summary-row-label">${f.icon} ${f.zh} × ${q} 盒</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
+      const lsTag = order.lowSugar[fid] ? ' <span style="font-size:11px;color:var(--caramel);font-weight:600">（減糖）</span>' : '';
+      rows+=`<div class="summary-row"><span class="summary-row-label">${f.icon} ${f.zh} × ${q} 盒${lsTag}</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
     }
   }
 
@@ -1755,6 +1782,9 @@ function submitOrder(){
     note: order.note || '',
     total: total,
     status: 'pending',
+    lowSugar: Object.keys(order.lowSugar).filter(k=>order.lowSugar[k] && order.flavors[k]).length > 0
+      ? { orig: !!order.lowSugar['original'], matcha: !!order.lowSugar['matcha'], cocoa: !!order.lowSugar['cocoa'] }
+      : null,
   };
   if(order.isCombo) firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };
 
