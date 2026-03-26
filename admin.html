@@ -2313,7 +2313,7 @@ function sendShipNotify(id){
     customer_name:  o.name,
     order_num:      o.id,
     flavor_lines:   items,
-    shipping_fee:   (o.total - (o.orig||0)*360 - (o.matcha||0)*390 - (o.cocoa||0)*390) > 0 ? 'NT$160' : 'NT$0（免運）',
+    shipping_fee:   (() => { const s = o.total - (o.orig||0)*360 - (o.matcha||0)*390 - (o.cocoa||0)*390; return s > 0 ? `NT$${s}` : 'NT$0（免運）'; })(),
     total_amount:   `NT$${o.total}`,
     delivery_mode:  o.delivery==='面交'?'📍 面交':'🚚 宅配到府',
     delivery_date:  dateDisplay,
@@ -2440,14 +2440,14 @@ function nrecalc(){
       const matchaCup = +document.getElementById('n-combo-matcha').value||0;
       const cocoaCup  = +document.getElementById('n-combo-cocoa').value||0;
       const totalCups = origCup + matchaCup + cocoaCup;
-      const ship = isPickup ? 0 : (totalCups >= 18 ? 0 : 160);
+      const ship = isPickup ? 0 : (totalCups >= 18 ? 100 : 160);
       total = origCup*60 + matchaCup*65 + cocoaCup*65 + ship;
     } else {
       const orig  = +document.getElementById('n-orig').value||0;
       const matcha= +document.getElementById('n-matcha').value||0;
       const cocoa = +document.getElementById('n-cocoa').value||0;
       const boxes = orig+matcha+cocoa;
-      const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
+      const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
       total = orig*360 + matcha*390 + cocoa*390 + ship;
     }
   } else {
@@ -2567,17 +2567,17 @@ function recalc(){
     const matchaCup = +document.getElementById('e-combo-matcha').value||0;
     const cocoaCup  = +document.getElementById('e-combo-cocoa').value||0;
     const totalCups = origCup + matchaCup + cocoaCup;
-    ship  = (deliv==='面交' || totalCups>=18) ? 0 : 160;
+    ship  = deliv==='面交' ? 0 : (totalCups>=18 ? 100 : 160);
     total = origCup*60 + matchaCup*65 + cocoaCup*65 + ship;
   } else {
     const orig  = +document.getElementById('e-orig').value||0;
     const matcha= +document.getElementById('e-matcha').value||0;
     const cocoa = +document.getElementById('e-cocoa').value||0;
     const boxes = orig+matcha+cocoa;
-    ship  = (deliv==='面交' || boxes>=3) ? 0 : 160;
+    ship  = deliv==='面交' ? 0 : (boxes>=3 ? 100 : 160);
     total = orig*360 + matcha*390 + cocoa*390 + ship;
   }
-  document.getElementById('e-total').value=`NT$ ${total.toLocaleString()}${ship?' (含運$160)':''}`;
+  document.getElementById('e-total').value=`NT$ ${total.toLocaleString()}${ship?` (含運$${ship})`:''}`;
   return total;
 }
 function saveEdit(){
