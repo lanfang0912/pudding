@@ -2158,9 +2158,13 @@ function fhtml(o){
     ].filter(Boolean).join('');
     return tags + ' <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼</span>';
   }
-  const tags = [o.orig?`<span class="flavor-tag tag-original">原味×${o.orig}</span>`:'',
-         o.matcha?`<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>`:'',
-         o.cocoa?`<span class="flavor-tag tag-cocoa">可可×${o.cocoa}</span>`:''].filter(Boolean).join('');
+  const ls = o.lowSugar || {};
+  const lsTag = (key) => ls[key] ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';
+  const tags = [
+    o.orig   ? `<span class="flavor-tag tag-original">原味×${o.orig}</span>${lsTag('orig')}`   : '',
+    o.matcha ? `<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>${lsTag('matcha')}` : '',
+    o.cocoa  ? `<span class="flavor-tag tag-cocoa">可可×${o.cocoa}</span>${lsTag('cocoa')}`    : '',
+  ].filter(Boolean).join('');
   return tags;
 }
 const SB={pending:'<span class="badge badge-pending">待確認匯款</span>',paid:'<span class="badge badge-paid">已確認匯款</span>',shipped:'<span class="badge badge-shipped">已出貨</span>'};
