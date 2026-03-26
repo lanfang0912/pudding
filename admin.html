@@ -2156,7 +2156,8 @@ function fhtml(o){
       ci.matchaCup ? `<span class="flavor-tag tag-matcha">抹茶×${ci.matchaCup}杯</span>` : '',
       ci.cocoaCup  ? `<span class="flavor-tag tag-cocoa">可可×${ci.cocoaCup}杯</span>` : '',
     ].filter(Boolean).join('');
-    return tags + ' <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼</span>';
+    const lsTag = o.comboLowSugar ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';
+    return tags + ' <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼</span>' + lsTag;
   }
   const ls = o.lowSugar || {};
   const lsTag = (key) => ls[key] ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';

@@ -1120,6 +1120,9 @@ footer {
             <div class="qty-display" id="combo-qv">1</div>
             <button class="qty-btn" onclick="comboChg(1)">+</button>
           </div>
+          <div id="combo-ls-row" style="display:none;margin-top:8px" onclick="event.stopPropagation()">
+            <button id="combo-ls-btn" class="low-sugar-btn" onclick="toggleComboLowSugar()">減糖</button>
+          </div>
         </div>
         <div id="combo-check" style="font-size:22px;opacity:0;transition:opacity .3s;flex-shrink:0">✓</div>
       </div>
@@ -1420,7 +1423,7 @@ try {
   console.warn('Firebase init error:', e);
 }
 
-const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
+const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
 
 let calY, calM;
 
@@ -1471,6 +1474,10 @@ function renderFlavors(){
   if(card) card.classList.toggle('combo-selected', combo);
   if(check) check.style.opacity = combo ? '1' : '0';
   if(qtyRow) qtyRow.style.display = combo ? 'flex' : 'none';
+  const lsRow = document.getElementById('combo-ls-row');
+  if(lsRow) lsRow.style.display = combo ? 'block' : 'none';
+  const lsBtn = document.getElementById('combo-ls-btn');
+  if(lsBtn) lsBtn.className = 'low-sugar-btn' + (order.comboLowSugar ? ' active' : '');
   if(combo) updateComboCard();
 }
 
@@ -1489,12 +1496,24 @@ function selectCombo(){
   if(order.isCombo){
     order.isCombo = false;
     order.comboQty = 1;
+    order.comboLowSugar = false;
   } else {
     order.isCombo = true;
     order.comboQty = 1;
     order.flavors = {};   // 清空單品選擇
+    order.lowSugar = {};
   }
+  const lsRow = document.getElementById('combo-ls-row');
+  const qtyRow = document.getElementById('combo-qty-row');
+  if(lsRow) lsRow.style.display = order.isCombo ? 'block' : 'none';
+  if(qtyRow) qtyRow.style.display = order.isCombo ? 'flex' : 'none';
   renderFlavors();
+}
+
+function toggleComboLowSugar(){
+  order.comboLowSugar = !order.comboLowSugar;
+  const btn = document.getElementById('combo-ls-btn');
+  if(btn) btn.className = 'low-sugar-btn' + (order.comboLowSugar ? ' active' : '');
 }
 
 function comboChg(d){
@@ -1658,7 +1677,8 @@ function renderSummary(){
     const comboPrice = order.comboQty * 380;
     total = comboPrice;
     const cups = order.comboQty * 2;
-    rows += `<div class="summary-row"><span class="summary-row-label">🎁 三拼 ×${order.comboQty} 組（原味×${cups}杯・抹茶×${cups}杯・可可×${cups}杯）</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
+    const comboLsTag = order.comboLowSugar ? ' <span style="font-size:11px;color:var(--caramel);font-weight:600">（減糖）</span>' : '';
+    rows += `<div class="summary-row"><span class="summary-row-label">🎁 三拼 ×${order.comboQty} 組（原味×${cups}杯・抹茶×${cups}杯・可可×${cups}杯）${comboLsTag}</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
   } else {
     for(const fid of Object.keys(order.flavors)){
       const f=FLAVORS.find(x=>x.id===fid);
@@ -1786,7 +1806,10 @@ function submitOrder(){
       ? { orig: !!order.lowSugar['original'], matcha: !!order.lowSugar['matcha'], cocoa: !!order.lowSugar['cocoa'] }
       : null,
   };
-  if(order.isCombo) firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };
+  if(order.isCombo){
+    firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };
+    if(order.comboLowSugar) firebaseOrder.comboLowSugar = true;
+  }
 
   // 先寫入 Firebase（不等信寄出）
   if(db){
