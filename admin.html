@@ -843,6 +843,26 @@ function startFirebaseListener(){
     renderStats(); renderTable(); renderDaily(); renderSchedule();
     autoSyncToGCal();
   });
+  db.ref('settings/packaging').on('value', snap => {
+    if(snap.val()){ pkgData = snap.val(); renderPkgAll(); }
+  });
+  db.ref('settings/ingredients').on('value', snap => {
+    if(snap.val()){ ingData = snap.val(); renderIngAll(); }
+  });
+  db.ref('settings/recipe').on('value', snap => {
+    if(snap.val()){ recipeData = snap.val(); renderIngAll(); renderSchedule(); }
+  });
+  db.ref('settings/completedUntil').on('value', snap => {
+    completedUntil = snap.val() || '';
+    const el = document.getElementById('completed-until');
+    if(el) el.value = completedUntil;
+    renderIngAll();
+  });
+  db.ref('settings/eggSubstitute').on('value', snap => {
+    eggSubstitute = snap.val() === null ? true : snap.val();
+    renderEggToggle();
+    renderIngAll();
+  });
 }
 
 const UN='admin';
@@ -2746,6 +2766,54 @@ function renderDaily(){
   }).join('');
 }
 
+// ── 配方計算輔助函式 ──
+function buildRecipeIngHtml(orig, matcha, cocoa){
+  if(!recipeData || !Object.keys(recipeData).length)
+    return '<div style="font-size:11px;color:var(--ink-soft)">配方未載入，請先開啟食材管理頁</div>';
+  const totals = {};
+  const flavors = {original: orig||0, matcha: matcha||0, cocoa: cocoa||0};
+  Object.entries(flavors).forEach(([flavor, boxes]) => {
+    if(!boxes || !recipeData[flavor]) return;
+    const factor = boxes * 6 / 10;
+    Object.entries(recipeData[flavor]).forEach(([ing, amt]) => {
+      const key = (eggSubstitute && ing === 'egg_yolk') ? 'egg' : ing;
+      totals[key] = (totals[key] || 0) + amt * factor;
+    });
+  });
+  if(!Object.keys(totals).length) return '<div style="font-size:11px;color:var(--ink-soft)">本日無需製作</div>';
+  const fallbackNames = {milk:'鮮奶', cream:'動物鮮奶油', egg:'洗選蛋', egg_yolk:'殺菌蛋黃', sugar:'上白糖', matcha:'抹茶粉', cocoa:'可可粉', chocolate:'調溫黑巧克力'};
+  const rows = Object.entries(totals).map(([id, amt]) => {
+    const name = (ingData[id] && ingData[id].name) || fallbackNames[id] || id;
+    const unit = (ingData[id] && ingData[id].unit) || 'g';
+    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 6px;border-bottom:1px solid var(--rule)">
+      <span style="color:var(--ink-mid)">${name}</span>
+      <span style="font-weight:600;font-family:monospace">${Math.round(amt)} ${unit}</span>
+    </div>`;
+  }).join('');
+  return `<div style="background:rgba(0,0,0,.03);border-radius:4px;overflow:hidden">${rows}</div>`;
+}
+
+function recalcScheduleRecipe(dateKey){
+  const orig   = +(document.getElementById('rc-orig-'+dateKey)||{value:0}).value;
+  const matcha = +(document.getElementById('rc-matcha-'+dateKey)||{value:0}).value;
+  const cocoa  = +(document.getElementById('rc-cocoa-'+dateKey)||{value:0}).value;
+  const el = document.getElementById('rc-result-'+dateKey);
+  if(el) el.innerHTML = buildRecipeIngHtml(orig, matcha, cocoa);
+}
+
+function buildRecipeCalcHtml(dateKey, make){
+  const inStyle = 'width:44px;padding:2px 4px;border:1px solid var(--rule);border-radius:3px;font-size:11px;text-align:center';
+  return `<div style="margin-top:12px;border-top:1px solid var(--rule);padding-top:10px">
+    <div style="font-size:11px;font-weight:600;color:var(--ink-mid);margin-bottom:8px">📋 配方計算</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;font-size:11px">
+      <label style="display:flex;align-items:center;gap:4px">原味 <input id="rc-orig-${dateKey}" type="number" min="0" value="${make.orig||0}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 盒</label>
+      <label style="display:flex;align-items:center;gap:4px">抹茶 <input id="rc-matcha-${dateKey}" type="number" min="0" value="${make.matcha||0}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 盒</label>
+      <label style="display:flex;align-items:center;gap:4px">可可 <input id="rc-cocoa-${dateKey}" type="number" min="0" value="${make.cocoa||0}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 盒</label>
+    </div>
+    <div id="rc-result-${dateKey}">${buildRecipeIngHtml(make.orig, make.matcha, make.cocoa)}</div>
+  </div>`;
+}
+
 // ── schedule ──
 function renderSchedule(){
   const MAX = 36;
@@ -2917,6 +2985,7 @@ function renderSchedule(){
         <li style="font-size:10px;color:var(--ink-soft);margin-bottom:4px;letter-spacing:.5px">點擊打勾確認製作完成</li>
         ${makeOrderRows}
       </ul>` : ''}
+      ${buildRecipeCalcHtml(date, make)}
     </div>` : `<div><h4>生產</h4><div style="font-size:12px;color:var(--ink-soft);padding:6px 0">今天不需製作</div></div>`;
 
     // 面交區
