@@ -2319,9 +2319,57 @@ function delOrder(id, name){
   showToast('🗑 訂單已刪除');
 }
 
+// ── 計算單筆訂單需耗食材 ──
+function calcOrderIngredients(o){
+  const result = {};
+  const flavors = {original: o.orig||0, matcha: o.matcha||0, cocoa: o.cocoa||0};
+  Object.entries(flavors).forEach(([flavor, boxes]) => {
+    if(!boxes || !recipeData[flavor]) return;
+    const factor = boxes * 6 / 10;
+    Object.entries(recipeData[flavor]).forEach(([ing, amt]) => {
+      const key = (eggSubstitute && ing === 'egg_yolk') ? 'egg' : ing;
+      result[key] = (result[key] || 0) + amt * factor;
+    });
+  });
+  return result;
+}
+
+// ── 計算單筆訂單需耗包材 ──
+function calcOrderPackaging(o){
+  const boxes = (o.orig||0) + (o.matcha||0) + (o.cocoa||0);
+  if(!boxes) return {};
+  const cups = boxes * 6;
+  const pkg = {cup: cups, cup_lid: cups, spoon: cups};
+  if(o.delivery === '宅配'){
+    pkg.box_small = boxes;
+    if(boxes >= 2) pkg.box_large = 2;
+  } else {
+    pkg.box_muffin = boxes;
+    pkg.bag_kraft = 1;
+  }
+  return pkg;
+}
+
 function toggleMade(id, currentDone){
-  db.ref('orders/'+id).update({made: !currentDone});
-  showToast(!currentDone ? '✅ 已標記製作完成' : '↩ 取消製作完成');
+  const o = orders.find(x => x.id === id);
+  if(!o) return;
+  const newDone = !currentDone;
+  const ingUse = calcOrderIngredients(o);
+  const dbUpdates = {'orders/'+id+'/made': newDone};
+  const deducted = [];
+  Object.entries(ingUse).forEach(([key, use]) => {
+    if(!ingData[key]) return;
+    const cur = ingData[key].stock || 0;
+    const next = Math.max(0, Math.round((newDone ? cur - use : cur + use) * 10) / 10);
+    ingData[key].stock = next;
+    dbUpdates['settings/ingredients/'+key+'/stock'] = next;
+    deducted.push(`${ingData[key].name} ${newDone ? '-' : '+'}${Math.round(use)}${ingData[key].unit||'g'}`);
+  });
+  db.ref().update(dbUpdates).then(() => {
+    showToast(newDone
+      ? `✅ 製作完成・已扣除食材：${deducted.join('、')}`
+      : `↩ 取消製作・食材已歸還`);
+  });
 }
 
 function sendShipNotify(id){
@@ -2354,13 +2402,22 @@ function sendShipNotify(id){
 }
 
 function togglePacked(id, currentPacked){
+  const o = orders.find(x => x.id === id);
+  if(!o) return;
   const newPacked = !currentPacked;
-  db.ref('orders/'+id).update({packed: newPacked, status: newPacked ? 'shipped' : 'paid'});
-  if(newPacked){
-    sendShipNotify(id);
-  } else {
-    showToast('↩ 取消打包');
-  }
+  const pkgUse = calcOrderPackaging(o);
+  const dbUpdates = {'orders/'+id+'/packed': newPacked, 'orders/'+id+'/status': newPacked ? 'shipped' : 'paid'};
+  Object.entries(pkgUse).forEach(([key, qty]) => {
+    if(!pkgData[key] || !qty) return;
+    const cur = pkgData[key].stock || 0;
+    const next = Math.max(0, Math.round(newPacked ? cur - qty : cur + qty));
+    pkgData[key].stock = next;
+    dbUpdates['settings/packaging/'+key+'/stock'] = next;
+  });
+  db.ref().update(dbUpdates).then(() => {
+    if(newPacked) sendShipNotify(id);
+    else showToast('↩ 取消打包・包材已歸還');
+  });
 }
 
 function sendMeetNotify(id){
@@ -2386,13 +2443,22 @@ function sendMeetNotify(id){
 }
 
 function toggleMeet(id, currentMet){
+  const o = orders.find(x => x.id === id);
+  if(!o) return;
   const newMet = !currentMet;
-  db.ref('orders/'+id).update({met: newMet, status: newMet ? 'shipped' : 'paid'});
-  if(newMet){
-    sendMeetNotify(id);
-  } else {
-    showToast('↩ 取消面交完成');
-  }
+  const pkgUse = calcOrderPackaging(o);
+  const dbUpdates = {'orders/'+id+'/met': newMet, 'orders/'+id+'/status': newMet ? 'shipped' : 'paid'};
+  Object.entries(pkgUse).forEach(([key, qty]) => {
+    if(!pkgData[key] || !qty) return;
+    const cur = pkgData[key].stock || 0;
+    const next = Math.max(0, Math.round(newMet ? cur - qty : cur + qty));
+    pkgData[key].stock = next;
+    dbUpdates['settings/packaging/'+key+'/stock'] = next;
+  });
+  db.ref().update(dbUpdates).then(() => {
+    if(newMet) sendMeetNotify(id);
+    else showToast('↩ 取消面交完成・包材已歸還');
+  });
 }
 
 // ── 新增訂單 ──
@@ -2767,50 +2833,56 @@ function renderDaily(){
 }
 
 // ── 配方計算輔助函式 ──
-function buildRecipeIngHtml(orig, matcha, cocoa){
+function buildRecipeIngHtml(origCups, matchaCups, cocoaCups){
   if(!recipeData || !Object.keys(recipeData).length)
     return '<div style="font-size:11px;color:var(--ink-soft)">配方未載入，請先開啟食材管理頁</div>';
-  const totals = {};
-  const flavors = {original: orig||0, matcha: matcha||0, cocoa: cocoa||0};
-  Object.entries(flavors).forEach(([flavor, boxes]) => {
-    if(!boxes || !recipeData[flavor]) return;
-    const factor = boxes * 6 / 10;
-    Object.entries(recipeData[flavor]).forEach(([ing, amt]) => {
-      const key = (eggSubstitute && ing === 'egg_yolk') ? 'egg' : ing;
-      totals[key] = (totals[key] || 0) + amt * factor;
-    });
-  });
-  if(!Object.keys(totals).length) return '<div style="font-size:11px;color:var(--ink-soft)">本日無需製作</div>';
   const fallbackNames = {milk:'鮮奶', cream:'動物鮮奶油', egg:'洗選蛋', egg_yolk:'殺菌蛋黃', sugar:'上白糖', matcha:'抹茶粉', cocoa:'可可粉', chocolate:'調溫黑巧克力'};
-  const rows = Object.entries(totals).map(([id, amt]) => {
-    const name = (ingData[id] && ingData[id].name) || fallbackNames[id] || id;
-    const unit = (ingData[id] && ingData[id].unit) || 'g';
-    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 6px;border-bottom:1px solid var(--rule)">
-      <span style="color:var(--ink-mid)">${name}</span>
-      <span style="font-weight:600;font-family:monospace">${Math.round(amt)} ${unit}</span>
+  const flavors = [
+    {key:'original', label:'原味', cups: origCups||0,  color:'var(--caramel)'},
+    {key:'matcha',   label:'抹茶', cups: matchaCups||0, color:'var(--matcha)'},
+    {key:'cocoa',    label:'可可', cups: cocoaCups||0,  color:'var(--ink-mid)'},
+  ];
+  const sections = flavors.filter(f => f.cups > 0 && recipeData[f.key]).map(f => {
+    const factor = f.cups / 10;
+    const rows = Object.entries(recipeData[f.key]).map(([ing, amt]) => {
+      const key = (eggSubstitute && ing === 'egg_yolk') ? 'egg' : ing;
+      const name = (ingData[key] && ingData[key].name) || fallbackNames[key] || key;
+      const unit = (ingData[key] && ingData[key].unit) || 'g';
+      return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 8px;border-bottom:1px solid var(--rule)">
+        <span style="color:var(--ink-mid)">${name}</span>
+        <span style="font-weight:600;font-family:monospace">${Math.round(amt * factor)} ${unit}</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:11px;font-weight:600;color:${f.color};padding:4px 8px;background:rgba(0,0,0,.04);border-radius:4px 4px 0 0">${f.label} ${f.cups} 杯</div>
+      <div style="border:1px solid var(--rule);border-top:none;border-radius:0 0 4px 4px;overflow:hidden">${rows}</div>
     </div>`;
-  }).join('');
-  return `<div style="background:rgba(0,0,0,.03);border-radius:4px;overflow:hidden">${rows}</div>`;
+  });
+  if(!sections.length) return '<div style="font-size:11px;color:var(--ink-soft)">本日無需製作</div>';
+  return sections.join('');
 }
 
 function recalcScheduleRecipe(dateKey){
-  const orig   = +(document.getElementById('rc-orig-'+dateKey)||{value:0}).value;
-  const matcha = +(document.getElementById('rc-matcha-'+dateKey)||{value:0}).value;
-  const cocoa  = +(document.getElementById('rc-cocoa-'+dateKey)||{value:0}).value;
+  const origCups   = +(document.getElementById('rc-orig-'+dateKey)||{value:0}).value;
+  const matchaCups = +(document.getElementById('rc-matcha-'+dateKey)||{value:0}).value;
+  const cocoaCups  = +(document.getElementById('rc-cocoa-'+dateKey)||{value:0}).value;
   const el = document.getElementById('rc-result-'+dateKey);
-  if(el) el.innerHTML = buildRecipeIngHtml(orig, matcha, cocoa);
+  if(el) el.innerHTML = buildRecipeIngHtml(origCups, matchaCups, cocoaCups);
 }
 
 function buildRecipeCalcHtml(dateKey, make){
-  const inStyle = 'width:44px;padding:2px 4px;border:1px solid var(--rule);border-radius:3px;font-size:11px;text-align:center';
+  const inStyle = 'width:50px;padding:2px 4px;border:1px solid var(--rule);border-radius:3px;font-size:11px;text-align:center';
+  const origCups   = (make.orig||0) * 6;
+  const matchaCups = (make.matcha||0) * 6;
+  const cocoaCups  = (make.cocoa||0) * 6;
   return `<div style="margin-top:12px;border-top:1px solid var(--rule);padding-top:10px">
     <div style="font-size:11px;font-weight:600;color:var(--ink-mid);margin-bottom:8px">📋 配方計算</div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px;font-size:11px">
-      <label style="display:flex;align-items:center;gap:4px">原味 <input id="rc-orig-${dateKey}" type="number" min="0" value="${make.orig||0}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 盒</label>
-      <label style="display:flex;align-items:center;gap:4px">抹茶 <input id="rc-matcha-${dateKey}" type="number" min="0" value="${make.matcha||0}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 盒</label>
-      <label style="display:flex;align-items:center;gap:4px">可可 <input id="rc-cocoa-${dateKey}" type="number" min="0" value="${make.cocoa||0}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 盒</label>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;font-size:11px">
+      <label style="display:flex;align-items:center;gap:4px">原味 <input id="rc-orig-${dateKey}" type="number" min="0" value="${origCups}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 杯</label>
+      <label style="display:flex;align-items:center;gap:4px">抹茶 <input id="rc-matcha-${dateKey}" type="number" min="0" value="${matchaCups}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 杯</label>
+      <label style="display:flex;align-items:center;gap:4px">可可 <input id="rc-cocoa-${dateKey}" type="number" min="0" value="${cocoaCups}" style="${inStyle}" oninput="recalcScheduleRecipe('${dateKey}')"> 杯</label>
     </div>
-    <div id="rc-result-${dateKey}">${buildRecipeIngHtml(make.orig, make.matcha, make.cocoa)}</div>
+    <div id="rc-result-${dateKey}">${buildRecipeIngHtml(origCups, matchaCups, cocoaCups)}</div>
   </div>`;
 }
 
