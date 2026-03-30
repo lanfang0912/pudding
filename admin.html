@@ -2355,7 +2355,7 @@ function toggleMade(id, currentDone){
   if(!o) return;
   const newDone = !currentDone;
   const ingUse = calcOrderIngredients(o);
-  const dbUpdates = {'orders/'+id+'/made': newDone};
+  const dbUpdates = {['orders/'+id+'/made']: newDone};
   const deducted = [];
   Object.entries(ingUse).forEach(([key, use]) => {
     if(!ingData[key]) return;
@@ -2406,7 +2406,7 @@ function togglePacked(id, currentPacked){
   if(!o) return;
   const newPacked = !currentPacked;
   const pkgUse = calcOrderPackaging(o);
-  const dbUpdates = {'orders/'+id+'/packed': newPacked, 'orders/'+id+'/status': newPacked ? 'shipped' : 'paid'};
+  const dbUpdates = {['orders/'+id+'/packed']: newPacked, ['orders/'+id+'/status']: newPacked ? 'shipped' : 'paid'};
   Object.entries(pkgUse).forEach(([key, qty]) => {
     if(!pkgData[key] || !qty) return;
     const cur = pkgData[key].stock || 0;
@@ -2447,7 +2447,7 @@ function toggleMeet(id, currentMet){
   if(!o) return;
   const newMet = !currentMet;
   const pkgUse = calcOrderPackaging(o);
-  const dbUpdates = {'orders/'+id+'/met': newMet, 'orders/'+id+'/status': newMet ? 'shipped' : 'paid'};
+  const dbUpdates = {['orders/'+id+'/met']: newMet, ['orders/'+id+'/status']: newMet ? 'shipped' : 'paid'};
   Object.entries(pkgUse).forEach(([key, qty]) => {
     if(!pkgData[key] || !qty) return;
     const cur = pkgData[key].stock || 0;
