@@ -863,6 +863,12 @@ function startFirebaseListener(){
     renderEggToggle();
     renderIngAll();
   });
+  db.ref('settings/restockLog').limitToLast(20).on('value', snap => {
+    renderRestockLogFromSnap(snap);
+  });
+  db.ref('settings/pkgRestockLog').limitToLast(20).on('value', snap => {
+    renderPkgRestockLogFromSnap(snap);
+  });
 }
 
 const UN='admin';
@@ -1372,53 +1378,55 @@ function savePkgRestock(id){
   });
 }
 
-function renderPkgRestockLog(){
+function renderPkgRestockLogFromSnap(snap){
   const el = document.getElementById('pkg-restock-log');
-  if(!el || !db) return;
-  db.ref('settings/pkgRestockLog').limitToLast(20).once('value').then(snap=>{
-    const records = [];
-    snap.forEach(c => records.unshift(c.val()));
-    if(!records.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>'; return; }
-    if(isMobile()){
-      el.innerHTML = records.map(r=>{
-        const d = new Date(r.ts);
-        const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-        return `<div style="padding:8px 0;border-bottom:1px solid var(--rule)">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:13px;font-weight:500">${r.name}</span>
-            <span style="color:var(--caramel);font-weight:600;font-size:13px">+${r.qty} ${r.unit}</span>
-          </div>
-          <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">${dateStr}${r.cost?' · NT$'+r.cost:''}${r.note?' · '+r.note:''}</div>
-        </div>`;
-      }).join('');
-      return;
-    }
-    el.innerHTML = `
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="border-bottom:2px solid var(--rule)">
-            <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">時間</th>
-            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">包材</th>
-            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨量</th>
-            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">金額</th>
-            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">備註</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records.map(r=>{
-            const d = new Date(r.ts);
-            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            return `<tr style="border-bottom:1px solid var(--rule)">
-              <td style="padding:7px 10px;color:var(--ink-soft)">${dateStr}</td>
-              <td style="padding:7px 6px;font-weight:500">${r.name}</td>
-              <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:600">+${r.qty} ${r.unit}</td>
-              <td style="padding:7px 6px;text-align:right">${r.cost?'NT$'+r.cost:'—'}</td>
-              <td style="padding:7px 6px;color:var(--ink-soft)">${r.note||'—'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
-  });
+  if(!el) return;
+  const records = [];
+  snap.forEach(c => records.unshift(c.val()));
+  if(!records.length){ el.innerHTML='<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>'; return; }
+  if(isMobile()){
+    el.innerHTML = records.map(r=>{
+      const d = new Date(r.ts);
+      const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--rule)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;font-weight:500">${r.name}</span>
+          <span style="color:var(--caramel);font-weight:600;font-size:13px">+${r.qty} ${r.unit}</span>
+        </div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">${dateStr}${r.cost?' · NT$'+r.cost:''}${r.note?' · '+r.note:''}</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">時間</th>
+          <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">包材</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨量</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">金額</th>
+          <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">備註</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${records.map(r=>{
+          const d = new Date(r.ts);
+          const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;color:var(--ink-soft)">${dateStr}</td>
+            <td style="padding:7px 6px;font-weight:500">${r.name}</td>
+            <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:600">+${r.qty} ${r.unit}</td>
+            <td style="padding:7px 6px;text-align:right">${r.cost?'NT$'+r.cost:'—'}</td>
+            <td style="padding:7px 6px;color:var(--ink-soft)">${r.note||'—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+function renderPkgRestockLog(){
+  if(!db) return;
+  db.ref('settings/pkgRestockLog').limitToLast(20).once('value').then(snap => renderPkgRestockLogFromSnap(snap));
 }
 
 function calcDemand(){
@@ -1878,66 +1886,67 @@ function saveRestock(id){
 }
 
 // ── 補貨紀錄 ──
-function renderRestockLog(){
+function renderRestockLogFromSnap(snap){
   const el = document.getElementById('restock-log');
   if(!el) return;
-  db.ref('settings/restockLog').limitToLast(20).once('value').then(snap=>{
-    const records = [];
-    snap.forEach(c => records.unshift(c.val())); // 最新的在前
-    if(!records.length){
-      el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>';
-      return;
-    }
-    if(isMobile()){
-      el.innerHTML = records.map(r=>{
-        const d = new Date(r.ts);
-        const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-        return `<div style="padding:9px 0;border-bottom:1px solid var(--rule)">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-            <span style="font-size:13px;font-weight:600">${r.ingName}</span>
-            <span style="color:var(--caramel);font-weight:600;font-size:13px">+${r.qty} ${r.unit}</span>
-          </div>
-          <div style="display:flex;gap:10px;font-size:11px;color:var(--ink-soft);flex-wrap:wrap">
-            <span>${dateStr}</span>
-            ${r.unitCost ? `<span>單價 NT$${r.unitCost}</span>` : ''}
-            ${r.totalCost ? `<span>金額 NT$${Math.round(r.totalCost)}</span>` : ''}
-            <span style="color:var(--matcha)">補後 ${r.stockAfter} ${r.unit}</span>
-            ${r.note ? `<span>${r.note}</span>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-      return;
-    }
-    el.innerHTML = `
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="border-bottom:2px solid var(--rule)">
-            <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">時間</th>
-            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">食材</th>
-            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨量</th>
-            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">單價</th>
-            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">進貨金額</th>
-            <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨後庫存</th>
-            <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">備註</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records.map(r=>{
-            const d = new Date(r.ts);
-            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-            return `<tr style="border-bottom:1px solid var(--rule)">
-              <td style="padding:7px 10px;color:var(--ink-soft)">${dateStr}</td>
-              <td style="padding:7px 6px;font-weight:500">${r.ingName}</td>
-              <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:600">+${r.qty} ${r.unit}</td>
-              <td style="padding:7px 6px;text-align:right;color:var(--ink-soft)">${r.unitCost ? 'NT$'+r.unitCost : '—'}</td>
-              <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:500">${r.totalCost ? 'NT$'+Math.round(r.totalCost) : '—'}</td>
-              <td style="padding:7px 6px;text-align:right;color:var(--matcha)">${r.stockAfter} ${r.unit}</td>
-              <td style="padding:7px 6px;color:var(--ink-soft)">${r.note||'—'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
-  });
+  const records = [];
+  snap.forEach(c => records.unshift(c.val()));
+  if(!records.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚無補貨紀錄</div>';
+    return;
+  }
+  if(isMobile()){
+    el.innerHTML = records.map(r=>{
+      const d = new Date(r.ts);
+      const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--rule)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:13px;font-weight:600">${r.ingName}</span>
+          <span style="color:var(--caramel);font-weight:600;font-size:13px">+${r.qty} ${r.unit}</span>
+        </div>
+        <div style="display:flex;gap:10px;font-size:11px;color:var(--ink-soft);flex-wrap:wrap">
+          <span>${dateStr}</span>
+          ${r.unitCost ? `<span>單價 NT$${r.unitCost}</span>` : ''}
+          ${r.totalCost ? `<span>金額 NT$${Math.round(r.totalCost)}</span>` : ''}
+          <span style="color:var(--matcha)">補後 ${r.stockAfter} ${r.unit}</span>
+          ${r.note ? `<span>${r.note}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule)">
+          <th style="padding:7px 10px;text-align:left;color:var(--ink-soft)">時間</th>
+          <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">食材</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨量</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">單價</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">進貨金額</th>
+          <th style="padding:7px 6px;text-align:right;color:var(--ink-soft)">補貨後庫存</th>
+          <th style="padding:7px 6px;text-align:left;color:var(--ink-soft)">備註</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${records.map(r=>{
+          const d = new Date(r.ts);
+          const dateStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          return `<tr style="border-bottom:1px solid var(--rule)">
+            <td style="padding:7px 10px;color:var(--ink-soft)">${dateStr}</td>
+            <td style="padding:7px 6px;font-weight:500">${r.ingName}</td>
+            <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:600">+${r.qty} ${r.unit}</td>
+            <td style="padding:7px 6px;text-align:right;color:var(--ink-soft)">${r.unitCost ? 'NT$'+r.unitCost : '—'}</td>
+            <td style="padding:7px 6px;text-align:right;color:var(--caramel);font-weight:500">${r.totalCost ? 'NT$'+Math.round(r.totalCost) : '—'}</td>
+            <td style="padding:7px 6px;text-align:right;color:var(--matcha)">${r.stockAfter} ${r.unit}</td>
+            <td style="padding:7px 6px;color:var(--ink-soft)">${r.note||'—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+function renderRestockLog(){
+  db.ref('settings/restockLog').limitToLast(20).once('value').then(snap => renderRestockLogFromSnap(snap));
 }
 
 function saveDefaultInv(){
