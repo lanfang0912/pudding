@@ -2844,8 +2844,13 @@ function buildRecipeIngHtml(origCups, matchaCups, cocoaCups){
   ];
   const sections = flavors.filter(f => f.cups > 0 && recipeData[f.key]).map(f => {
     const factor = f.cups / 10;
-    const rows = Object.entries(recipeData[f.key]).map(([ing, amt]) => {
+    // 先合併同 key 的用量（egg_yolk 轉蛋代替時合入 egg）
+    const totals = {};
+    Object.entries(recipeData[f.key]).forEach(([ing, amt]) => {
       const key = (eggSubstitute && ing === 'egg_yolk') ? 'egg' : ing;
+      totals[key] = (totals[key] || 0) + amt;
+    });
+    const rows = Object.entries(totals).map(([key, amt]) => {
       const name = (ingData[key] && ingData[key].name) || fallbackNames[key] || key;
       const unit = (ingData[key] && ingData[key].unit) || 'g';
       return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 8px;border-bottom:1px solid var(--rule)">
