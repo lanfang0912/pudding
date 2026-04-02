@@ -1,6 +1,6 @@
 const TCAT = {
   endpoint: 'https://api.suda.com.tw/api/Egs',
-  customerId: '9355596901',
+  customerId: '935559690100',
   token: 'jkuck204',
 };
 
@@ -19,9 +19,31 @@ async function tryGetPDF(fileNo) {
       body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo }),
     });
     const ct = r.headers.get('content-type') || '';
-    if (r.ok && ct.includes('pdf')) return r;
+    if (r.ok && ct.includes('pdf')) return { ok: true, res: r };
+    const text = await r.text();
+    console.log(`PDF ${ep} → ${r.status} [${ct}]: ${text.slice(0, 300)}`);
   }
-  return null;
+  return { ok: false };
+}
+
+async function debugPDF(fileNo) {
+  const endpoints = ['GetOBTFile', 'DownloadOBTFile', 'GetFile', 'PrintOBTFile'];
+  const results = [];
+  for (const ep of endpoints) {
+    try {
+      const r = await fetch(`${TCAT.endpoint}/${ep}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo }),
+      });
+      const ct = r.headers.get('content-type') || '';
+      const text = await r.text();
+      results.push({ ep, status: r.status, ct, body: text.slice(0, 500) });
+    } catch(e) {
+      results.push({ ep, error: e.message });
+    }
+  }
+  return results;
 }
 
 export default {
@@ -35,15 +57,23 @@ export default {
 
     if (path === 'getPDF') {
       const { fileNo } = await request.json();
-      const pdfRes = await tryGetPDF(fileNo);
-      if (pdfRes) {
-        const blob = await pdfRes.arrayBuffer();
+      const result = await tryGetPDF(fileNo);
+      if (result.ok) {
+        const blob = await result.res.arrayBuffer();
         return new Response(blob, {
           headers: { ...CORS, 'Content-Type': 'application/pdf' }
         });
       }
       return new Response(JSON.stringify({ error: '找不到 PDF endpoint' }), {
         status: 404, headers: { ...CORS, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (path === 'debugPDF') {
+      const { fileNo } = await request.json();
+      const results = await debugPDF(fileNo);
+      return new Response(JSON.stringify(results, null, 2), {
+        headers: { ...CORS, 'Content-Type': 'application/json' }
       });
     }
 
