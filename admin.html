@@ -884,8 +884,9 @@ async function printOBT(orderId) {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const json = await res.json();
+    console.log('黑貓回傳:', JSON.stringify(json, null, 2));
     if (json.IsOK !== 'Y') { alert('建立失敗：' + json.Message); return; }
-    const row = json.Data[0];
+    const row = (json.Data || json.data || [])[0];
     const obt = row.OBTNumber;
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
