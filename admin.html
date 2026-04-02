@@ -794,7 +794,7 @@ const schedule=[
 
 // ── 黑貓 API ──
 const TCAT = {
-  endpoint: 'https://api.suda.com.tw/api/Egs', // 正式環境
+  endpoint: 'https://tcat-proxy.lanfang-hsu.workers.dev', // Cloudflare proxy
   customerId: '9355596901',
   token: 'jkuck204',
   sender: { name:'White Dessert', tel:'0926582178', mobile:'0926582178', zip:'260', address:'宜蘭市縣政五街102巷50號' }
@@ -890,19 +890,21 @@ async function printOBT(orderId) {
     const fileNo = json.Data.FileNo;
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
+    showToast('✅ 托運單 ' + obt + (fileNo ? '，下載中...' : ''));
     if (fileNo) {
-      showToast('⏳ 下載 PDF 中...');
       try {
-        const pdfRes = await fetch('https://api.suda.com.tw/api/Egs/GetOBTFile', {
+        const pdfRes = await fetch('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo })
+          body: JSON.stringify({ fileNo })
         });
-        console.log('PDF status:', pdfRes.status, pdfRes.headers.get('content-type'));
-        const blob = await pdfRes.blob();
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        if (pdfRes.ok) {
+          const blob = await pdfRes.blob();
+          window.open(URL.createObjectURL(blob), '_blank');
+        } else {
+          alert('托運單號：' + obt + '\n（PDF 暫無法取得，請至黑貓後台列印）');
+        }
       } catch(pe) {
-        alert('托運單號：' + obt + '\nPDF 下載失敗：' + pe.message);
+        alert('托運單號：' + obt + '\nPDF 錯誤：' + pe.message);
       }
     } else alert('托運單號：' + obt + '\n（請至黑貓後台列印）');
   } catch(e) { alert('API 連線錯誤：' + e.message); }
