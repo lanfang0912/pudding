@@ -863,8 +863,8 @@ async function printOBT(orderId) {
 
   const payload = {
     CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
-    PrintType: '01', PrintOBTType: '01',
-    Orders: [{ OrderId: o.id, OBTNumber: '',
+    PrintType: '02', PrintOBTType: '01',
+    Orders: [{ OrderId: o.id,
       SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
       SenderZipCode: TCAT.sender.zip.padEnd(6,'0'), SenderAddress: TCAT.sender.address,
       RecipientName: o.name, RecipientTel: phone, RecipientMobile: phone,
