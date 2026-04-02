@@ -892,23 +892,7 @@ async function printOBT(orderId) {
     showToast('✅ 托運單 ' + obt);
     showToast('✅ 托運單 ' + obt);
     if (fileNo) {
-      try {
-        const pdfWin = window.open('', '_blank');
-        const pdfRes = await fetch('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ fileNo, customerId: TCAT.customerId, token: TCAT.token })
-        });
-        if (pdfRes.ok && pdfRes.headers.get('content-type')?.includes('pdf')) {
-          const blob = await pdfRes.blob();
-          const url = URL.createObjectURL(blob);
-          pdfWin.location.href = url;
-        } else {
-          const j = await pdfRes.json().catch(()=>({}));
-          alert('托運單號：' + obt + '\n' + (j.error || 'PDF 暫無法取得，請至黑貓後台列印'));
-        }
-      } catch(pe) {
-        alert('托運單號：' + obt + '\nPDF 錯誤：' + pe.message);
-      }
+      window.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo);
     } else alert('托運單號：' + obt + '\n（請至黑貓後台列印）');
   } catch(e) { alert('API 連線錯誤：' + e.message); }
 }
