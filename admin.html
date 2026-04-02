@@ -858,9 +858,8 @@ async function printOBT(orderId) {
   const zip6 = zip.padEnd(6, '0');
   const phone = (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile;
   const today = new Date();
-  const fmt = d => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+  const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-  // 跳過週日
   if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate()+1);
 
   const payload = {
@@ -871,11 +870,11 @@ async function printOBT(orderId) {
       SenderZipCode: TCAT.sender.zip.padEnd(6,'0'), SenderAddress: TCAT.sender.address,
       RecipientName: o.name, RecipientTel: phone, RecipientMobile: phone,
       RecipientZipCode: zip6, RecipientAddress: addr,
-      ReceiptLocation: '01',
+      ReceiptLocation: '01', Spec: '0001',
       Thermosphere: '0002',
-      ShipmentDate: fmt(today), DeliveryDate: fmt(tomorrow), DeliveryTime: '3',
+      ShipmentDate: fmt(today), DeliveryDate: fmt(tomorrow), DeliveryTime: '03',
       IsFreight: 'N', IsCollection: 'N', IsSwipe: 'N', IsDeclare: 'N',
-      ProductTypeId: 'C0030', ProductName: '布丁',
+      ProductTypeId: 'C003', ProductName: '布丁',
     }]
   };
 
