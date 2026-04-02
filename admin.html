@@ -900,8 +900,7 @@ async function printOBT(orderId) {
         if (pdfRes.ok && pdfRes.headers.get('content-type')?.includes('pdf')) {
           const blob = await pdfRes.blob();
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = `托運單_${obt}.pdf`; a.click();
+          window.open(url, '_blank');
         } else {
           const j = await pdfRes.json().catch(()=>({}));
           alert('托運單號：' + obt + '\n' + (j.error || 'PDF 暫無法取得，請至黑貓後台列印'));
