@@ -888,7 +888,7 @@ async function printOBT(orderId) {
     const row = json.Data.Orders[0];
     const obt = row.OBTNumber;
     const fileNo = json.Data.FileNo;
-    if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtTs: new Date().toISOString() });
+    if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
     if (fileNo) {
       const pdfUrl = `https://api.suda.com.tw/api/Egs/GetFile?FileNo=${fileNo}`;
