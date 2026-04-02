@@ -792,6 +792,67 @@ const schedule=[
    meet:[{name:'方虹云',time:'15:00',place:'凱旋國小',warn:'⚠️ 帶餐具'},{name:'潘倩玉',time:'待定',place:'凱旋國小',warn:'或3/31(二)'}],ship:[]},
 ];
 
+// ── 黑貓 API ──
+const TCAT = {
+  endpoint: 'https://egs.suda.com.tw:8443/api/Egs', // 測試環境；正式改為 https://api.suda.com.tw/api/Egs
+  customerId: '9355595901',
+  token: 'jkuck204',
+  sender: { name:'White Dessert', tel:'0926582178', mobile:'0926582178', zip:'260', address:'宜蘭市縣政五街102巷50號' }
+};
+
+async function printOBT(orderId) {
+  const o = orders.find(x => x.id === orderId);
+  if (!o || o.delivery !== '宅配') return;
+  const m = o.address.match(/^(\d{3,5})/);
+  let zip = m ? m[1].slice(0,3) : '';
+  let addr = m ? o.address.slice(m[1].length).trim() : o.address;
+  if (!zip) {
+    zip = prompt(`請輸入「${o.name}」的郵遞區號\n地址：${o.address}`);
+    if (!zip) return;
+  }
+  const payload = {
+    CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
+    PrintType: 'A4二模宅配', PrintOBTType: '0',
+    Orders: [{ OrderId: o.id, OBTNumber: '',
+      SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
+      SenderZipCode: TCAT.sender.zip, SenderAddress: TCAT.sender.address,
+      ReceiverName: o.name,
+      ReceiverTel: (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile,
+      ReceiverMobile: (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile,
+      ReceiverZipCode: zip, ReceiverAddress: addr,
+      GoodsName: '布丁', GoodsNum: '1', Temperature: '0002', Spec: '0001', ServiceType: '02'
+    }]
+  };
+  showToast('⏳ 建立托運單中...');
+  try {
+    const res = await fetch(TCAT.endpoint + '/PrintOBT', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (json.IsOK !== 'Y') { alert('建立失敗：' + json.Message); return; }
+    const row = json.Data[0];
+    const obt = row.OBTNumber;
+    if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtTs: new Date().toISOString() });
+    showToast('✅ 托運單 ' + obt);
+    const pdfUrl = row.PDFUrl || row.PrintURL || row.DownloadURL;
+    if (pdfUrl) window.open(pdfUrl, '_blank');
+  } catch(e) { alert('API 連線錯誤：' + e.message); }
+}
+
+async function queryOBT(obt) {
+  try {
+    const res = await fetch(TCAT.endpoint + '/QueryOBT', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, OBTNumbers: [obt] })
+    });
+    const json = await res.json();
+    if (json.IsOK === 'Y' && json.Data?.[0]) {
+      const d = json.Data[0];
+      alert(`📦 ${obt}\n狀態：${d.StatusName || d.Status}\n時間：${d.UpdateTime || ''}`);
+    } else { alert('查詢失敗：' + json.Message); }
+  } catch(e) { alert('API 錯誤：' + e.message); }
+}
+
 // ── Firebase ──
 let db = null;
 try {
@@ -2806,6 +2867,11 @@ function makeOrderCard(o, date){
       ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
       ${done?`<button class="ship-btn done">✓ 已出貨</button>`:`<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
     </div>
+    ${o.delivery==='宅配'?`<div style="display:flex;gap:6px;margin-top:6px">
+      ${o.obtNumber
+        ?`<button class="act-btn" style="flex:1;font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="queryOBT('${o.obtNumber}')">📦 追蹤 ${o.obtNumber}</button>`
+        :`<button class="act-btn ship" style="flex:1;font-size:10px" onclick="printOBT('${o.id}')">🖨️ 建立托運單</button>`}
+    </div>`:''}
   </div>`;
 }
 
