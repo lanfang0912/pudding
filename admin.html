@@ -900,16 +900,8 @@ async function printOBT(orderId) {
 
 async function queryOBT(obt) {
   try {
-    const res = await fetch(TCAT.endpoint + '/QueryOBT', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, OBTNumber: obt })
-    });
-    const json = await res.json();
-    console.log('QueryOBT 回傳:', JSON.stringify(json, null, 2));
-    if (json.IsOK === 'Y') {
-      const d = (json.Data?.Orders || json.Data || [])[0] || json.Data;
-      alert(`📦 ${obt}\n狀態：${d?.StatusName || d?.Status || JSON.stringify(d)}`);
-    } else { alert('查詢失敗：' + json.Message); }
+    window.open(`https://www.t-cat.com.tw/Tracking/TrackingQuery.aspx?no=${obt}`, '_blank');
+    return;
   } catch(e) { alert('API 錯誤：' + e.message); }
 }
 
