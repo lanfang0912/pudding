@@ -842,6 +842,57 @@ function guessZip(addr) {
   return '';
 }
 
+async function batchPrintOBT(date) {
+  const targets = orders.filter(o => o.date === date && o.delivery === '宅配' && !o.obtNumber);
+  if (!targets.length) { alert('這天的宅配訂單都已建立托運單了'); return; }
+  const today = new Date();
+  const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  const orderItems = [];
+  for (const o of targets) {
+    let zip = guessZip(o.address);
+    const m = o.address.match(/^(\d{3,6})/);
+    let addr = m ? o.address.slice(m[1].length).trim() : o.address;
+    if (!zip) {
+      zip = prompt(`請輸入「${o.name}」的郵遞區號（3碼）\n地址：${o.address}`);
+      if (!zip) return;
+    }
+    const phone = (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile;
+    const deliveryDate = o.date ? new Date(o.date) : (() => { const d = new Date(today); d.setDate(d.getDate()+1); return d; })();
+    orderItems.push({
+      OrderId: o.id, OBTNumber: '',
+      SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
+      SenderZipCode: TCAT.sender.zip.padEnd(6,'0'), SenderAddress: TCAT.sender.address,
+      RecipientName: o.name, RecipientTel: phone, RecipientMobile: phone,
+      RecipientZipCode: zip.padEnd(6,'0'), RecipientAddress: addr,
+      ReceiptLocation: '01', Spec: '0001', Thermosphere: '0002',
+      ShipmentDate: fmt(today), DeliveryDate: fmt(deliveryDate), DeliveryTime: '02',
+      IsFreight: 'N', IsCollection: 'N', IsSwipe: 'N', IsDeclare: 'N',
+      ProductTypeId: '0002', ProductName: '布丁',
+    });
+  }
+  showToast(`⏳ 批量建立 ${targets.length} 筆托運單...`);
+  try {
+    const res = await fetch(TCAT.endpoint + '/PrintOBT', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
+        CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
+        PrintType: '01', PrintOBTType: '01', Orders: orderItems
+      })
+    });
+    const json = await res.json();
+    if (json.IsOK !== 'Y') { alert('建立失敗：' + json.Message); return; }
+    const fileNo = json.Data.FileNo;
+    if (db) {
+      for (const row of json.Data.Orders) {
+        await db.ref('orders/' + row.OrderId).update({ obtNumber: row.OBTNumber, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
+      }
+    }
+    showToast(`✅ 已建立 ${json.Data.Orders.length} 筆托運單`);
+    renderDaily();
+    if (fileNo) window.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo);
+    else alert('托運單已建立，請至黑貓後台列印');
+  } catch(e) { alert('API 連線錯誤：' + e.message); }
+}
+
 async function printOBT(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o || o.delivery !== '宅配') return;
@@ -2962,12 +3013,17 @@ function renderDaily(){
       <div style="font-size:11px;font-weight:600;color:var(--blue);margin:10px 0 6px;letter-spacing:1px">🏫 一心專區（NT$${yixinTotal.toLocaleString()}）</div>
       <div class="shipping-cards">${yixin.map(o=>makeOrderCard(o,date)).join('')}</div>` : '';
 
+    const unprinted = list.filter(o => o.delivery === '宅配' && !o.obtNumber);
+    const batchBtn = unprinted.length > 1
+      ? `<button onclick="batchPrintOBT('${date}')" style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap">🖨️ 批量建立（${unprinted.length}筆）</button>`
+      : '';
     return `<div class="day-section">
       <div class="day-header">
         <div class="day-title">${date} <span style="font-size:13px;color:var(--ink-soft)">週${wd[d.getDay()]}</span></div>
         <div class="day-meta">${list.length}筆</div>
         <div class="day-prog"><div class="day-prog-bar" style="width:${pct}%"></div></div>
         <div class="day-meta">${shipped}/${list.length} 完成</div>
+        ${batchBtn}
       </div>
       ${puddingSection}${yixinSection}
     </div>`;
