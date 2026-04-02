@@ -859,8 +859,7 @@ async function printOBT(orderId) {
   const phone = (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile;
   const today = new Date();
   const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-  if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate()+1);
+  const deliveryDate = o.date ? new Date(o.date) : (() => { const d = new Date(today); d.setDate(d.getDate()+1); return d; })();
 
   const payload = {
     CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
@@ -872,7 +871,7 @@ async function printOBT(orderId) {
       RecipientZipCode: zip6, RecipientAddress: addr,
       ReceiptLocation: '01', Spec: '0001',
       Thermosphere: '0002',
-      ShipmentDate: fmt(today), DeliveryDate: fmt(tomorrow), DeliveryTime: '02',
+      ShipmentDate: fmt(today), DeliveryDate: fmt(deliveryDate), DeliveryTime: '02',
       IsFreight: 'N', IsCollection: 'N', IsSwipe: 'N', IsDeclare: 'N',
       ProductTypeId: 'C003', ProductName: '布丁',
     }]
