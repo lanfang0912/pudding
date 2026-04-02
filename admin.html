@@ -891,11 +891,19 @@ async function printOBT(orderId) {
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
     if (fileNo) {
-      // 試不同 endpoint 名稱
-      const candidates = ['DownloadOBTFile','GetOBTFile','DownloadFile','PrintOBTFile','GetPDF'];
-      const base = 'https://api.suda.com.tw/api/Egs/';
-      const msg = candidates.map((e,i)=>`${i+1}. ${base}${e}?FileNo=${fileNo}`).join('\n');
-      alert('托運單號：' + obt + '\n\n請逐一試以下連結（複製到新分頁）：\n' + msg);
+      showToast('⏳ 下載 PDF 中...');
+      try {
+        const pdfRes = await fetch('https://api.suda.com.tw/api/Egs/GetOBTFile', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo })
+        });
+        console.log('PDF status:', pdfRes.status, pdfRes.headers.get('content-type'));
+        const blob = await pdfRes.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } catch(pe) {
+        alert('托運單號：' + obt + '\nPDF 下載失敗：' + pe.message);
+      }
     } else alert('托運單號：' + obt + '\n（請至黑貓後台列印）');
   } catch(e) { alert('API 連線錯誤：' + e.message); }
 }
