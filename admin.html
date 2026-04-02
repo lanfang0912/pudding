@@ -800,29 +800,85 @@ const TCAT = {
   sender: { name:'White Dessert', tel:'0926582178', mobile:'0926582178', zip:'260', address:'宜蘭市縣政五街102巷50號' }
 };
 
+// 台灣郵遞區號對照（縣市+區鄉鎮 → 3碼，API需6碼補000）
+const TW_ZIP = {
+  '台北市中正':'100','台北市大同':'103','台北市中山':'104','台北市松山':'105','台北市大安':'106',
+  '台北市萬華':'108','台北市信義':'110','台北市士林':'111','台北市北投':'112','台北市內湖':'114',
+  '台北市南港':'115','台北市文山':'116',
+  '基隆市仁愛':'200','基隆市信義':'201','基隆市中正':'202','基隆市中山':'203','基隆市安樂':'204','基隆市暖暖':'205','基隆市七堵':'206',
+  '新北市萬里':'207','新北市金山':'208','新北市板橋':'220','新北市汐止':'221','新北市深坑':'222','新北市石碇':'223','新北市瑞芳':'224',
+  '新北市新店':'231','新北市永和':'234','新北市中和':'235','新北市土城':'236','新北市三峽':'237','新北市樹林':'238','新北市鶯歌':'239',
+  '新北市三重':'241','新北市新莊':'242','新北市泰山':'243','新北市林口':'244','新北市蘆洲':'247','新北市五股':'248','新北市八里':'249',
+  '新北市淡水':'251','新北市三芝':'252','新北市石門':'253',
+  '桃園市中壢':'320','桃園市平鎮':'324','桃園市龍潭':'325','桃園市楊梅':'326','桃園市桃園':'330','桃園市龜山':'333',
+  '桃園市八德':'334','桃園市大溪':'335','桃園市大園':'337','桃園市蘆竹':'338',
+  '新竹市':'300','新竹縣竹北':'302','新竹縣竹東':'310',
+  '苗栗縣苗栗':'360','苗栗縣竹南':'350','苗栗縣頭份':'351',
+  '台中市中區':'400','台中市東區':'401','台中市南區':'402','台中市西區':'403','台中市北區':'404',
+  '台中市北屯':'406','台中市西屯':'407','台中市南屯':'408','台中市太平':'410','台中市大里':'412',
+  '台中市豐原':'420','台中市大甲':'437','台中市清水':'436','台中市沙鹿':'433',
+  '彰化縣彰化':'500','彰化縣芬園':'502','彰化縣鹿港':'505','彰化縣員林':'510',
+  '南投縣南投':'540','南投縣草屯':'542','南投縣埔里':'545',
+  '雲林縣斗六':'640','雲林縣虎尾':'632','雲林縣斗南':'630',
+  '嘉義市':'600','嘉義縣太保':'612','嘉義縣朴子':'613',
+  '台南市中西':'700','台南市東區':'701','台南市南區':'702','台南市北區':'704','台南市安平':'708','台南市安南':'709',
+  '台南市永康':'710','台南市新營':'730',
+  '高雄市新興':'800','高雄市前金':'801','高雄市苓雅':'802','高雄市鹽埕':'803','高雄市鼓山':'804',
+  '高雄市前鎮':'806','高雄市三民':'807','高雄市楠梓':'811','高雄市小港':'812','高雄市左營':'813',
+  '高雄市鳳山':'830','高雄市大寮':'831','高雄市林園':'832',
+  '屏東縣屏東':'900','屏東縣潮州':'920','屏東縣恆春':'946',
+  '台東縣台東':'950','台東縣台東市':'950',
+  '花蓮縣花蓮市':'970','花蓮縣花蓮':'970','花蓮縣吉安':'973','花蓮縣壽豐':'974','花蓮縣鳳林':'975',
+  '花蓮縣光復':'976','花蓮縣瑞穗':'978','花蓮縣玉里':'982',
+  '宜蘭縣宜蘭':'260','宜蘭市':'260','宜蘭縣頭城':'261','宜蘭縣礁溪':'262','宜蘭縣員山':'264',
+  '宜蘭縣羅東':'265','宜蘭縣蘇澳':'270',
+};
+function guessZip(addr) {
+  const m = addr.match(/^(\d{3,6})/);
+  if (m) return m[1].slice(0,3);
+  for (const [key, zip] of Object.entries(TW_ZIP)) {
+    if (addr.includes(key)) return zip;
+  }
+  return '';
+}
+
 async function printOBT(orderId) {
   const o = orders.find(x => x.id === orderId);
   if (!o || o.delivery !== '宅配') return;
-  const m = o.address.match(/^(\d{3,5})/);
-  let zip = m ? m[1].slice(0,3) : '';
+
+  let zip = guessZip(o.address);
+  const m = o.address.match(/^(\d{3,6})/);
   let addr = m ? o.address.slice(m[1].length).trim() : o.address;
+
   if (!zip) {
-    zip = prompt(`請輸入「${o.name}」的郵遞區號\n地址：${o.address}`);
+    zip = prompt(`請輸入「${o.name}」的郵遞區號（3碼）\n地址：${o.address}`);
     if (!zip) return;
   }
+
+  const zip6 = zip.padEnd(6, '0');
+  const phone = (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile;
+  const today = new Date();
+  const fmt = d => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  // 跳過週日
+  if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate()+1);
+
   const payload = {
     CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
-    PrintType: 'A4二模宅配', PrintOBTType: '0',
+    PrintType: '01', PrintOBTType: '01',
     Orders: [{ OrderId: o.id, OBTNumber: '',
       SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
-      SenderZipCode: TCAT.sender.zip, SenderAddress: TCAT.sender.address,
-      ReceiverName: o.name,
-      ReceiverTel: (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile,
-      ReceiverMobile: (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile,
-      ReceiverZipCode: zip, ReceiverAddress: addr,
-      GoodsName: '布丁', GoodsNum: '1', Temperature: '0002', Spec: '0001', ServiceType: '02'
+      SenderZipCode: TCAT.sender.zip.padEnd(6,'0'), SenderAddress: TCAT.sender.address,
+      RecipientName: o.name, RecipientTel: phone, RecipientMobile: phone,
+      RecipientZipCode: zip6, RecipientAddress: addr,
+      ReceiptLocation: '01',
+      Thermosphere: '0002',
+      ShipmentDate: fmt(today), DeliveryDate: fmt(tomorrow), DeliveryTime: '3',
+      IsFreight: 'N', IsCollection: 'N', IsSwipe: 'N', IsDeclare: 'N',
+      ProductTypeId: 'C0030', ProductName: '布丁',
     }]
   };
+
   showToast('⏳ 建立托運單中...');
   try {
     const res = await fetch(TCAT.endpoint + '/PrintOBT', {
@@ -836,6 +892,7 @@ async function printOBT(orderId) {
     showToast('✅ 托運單 ' + obt);
     const pdfUrl = row.PDFUrl || row.PrintURL || row.DownloadURL;
     if (pdfUrl) window.open(pdfUrl, '_blank');
+    else alert('托運單號：' + obt + '\n（PDF 連結未回傳，請至黑貓後台列印）');
   } catch(e) { alert('API 連線錯誤：' + e.message); }
 }
 
