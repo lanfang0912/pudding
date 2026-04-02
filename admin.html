@@ -884,14 +884,13 @@ async function printOBT(orderId) {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const json = await res.json();
-    console.log('黑貓回傳:', JSON.stringify(json, null, 2));
     if (json.IsOK !== 'Y') { alert('建立失敗：' + json.Message); return; }
-    const row = (json.Data || json.data || [])[0];
+    const row = json.Data.Orders[0];
     const obt = row.OBTNumber;
+    const fileNo = json.Data.FileNo;
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
-    const pdfUrl = row.PDFUrl || row.PrintURL || row.DownloadURL;
-    if (pdfUrl) window.open(pdfUrl, '_blank');
+    if (fileNo) window.open(`${TCAT.endpoint}/PrintOBTFile?FileNo=${fileNo}`, '_blank');
     else alert('托運單號：' + obt + '\n（PDF 連結未回傳，請至黑貓後台列印）');
   } catch(e) { alert('API 連線錯誤：' + e.message); }
 }
