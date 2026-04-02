@@ -890,18 +890,21 @@ async function printOBT(orderId) {
     const fileNo = json.Data.FileNo;
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
-    showToast('✅ 托運單 ' + obt + (fileNo ? '，下載中...' : ''));
+    showToast('✅ 托運單 ' + obt);
     if (fileNo) {
       try {
         const pdfRes = await fetch('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ fileNo })
+          body: JSON.stringify({ fileNo, customerId: TCAT.customerId, token: TCAT.token })
         });
-        if (pdfRes.ok) {
+        if (pdfRes.ok && pdfRes.headers.get('content-type')?.includes('pdf')) {
           const blob = await pdfRes.blob();
-          window.open(URL.createObjectURL(blob), '_blank');
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `托運單_${obt}.pdf`; a.click();
         } else {
-          alert('托運單號：' + obt + '\n（PDF 暫無法取得，請至黑貓後台列印）');
+          const j = await pdfRes.json().catch(()=>({}));
+          alert('托運單號：' + obt + '\n' + (j.error || 'PDF 暫無法取得，請至黑貓後台列印'));
         }
       } catch(pe) {
         alert('托運單號：' + obt + '\nPDF 錯誤：' + pe.message);
