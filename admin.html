@@ -877,6 +877,7 @@ async function printOBT(orderId) {
     }]
   };
 
+  console.log('黑貓 payload:', JSON.stringify(payload, null, 2));
   showToast('⏳ 建立托運單中...');
   try {
     const res = await fetch(TCAT.endpoint + '/PrintOBT', {
