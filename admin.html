@@ -2921,7 +2921,8 @@ function makeOrderCard(o, date){
     </div>
     ${o.delivery==='宅配'?`<div style="display:flex;gap:6px;margin-top:6px">
       ${o.obtNumber
-        ?`<button class="act-btn" style="flex:1;font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="queryOBT('${o.obtNumber}')">📦 追蹤 ${o.obtNumber}</button>`
+        ?`<button class="act-btn" style="flex:1;font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="queryOBT('${o.obtNumber}')">📦 追蹤 ${o.obtNumber}</button>
+          <button class="act-btn" style="font-size:10px" onclick="printOBT('${o.id}')">🖨️ 重印</button>`
         :`<button class="act-btn ship" style="flex:1;font-size:10px" onclick="printOBT('${o.id}')">🖨️ 建立托運單</button>`}
     </div>`:''}
   </div>`;
