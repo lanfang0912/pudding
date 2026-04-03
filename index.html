@@ -1345,6 +1345,11 @@ footer {
           lineUserId = profile.userId;
           lineDisplayName = profile.displayName;
           updateLineLoginUI();
+          const returnStep = sessionStorage.getItem('liff_return_step');
+          if (returnStep) {
+            sessionStorage.removeItem('liff_return_step');
+            setTimeout(() => goTo(parseInt(returnStep)), 0);
+          }
         });
       }
     })
@@ -1352,6 +1357,7 @@ footer {
 
   function lineLogin() {
     if (!liff.isLoggedIn()) {
+      sessionStorage.setItem('liff_return_step', '3');
       liff.login({ redirectUri: window.location.href });
     }
   }
