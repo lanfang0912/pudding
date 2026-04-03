@@ -2586,11 +2586,11 @@ async function sendLineNotify(id) {
   const dateDisp = o.date ? (() => { const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '近日';
   let message;
   if (o.delivery === '宅配') {
-    message = `🍮 白布丁出貨通知\n${o.name} 您好！\n\n您的訂單已出貨 🚚\n品項：${items}\n預計送達：${dateDisp}`;
+    message = `🍮 white dessert 出貨通知\n${o.name} 您好！\n\n您的訂單已出貨 🚚\n品項：${items}\n預計送達：${dateDisp}`;
     if (o.obtNumber) message += `\n\n托運單號：${o.obtNumber}\n查詢：https://www.t-cat.com.tw/Tracking/TrackingQuery.aspx?no=${o.obtNumber}`;
   } else {
     const timeStr = o.time && o.time !== '未指定' ? o.time : '待確認';
-    message = `🍮 白布丁面交提醒\n${o.name} 您好！\n\n品項：${items}\n日期：${dateDisp}\n時間：${timeStr}\n地點：${o.address}\n\n謝謝您的訂購！`;
+    message = `🍮 white dessert 面交提醒\n${o.name} 您好！\n\n品項：${items}\n日期：${dateDisp}\n時間：${timeStr}\n地點：${o.address}\n\n謝謝您的訂購！`;
   }
   try {
     const r = await fetch(`${LINE_WORKER}/sendLine`, {
