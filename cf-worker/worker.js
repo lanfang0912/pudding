@@ -1,3 +1,5 @@
+const LINE_TOKEN = '4iZSl7FQkV1Lc3d11Q6n0e1ELWOOqjdD7fprSLuVNneJVcE1bfyCFM9wUnfcg9CNj/94AuiwpD3wVJEdOJEd8y33fmoCsm4DMJuNaMCBs/cs0IlQPBa16OqEFzs0Mf/tRMe+NtQeTbKEsedZ/sGZYgdB04t89/1O/w1cDnyilFU=';
+
 const TCAT = {
   endpoint: 'https://api.suda.com.tw/api/Egs',
   customerId: '935559690100',
@@ -11,23 +13,29 @@ const CORS = {
 };
 
 async function tryGetPDF(fileNo) {
-  const endpoints = ['GetOBTFile', 'DownloadOBTFile', 'GetFile', 'PrintOBTFile'];
-  for (const ep of endpoints) {
-    const r = await fetch(`${TCAT.endpoint}/${ep}`, {
+  // 正確 endpoint 是 DownloadOBT，試 POST + GET 兩種方式
+  const attempts = [
+    () => fetch(`${TCAT.endpoint}/DownloadOBT`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo }),
-    });
+    }),
+    () => fetch(`${TCAT.endpoint}/DownloadOBT?FileNo=${encodeURIComponent(fileNo)}`, {
+      method: 'GET',
+    }),
+  ];
+  for (const attempt of attempts) {
+    const r = await attempt();
     const ct = r.headers.get('content-type') || '';
-    if (r.ok && ct.includes('pdf')) return { ok: true, res: r };
+    if (r.ok && (ct.includes('pdf') || ct.includes('octet'))) return { ok: true, res: r };
     const text = await r.text();
-    console.log(`PDF ${ep} → ${r.status} [${ct}]: ${text.slice(0, 300)}`);
+    console.log(`DownloadOBT → ${r.status} [${ct}]: ${text.slice(0, 300)}`);
   }
   return { ok: false };
 }
 
 async function debugPDF(fileNo) {
-  const endpoints = ['GetOBTFile', 'DownloadOBTFile', 'GetFile', 'PrintOBTFile'];
+  const endpoints = ['DownloadOBT', 'GetOBTFile', 'DownloadOBTFile', 'GetFile'];
   const results = [];
   for (const ep of endpoints) {
     try {
@@ -89,6 +97,28 @@ export default {
       });
       const json = await r.json();
       return new Response(JSON.stringify(json), {
+        headers: { ...CORS, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (path === 'sendLine') {
+      const { userId, message } = await request.json();
+      if (!userId || !message) {
+        return new Response(JSON.stringify({ error: '缺少 userId 或 message' }), {
+          status: 400, headers: { ...CORS, 'Content-Type': 'application/json' }
+        });
+      }
+      const r = await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${LINE_TOKEN}`,
+        },
+        body: JSON.stringify({ to: userId, messages: [{ type: 'text', text: message }] }),
+      });
+      const text = await r.text();
+      return new Response(text, {
+        status: r.status,
         headers: { ...CORS, 'Content-Type': 'application/json' }
       });
     }

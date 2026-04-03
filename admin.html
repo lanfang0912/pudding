@@ -698,8 +698,9 @@ tr.done-row td{opacity:.45;}
           </select>
         </div>
       </div>
-      <div class="form-row full">
+      <div class="form-row">
         <div class="form-group"><label class="form-label">Email（寄出貨通知用）</label><input class="form-ctrl" id="e-email" type="email" placeholder="選填"></div>
+        <div class="form-group"><label class="form-label">LINE User ID</label><input class="form-ctrl" id="e-lineid" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"></div>
       </div>
       <div class="form-row full">
         <div class="form-group"><label class="form-label">備註</label><textarea class="form-ctrl" id="e-note" rows="2" style="resize:vertical"></textarea></div>
@@ -2458,7 +2459,7 @@ function renderTable(){
         <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
         <td><strong>${o.name}</strong>${warn}${overWarn}</td>
         <td>${o.phone}</td>
-        <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}</td>
+        <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}<br>${o.lineId?'<span style="color:#06c755;font-size:10px">💬 LINE</span>':''}</td>
         <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
         <td>${fhtml(o)}</td>
         <td>${dbadge}</td>
@@ -2559,6 +2560,35 @@ function toggleMade(id, currentDone){
   });
 }
 
+const LINE_WORKER = 'https://tcat-proxy.lanfang-hsu.workers.dev';
+
+async function sendLineNotify(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o || !o.lineId) return;
+  const ws = ['日','一','二','三','四','五','六'];
+  const items = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+  const dateDisp = o.date ? (() => { const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '近日';
+  let message;
+  if (o.delivery === '宅配') {
+    message = `🍮 白布丁出貨通知\n${o.name} 您好！\n\n您的訂單已出貨 🚚\n品項：${items}\n預計送達：${dateDisp}`;
+    if (o.obtNumber) message += `\n\n托運單號：${o.obtNumber}\n查詢：https://www.t-cat.com.tw/Tracking/TrackingQuery.aspx?no=${o.obtNumber}`;
+  } else {
+    const timeStr = o.time && o.time !== '未指定' ? o.time : '待確認';
+    message = `🍮 白布丁面交提醒\n${o.name} 您好！\n\n品項：${items}\n日期：${dateDisp}\n時間：${timeStr}\n地點：${o.address}\n\n謝謝您的訂購！`;
+  }
+  try {
+    const r = await fetch(`${LINE_WORKER}/sendLine`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: o.lineId, message }),
+    });
+    if (r.ok) showToast(`💬 LINE 通知已送給 ${o.name}`);
+    else showToast(`⚠️ LINE 發送失敗（${r.status}）`);
+  } catch(e) {
+    showToast('⚠️ LINE 連線錯誤：' + e.message);
+  }
+}
+
 function sendShipNotify(id){
   const o = orders.find(x => x.id === id);
   if(!o){ showToast('找不到訂單'); return; }
@@ -2602,7 +2632,7 @@ function togglePacked(id, currentPacked){
     dbUpdates['settings/packaging/'+key+'/stock'] = next;
   });
   db.ref().update(dbUpdates).then(() => {
-    if(newPacked) sendShipNotify(id);
+    if(newPacked){ sendShipNotify(id); sendLineNotify(id); }
     else showToast('↩ 取消打包・包材已歸還');
   });
 }
@@ -2643,7 +2673,7 @@ function toggleMeet(id, currentMet){
     dbUpdates['settings/packaging/'+key+'/stock'] = next;
   });
   db.ref().update(dbUpdates).then(() => {
-    if(newMet) sendMeetNotify(id);
+    if(newMet){ sendMeetNotify(id); sendLineNotify(id); }
     else showToast('↩ 取消面交完成・包材已歸還');
   });
 }
@@ -2823,6 +2853,7 @@ function openEdit(id){
   document.getElementById('e-note').value=o.note;
   document.getElementById('e-status').value=o.status;
   document.getElementById('e-email').value=o.email||'';
+  document.getElementById('e-lineid').value=o.lineId||'';
   const isCombo = !!o.comboItems;
   document.getElementById('e-is-combo').value = isCombo ? '1' : '0';
   document.getElementById('e-box-section').style.display   = isCombo ? 'none' : '';
@@ -2887,6 +2918,7 @@ function saveEdit(){
     note:     document.getElementById('e-note').value,
     status:   document.getElementById('e-status').value,
     email:    document.getElementById('e-email').value,
+    lineId:   document.getElementById('e-lineid').value.trim(),
     total:    recalc(),
   };
   if(comboItems) updates.comboItems = comboItems;
