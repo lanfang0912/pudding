@@ -2443,6 +2443,7 @@ function renderTable(){
           ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
           <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
+          ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div>
       </div>`;
@@ -2474,6 +2475,7 @@ function renderTable(){
           ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
           <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
+          ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div></td>
       </tr>`;
@@ -2561,6 +2563,20 @@ function toggleMade(id, currentDone){
 }
 
 const LINE_WORKER = 'https://tcat-proxy.lanfang-hsu.workers.dev';
+
+async function openLineMsg(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o || !o.lineId) return;
+  const msg = prompt(`傳 LINE 給 ${o.name}：`, '');
+  if (!msg || !msg.trim()) return;
+  const r = await fetch(`${LINE_WORKER}/sendLine`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ userId: o.lineId, message: msg.trim() }),
+  });
+  if (r.ok) showToast(`💬 已傳 LINE 給 ${o.name}`);
+  else showToast(`⚠️ LINE 發送失敗（${r.status}）`);
+}
 
 async function sendLineNotify(id) {
   const o = orders.find(x => x.id === id);
