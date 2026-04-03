@@ -2973,9 +2973,10 @@ function makeOrderCard(o, date){
     itemsHtml = `${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${boxes}盒</span>`;
   }
 
+  const obtLine = o.obtNumber ? `\n托運單號：${o.obtNumber}\n查詢：https://www.t-cat.com.tw/Tracking/TrackingQuery.aspx?no=${o.obtNumber}` : '';
   const smsText = o.delivery==='面交'
-    ? `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n面交日期：${dateDisp}\n地點：${o.address}\n時間：${o.time}\n如有問題請與我們聯繫，謝謝！`
-    : `${o.name} 您好，小白布丁出貨通知🍮\n品項：${itemsText}\n預計到貨：${dateDisp}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，3天內享用最佳🙏`;
+    ? `${o.name} 您好，white dessert 出貨通知🍮\n品項：${itemsText}\n面交日期：${dateDisp}\n地點：${o.address}\n時間：${o.time}\n如有問題請與我們聯繫，謝謝！`
+    : `${o.name} 您好，white dessert 出貨通知🍮\n品項：${itemsText}\n預計到貨：${dateDisp}${obtLine}\n收件地址：${o.address}\n請注意收件，收到後需冷藏，3天內享用最佳🙏`;
   const smsId = 'sms-'+o.id;
 
   return `<div class="s-card ${done?'done':''}">
@@ -3002,10 +3003,12 @@ function makeOrderCard(o, date){
     </div>` : ''}
     <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
       <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
-        <span>📱 簡訊 / LINE 範本</span>
+        <span>${o.lineId ? '💬 LINE 通知' : '📱 簡訊範本'}</span>
         <div style="display:flex;gap:6px">
-          ${o.phone && o.phone!=='未填' ? `<a href="sms:${o.phone.replace(/-/g,'')}?body=${encodeURIComponent(smsText)}"
-            style="padding:3px 10px;background:#06C755;color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;text-decoration:none;display:inline-block">📲 發簡訊</a>` : ''}
+          ${o.lineId
+            ? `<button onclick="sendLineNotify('${o.id}')" style="padding:3px 10px;background:#06C755;color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">💬 傳 LINE</button>`
+            : o.phone && o.phone!=='未填' ? `<a href="sms:${o.phone.replace(/-/g,'')}?body=${encodeURIComponent(smsText)}" style="padding:3px 10px;background:#06C755;color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;text-decoration:none;display:inline-block">📲 發簡訊</a>` : ''
+          }
           <button onclick="const el=document.getElementById('${smsId}');el.select();document.execCommand('copy');this.textContent='✅ 已複製';setTimeout(()=>this.textContent='複製',1500);"
             style="padding:3px 10px;background:var(--blue);color:#fff;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;">複製</button>
         </div>
