@@ -1348,7 +1348,15 @@ footer {
           const returnStep = sessionStorage.getItem('liff_return_step');
           if (returnStep) {
             sessionStorage.removeItem('liff_return_step');
-            setTimeout(() => goTo(parseInt(returnStep)), 0);
+            setTimeout(() => {
+              document.querySelectorAll('.step-page').forEach(p => p.classList.remove('active'));
+              document.querySelectorAll('.step-tab').forEach(t => { t.classList.remove('active'); t.classList.remove('done'); });
+              const p = document.getElementById('page-' + returnStep);
+              const t = document.getElementById('tab-' + returnStep);
+              if (p) p.classList.add('active');
+              if (t) t.classList.add('active');
+              [1,2].forEach(i => { const tab = document.getElementById('tab-'+i); if(tab) tab.classList.add('done'); });
+            }, 100);
           }
         });
       }
