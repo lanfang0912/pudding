@@ -1,0 +1,8 @@
+.git
+node_modules
+functions
+cf-worker
+*.jsonc
+*.json
+*.md
+CNAME
