@@ -1418,6 +1418,7 @@ footer {
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 // ─── CONFIG ───
 const MAX = 20; // UI 按鈕上限，實際可訂量由後台每日設定控制
@@ -1446,6 +1447,9 @@ let db = null;
 try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
+
+  // 以匿名身份登入，讓 Firebase 安全規則允許讀取庫存與寫入訂單
+  firebase.auth().signInAnonymously().catch(e => console.warn('Firebase auth:', e.message));
 
   // 讀取製作日庫存設定
   db.ref('settings/maxPerDay').on('value', snap => {

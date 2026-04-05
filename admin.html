@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
@@ -958,9 +959,11 @@ async function queryOBT(obt) {
 
 // ── Firebase ──
 let db = null;
+let auth = null;
 try {
   firebase.initializeApp({ databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' });
   db = firebase.database();
+  auth = firebase.auth();
 } catch(e) {
   console.warn('Firebase init failed:', e);
 }
@@ -1037,10 +1040,14 @@ function startFirebaseListener(){
 
 const UN='admin';
 // ── login ──
-function doLogin(){
+async function doLogin(){
   const un=document.getElementById('un-input').value;
   const pw=document.getElementById('pw-input').value;
   if(un===UN && pw===PW){
+    // 取得 Firebase 匿名 auth token（讓安全規則能識別管理員）
+    if(auth){
+      try{ await auth.signInAnonymously(); }catch(e){ console.warn('Firebase auth:', e.message); }
+    }
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-screen').style.display='block';
     initFilters();
@@ -1058,6 +1065,7 @@ function doLogin(){
   }else{document.getElementById('login-err').textContent='帳號或密碼錯誤';}
 }
 function logout(){
+  if(auth) auth.signOut().catch(()=>{});
   db.ref('orders').off(); // 停止監聽
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-screen').style.display='none';
