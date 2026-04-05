@@ -1472,18 +1472,25 @@ try {
     arts.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
     if(!arts.length) return;
     document.getElementById('articles-section').style.display = 'block';
-    document.getElementById('articles-feed').innerHTML = arts.map(a => {
+    document.getElementById('articles-feed').innerHTML = arts.map((a, i) => {
       const imgs = (a.images||[]).filter(Boolean);
-      const imgsHtml = imgs.length ? `
-        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">
-          ${imgs.map(url => `<img src="${escHtml(url)}" loading="lazy" style="max-width:100%;width:${imgs.length===1?'100%':'calc(50% - 5px)'};max-height:340px;object-fit:cover;border-radius:3px;display:block">`).join('')}
+      const coverHtml = imgs.length ? `<img src="${escHtml(imgs[0])}" loading="lazy" style="width:100%;max-height:260px;object-fit:cover;border-radius:3px 3px 0 0;display:block;margin:-28px -32px 20px;width:calc(100% + 64px)">` : '';
+      const preview = (a.content||'').replace(/\n/g,' ').slice(0,80) + ((a.content||'').length > 80 ? '…' : '');
+      const fullImgsHtml = imgs.length > 1 ? `
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+          ${imgs.slice(1).map(url => `<img src="${escHtml(url)}" loading="lazy" style="width:calc(50% - 5px);max-height:200px;object-fit:cover;border-radius:3px;display:block">`).join('')}
         </div>` : '';
       return `
-      <article style="background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px">
-        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:8px">${escHtml(a.title||'')}</div>
-        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:16px;letter-spacing:1px">${new Date(a.createdAt).toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'})}</div>
-        ${imgsHtml}
-        <div style="font-size:13px;color:var(--ink-mid);line-height:1.9;white-space:pre-wrap">${escHtml(a.content||'')}</div>
+      <article style="background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px;overflow:hidden">
+        ${coverHtml}
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:6px">${escHtml(a.title||'')}</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:14px;letter-spacing:1px">${new Date(a.createdAt).toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'})}</div>
+        <div id="art-preview-${i}" style="font-size:13px;color:var(--ink-mid);line-height:1.9">${escHtml(preview)}</div>
+        <div id="art-full-${i}" style="display:none">
+          ${fullImgsHtml}
+          <div style="font-size:13px;color:var(--ink-mid);line-height:1.9;white-space:pre-wrap">${escHtml(a.content||'')}</div>
+        </div>
+        <button onclick="toggleArticle(${i})" id="art-btn-${i}" style="margin-top:14px;background:none;border:none;color:var(--caramel);font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1px;cursor:pointer;padding:0">閱讀全文 →</button>
       </article>`;
     }).join('');
   });
@@ -1979,6 +1986,15 @@ function toast(msg,type=''){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toggleArticle(i){
+  const full = document.getElementById('art-full-'+i);
+  const preview = document.getElementById('art-preview-'+i);
+  const btn = document.getElementById('art-btn-'+i);
+  const open = full.style.display === 'none';
+  full.style.display = open ? '' : 'none';
+  preview.style.display = open ? 'none' : '';
+  btn.textContent = open ? '收起 ↑' : '閱讀全文 →';
+}
 </script>
 </body>
 </html>
