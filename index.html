@@ -1379,6 +1379,15 @@ footer {
 </script>
 <div class="toast" id="toast"></div>
 
+<!-- ── 文章區塊 ── -->
+<section id="articles-section" style="background:var(--paper-warm);padding:60px 0;display:none">
+  <div style="max-width:760px;margin:0 auto;padding:0 24px">
+    <div style="font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:6px;color:var(--ink)">最新消息</div>
+    <div style="font-size:12px;color:var(--ink-mid);margin-bottom:32px;letter-spacing:1px">品牌故事 · 季節更新 · 幕後日常</div>
+    <div id="articles-feed" style="display:flex;flex-direction:column;gap:24px"></div>
+  </div>
+</section>
+
 <footer>
   <div class="footer-inner">
     <div>
@@ -1455,6 +1464,22 @@ try {
 
   // 以匿名身份登入，讓 Firebase 安全規則允許讀取庫存與寫入訂單
   firebase.auth().signInAnonymously().catch(e => console.warn('Firebase auth:', e.message));
+
+  // 讀取已發布文章
+  db.ref('articles').orderByChild('status').equalTo('published').once('value').then(snap => {
+    const arts = [];
+    snap.forEach(child => arts.push({id: child.key, ...child.val()}));
+    arts.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+    if(!arts.length) return;
+    document.getElementById('articles-section').style.display = 'block';
+    document.getElementById('articles-feed').innerHTML = arts.map(a => `
+      <article style="background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px">
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:8px">${escHtml(a.title||'')}</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:16px;letter-spacing:1px">${new Date(a.createdAt).toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'})}</div>
+        <div style="font-size:13px;color:var(--ink-mid);line-height:1.9;white-space:pre-wrap">${escHtml(a.content||'')}</div>
+      </article>
+    `).join('');
+  });
 
   // 讀取製作日庫存設定
   db.ref('settings/maxPerDay').on('value', snap => {
@@ -1946,6 +1971,7 @@ function toast(msg,type=''){
   void t.offsetWidth; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3000);
 }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
 </body>
 </html>
