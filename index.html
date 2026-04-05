@@ -1389,12 +1389,11 @@ footer {
 </section>
 
 <!-- 文章 Modal -->
-<div id="article-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:900">
-  <div onclick="closeArticleModal()" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(26,18,8,.55)"></div>
-  <div style="position:absolute;top:0;left:0;width:100%;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:40px 16px">
-    <div style="max-width:680px;margin:0 auto;background:var(--paper);border-radius:4px;overflow:hidden;position:relative">
+<div id="article-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:900;background:rgba(26,18,8,.55);overflow-y:auto;-webkit-overflow-scrolling:touch;cursor:pointer" onclick="if(event.target===this||event.target===document.getElementById('article-modal-scroll'))closeArticleModal()">
+  <div id="article-modal-scroll" style="min-height:100%;padding:40px 16px;display:flex;align-items:flex-start;justify-content:center;cursor:pointer">
+    <div id="article-modal-card" style="width:100%;max-width:680px;background:var(--paper);border-radius:4px;overflow:hidden;cursor:default" onclick="event.stopPropagation()">
       <div style="text-align:right;padding:12px 12px 0">
-        <button onclick="closeArticleModal()" style="background:var(--paper-dark);border:1px solid var(--rule);border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--ink-soft);padding:0">✕</button>
+        <button type="button" onclick="closeArticleModal()" style="background:var(--paper-dark);border:1px solid var(--rule);border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--ink-soft);padding:0">✕</button>
       </div>
       <div id="article-modal-body" style="padding:0 36px 40px"></div>
     </div>
