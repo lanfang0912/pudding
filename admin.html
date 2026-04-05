@@ -961,7 +961,12 @@ async function queryOBT(obt) {
 let db = null;
 let auth = null;
 try {
-  firebase.initializeApp({ databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' });
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
+    authDomain: 'whitedessert.firebaseapp.com',
+    databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
+    projectId: 'whitedessert',
+  });
   db = firebase.database();
   auth = firebase.auth();
 } catch(e) {

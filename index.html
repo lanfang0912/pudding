@@ -1442,7 +1442,12 @@ const inv = {};
 let totalSold = 77;
 
 // ─── FIREBASE ───
-const FB_CONFIG = { databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app' };
+const FB_CONFIG = {
+  apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
+  authDomain: 'whitedessert.firebaseapp.com',
+  databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'whitedessert',
+};
 let db = null;
 try {
   firebase.initializeApp(FB_CONFIG);

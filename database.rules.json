@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "orders": {
+      ".read": "auth != null",
+      "$orderId": {
+        ".write": "auth != null || !data.exists()"
+      }
+    },
+    "settings": {
+      "maxPerDay":     { ".read": "auth != null", ".write": "auth != null" },
+      "prodOverrides": { ".read": "auth != null", ".write": "auth != null" },
+      "$other":        { ".read": "auth != null", ".write": "auth != null" }
+    },
+    "articles": {
+      ".read": true,
+      "$articleId": { ".write": "auth != null" }
+    }
+  }
+}
