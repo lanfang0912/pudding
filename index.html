@@ -1472,13 +1472,20 @@ try {
     arts.sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
     if(!arts.length) return;
     document.getElementById('articles-section').style.display = 'block';
-    document.getElementById('articles-feed').innerHTML = arts.map(a => `
+    document.getElementById('articles-feed').innerHTML = arts.map(a => {
+      const imgs = (a.images||[]).filter(Boolean);
+      const imgsHtml = imgs.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+          ${imgs.map(url => `<img src="${escHtml(url)}" loading="lazy" style="max-width:100%;width:${imgs.length===1?'100%':'calc(50% - 5px)'};max-height:340px;object-fit:cover;border-radius:3px;display:block">`).join('')}
+        </div>` : '';
+      return `
       <article style="background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:28px 32px">
         <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:8px">${escHtml(a.title||'')}</div>
         <div style="font-size:11px;color:var(--ink-soft);margin-bottom:16px;letter-spacing:1px">${new Date(a.createdAt).toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'})}</div>
+        ${imgsHtml}
         <div style="font-size:13px;color:var(--ink-mid);line-height:1.9;white-space:pre-wrap">${escHtml(a.content||'')}</div>
-      </article>
-    `).join('');
+      </article>`;
+    }).join('');
   });
 
   // 讀取製作日庫存設定

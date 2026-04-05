@@ -557,9 +557,18 @@ tr.done-row td{opacity:.45;}
             <label style="display:block;font-size:11px;letter-spacing:1px;color:var(--ink-soft);margin-bottom:6px;text-transform:uppercase">內容</label>
             <textarea id="art-content" rows="16" style="width:100%;padding:10px 12px;border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:13px;background:var(--paper-warm);outline:none;resize:vertical;line-height:1.7" placeholder="寫下你想說的話…"></textarea>
           </div>
+          <div>
+            <label style="display:block;font-size:11px;letter-spacing:1px;color:var(--ink-soft);margin-bottom:8px;text-transform:uppercase">圖片</label>
+            <div id="art-images-preview" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px"></div>
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px dashed var(--rule);border-radius:2px;cursor:pointer;font-size:12px;color:var(--ink-soft);background:var(--paper-warm);transition:border-color .2s" onmouseover="this.style.borderColor='var(--caramel)'" onmouseout="this.style.borderColor='var(--rule)'">
+              ＋ 新增圖片
+              <input type="file" id="art-img-input" accept="image/*" multiple style="display:none" onchange="handleArtImages(this.files)">
+            </label>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:6px">支援 JPG、PNG、WebP，每張最大 5MB</div>
+          </div>
           <div style="display:flex;gap:10px">
-            <button onclick="saveArticle(false)" style="padding:10px 22px;background:var(--paper-dark);color:var(--ink);border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1px;cursor:pointer">存為草稿</button>
-            <button onclick="saveArticle(true)" style="padding:10px 22px;background:var(--ink);color:var(--paper);border:none;border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1px;cursor:pointer">發布</button>
+            <button id="art-draft-btn" onclick="saveArticle(false)" style="padding:10px 22px;background:var(--paper-dark);color:var(--ink);border:1px solid var(--rule);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1px;cursor:pointer">存為草稿</button>
+            <button id="art-publish-btn" onclick="saveArticle(true)" style="padding:10px 22px;background:var(--ink);color:var(--paper);border:none;border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;letter-spacing:1px;cursor:pointer">發布</button>
             <button id="art-delete-btn" onclick="deleteArticle()" style="display:none;margin-left:auto;padding:10px 18px;background:none;color:var(--red);border:1px solid var(--red);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer">刪除</button>
           </div>
         </div>
@@ -1004,6 +1013,9 @@ async function queryOBT(obt) {
 }
 
 // ── Firebase ──
+const CLOUDINARY_CLOUD = 'dwd7rhool';
+const CLOUDINARY_PRESET = 'n8n835025';
+
 let db = null;
 let auth = null;
 try {
@@ -3660,6 +3672,33 @@ function showToast(msg){
 // ── 文章管理 ──
 let currentArticleId = null;
 let articlesLoaded = false;
+let artImages = []; // [{type:'existing',url}] | [{type:'new',file,previewUrl}]
+
+function handleArtImages(files) {
+  Array.from(files).forEach(file => {
+    if(file.size > 5*1024*1024){ alert(`${file.name} 超過 5MB，請壓縮後再上傳`); return; }
+    artImages.push({type:'new', file, previewUrl: URL.createObjectURL(file)});
+  });
+  renderArtImages();
+  document.getElementById('art-img-input').value = '';
+}
+
+function removeArtImage(i) {
+  if(artImages[i] && artImages[i].previewUrl) URL.revokeObjectURL(artImages[i].previewUrl);
+  artImages.splice(i, 1);
+  renderArtImages();
+}
+
+function renderArtImages() {
+  const el = document.getElementById('art-images-preview');
+  if(!artImages.length){ el.innerHTML = ''; return; }
+  el.innerHTML = artImages.map((img, i) => `
+    <div style="position:relative;width:100px;height:100px;border:1px solid var(--rule);border-radius:2px;overflow:hidden;background:var(--paper-dark)">
+      <img src="${escHtml(img.previewUrl||img.url)}" style="width:100%;height:100%;object-fit:cover">
+      <button onclick="removeArtImage(${i})" style="position:absolute;top:3px;right:3px;width:20px;height:20px;background:rgba(0,0,0,.55);color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:20px;text-align:center;padding:0">×</button>
+    </div>
+  `).join('');
+}
 
 function loadArticles() {
   articlesLoaded = true;
@@ -3686,6 +3725,8 @@ function loadArticles() {
 
 function openArticleEditor(id) {
   currentArticleId = id || null;
+  artImages = [];
+  document.getElementById('art-img-input').value = '';
   document.getElementById('articles-list-view').style.display = 'none';
   document.getElementById('articles-editor-view').style.display = 'block';
   document.getElementById('editor-title-label').textContent = id ? '編輯文章' : '新增文章';
@@ -3695,14 +3736,19 @@ function openArticleEditor(id) {
       const a = snap.val()||{};
       document.getElementById('art-title').value = a.title||'';
       document.getElementById('art-content').value = a.content||'';
+      artImages = (a.images||[]).map(url => ({type:'existing', url}));
+      renderArtImages();
     });
   } else {
     document.getElementById('art-title').value = '';
     document.getElementById('art-content').value = '';
+    renderArtImages();
   }
 }
 
 function closeArticleEditor() {
+  artImages.forEach(img => { if(img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
+  artImages = [];
   currentArticleId = null;
   document.getElementById('articles-editor-view').style.display = 'none';
   document.getElementById('articles-list-view').style.display = 'block';
@@ -3712,21 +3758,58 @@ async function saveArticle(publish) {
   const title = document.getElementById('art-title').value.trim();
   const content = document.getElementById('art-content').value.trim();
   if(!title){ alert('請填寫標題'); return; }
-  const data = {
-    title, content,
-    status: publish ? 'published' : 'draft',
-    updatedAt: new Date().toISOString(),
-  };
-  if(!currentArticleId) data.createdAt = new Date().toISOString();
+
+  const draftBtn   = document.getElementById('art-draft-btn');
+  const publishBtn = document.getElementById('art-publish-btn');
+  draftBtn.disabled = publishBtn.disabled = true;
+
+  const newImages = artImages.filter(img => img.type === 'new');
+  if(newImages.length) {
+    draftBtn.textContent = publishBtn.textContent = `上傳圖片 0/${newImages.length}…`;
+  }
+
   try {
-    if(currentArticleId){
-      await db.ref('articles/'+currentArticleId).update(data);
-    } else {
-      await db.ref('articles').push(data);
+    // 決定文章 ID（新文章先取得 key，避免上傳路徑無 ID）
+    const articleId = currentArticleId || db.ref('articles').push().key;
+
+    // 上傳新圖片到 Firebase Storage
+    const imageUrls = [];
+    let uploaded = 0;
+    for(const img of artImages) {
+      if(img.type === 'existing') {
+        imageUrls.push(img.url);
+      } else {
+        const fd = new FormData();
+        fd.append('file', img.file);
+        fd.append('upload_preset', CLOUDINARY_PRESET);
+        fd.append('folder', 'articles/' + articleId);
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {method:'POST', body:fd});
+        if(!res.ok) throw new Error('圖片上傳失敗');
+        const json = await res.json();
+        imageUrls.push(json.secure_url);
+        uploaded++;
+        draftBtn.textContent = publishBtn.textContent = `上傳圖片 ${uploaded}/${newImages.length}…`;
+      }
     }
+
+    const data = {
+      title, content,
+      images: imageUrls,
+      status: publish ? 'published' : 'draft',
+      updatedAt: new Date().toISOString(),
+    };
+    if(!currentArticleId) data.createdAt = new Date().toISOString();
+
+    await db.ref('articles/'+articleId).update(data);
     showToast(publish ? '✅ 文章已發布' : '✅ 已存為草稿');
     closeArticleEditor();
-  } catch(e) { alert('儲存失敗：'+e.message); }
+  } catch(e) {
+    alert('儲存失敗：'+e.message);
+  } finally {
+    draftBtn.disabled = publishBtn.disabled = false;
+    draftBtn.textContent = '存為草稿';
+    publishBtn.textContent = '發布';
+  }
 }
 
 async function deleteArticle() {
