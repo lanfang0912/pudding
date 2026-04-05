@@ -1391,8 +1391,8 @@ footer {
 <!-- 文章 Modal -->
 <div id="article-modal" onclick="if(event.target===this)closeArticleModal()" style="display:none;position:fixed;inset:0;background:rgba(26,18,8,.55);z-index:900;overflow-y:auto;padding:40px 16px">
   <div style="max-width:680px;margin:0 auto;background:var(--paper);border-radius:4px;overflow:hidden;position:relative">
-    <button onclick="closeArticleModal()" style="position:sticky;top:0;float:right;margin:16px 16px 0 0;background:var(--paper-dark);border:1px solid var(--rule);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;line-height:32px;text-align:center;color:var(--ink-soft);z-index:1">✕</button>
-    <div id="article-modal-body" style="padding:36px 36px 40px;clear:both"></div>
+    <button onclick="closeArticleModal()" style="position:absolute;top:12px;right:12px;background:rgba(26,18,8,.65);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:16px;color:#fff;z-index:10;line-height:34px;text-align:center;padding:0">✕</button>
+    <div id="article-modal-body" style="padding:36px 36px 40px"></div>
   </div>
 </div>
 
