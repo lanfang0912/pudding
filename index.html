@@ -1221,6 +1221,20 @@ footer {
           <label class="form-label">備註 / 特殊需求</label>
           <textarea class="form-textarea" id="f-note" placeholder="如需禮盒包裝、指定配送時段等，請在此說明..."></textarea>
         </div>
+        <div class="form-field full">
+          <label class="form-label">加購保冷袋（選填）</label>
+          <div style="border:1.5px solid var(--rule);border-radius:4px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--ink)">保冷袋</div>
+              <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">NT$20 / 個・一個可裝 2〜3 盒</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <button type="button" class="qty-btn" onclick="chgBag(-1)">−</button>
+              <span id="bag-qty" style="min-width:20px;text-align:center;font-size:15px;font-weight:600">0</span>
+              <button type="button" class="qty-btn" onclick="chgBag(1)">+</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <hr class="divider">
@@ -1544,7 +1558,7 @@ try {
   console.warn('Firebase init error:', e);
 }
 
-const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'' };
+const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'', insulatedBag:0 };
 
 let calY, calM;
 
@@ -1676,6 +1690,11 @@ function chg(id,d){
     order.flavors[id] = Math.min(newVal, Math.max(1, cap - otherTotal));
   }
   document.getElementById('qv-'+id).textContent = order.flavors[id];
+}
+
+function chgBag(d){
+  order.insulatedBag = Math.max(0, (order.insulatedBag||0) + d);
+  document.getElementById('bag-qty').textContent = order.insulatedBag;
 }
 
 // ─── CALENDAR ───
@@ -1826,6 +1845,12 @@ function renderSummary(){
     rows+=`<div class="summary-row"><span class="summary-row-label">運費</span><span class="summary-row-value" style="color:var(--matcha)">免運 🎉</span></div>`;
   }
 
+  if(order.insulatedBag > 0){
+    const bagCost = order.insulatedBag * 20;
+    rows+=`<div class="summary-row"><span class="summary-row-label">🧊 保冷袋 × ${order.insulatedBag} 個</span><span class="summary-row-value">NT$ ${bagCost.toLocaleString()}</span></div>`;
+    total += bagCost;
+  }
+
   rows+=`<div class="summary-row"><span class="summary-row-label">📅 收貨日期</span><span class="summary-row-value">${fmtDisplay(order.date)}</span></div>`;
   rows+=`<div class="summary-row"><span class="summary-row-label">👤 收件人</span><span class="summary-row-value">${order.name}</span></div>`;
   rows+=`<div class="summary-row"><span class="summary-row-label">📞 電話</span><span class="summary-row-value">${order.phone}</span></div>`;
@@ -1882,6 +1907,11 @@ function submitOrder(){
   const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
   total += ship;
+  const bagCost = (order.insulatedBag||0) * 20;
+  total += bagCost;
+  if(order.insulatedBag > 0){
+    flavorLines += `\n🧊 保冷袋 ×${order.insulatedBag} 個 = NT$${bagCost}`;
+  }
 
   // EmailJS 參數
   const commonParams = {
@@ -1924,6 +1954,7 @@ function submitOrder(){
     total: total,
     status: 'pending',
     lineId: lineUserId || '',
+    insulatedBag: order.insulatedBag || 0,
     lowSugar: Object.keys(order.lowSugar).filter(k=>order.lowSugar[k] && order.flavors[k]).length > 0
       ? { orig: !!order.lowSugar['original'], matcha: !!order.lowSugar['matcha'], cocoa: !!order.lowSugar['cocoa'] }
       : null,
@@ -1974,12 +2005,13 @@ function showSuccess(num){
 }
 
 function resetOrder(){
-  Object.assign(order,{flavors:{},date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:''});
+  Object.assign(order,{flavors:{},date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0});
   lineUserId = ''; lineDisplayName = ''; updateLineLoginUI();
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
   document.getElementById('success-page').style.display='none';
   ['f-name','f-phone','f-address','f-email','f-phone2','f-note','f-transfer-date','f-transfer-code'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('bag-qty').textContent = '0';
   document.getElementById('submit-btn').disabled = false;
   document.getElementById('submit-btn').textContent = '✓ 確認預訂，完成下單';
   goTo(1);

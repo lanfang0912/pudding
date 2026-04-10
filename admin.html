@@ -758,6 +758,10 @@ tr.done-row td{opacity:.45;}
         <div class="form-group"><label class="form-label">Email（寄出貨通知用）</label><input class="form-ctrl" id="e-email" type="email" placeholder="選填"></div>
         <div class="form-group"><label class="form-label">LINE User ID</label><input class="form-ctrl" id="e-lineid" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"></div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">保冷袋（個）</label><input class="form-ctrl" id="e-insulated-bag" type="number" min="0" value="0" oninput="recalc()"></div>
+        <div class="form-group"></div>
+      </div>
       <div class="form-row full">
         <div class="form-group"><label class="form-label">備註</label><textarea class="form-ctrl" id="e-note" rows="2" style="resize:vertical"></textarea></div>
       </div>
@@ -1209,6 +1213,7 @@ const DEFAULT_PACKAGING = [
   {id:'box_muffin', name:'馬芬盒（面交）',   unit:'個', stock:0, warnDays:7},
   {id:'bag_kraft',  name:'白牛皮袋（面交）', unit:'個', stock:0, warnDays:7},
   {id:'spoon',      name:'布丁匙（湯匙）',   unit:'支', stock:0, warnDays:7},
+  {id:'bag_insulated', name:'保冷袋',        unit:'個', stock:0, warnDays:7},
 ];
 
 let pkgData = {}; // 包材庫存
@@ -1297,7 +1302,7 @@ function renderIngAll(){
 // ── 耗材需求計算（按訂單配送方式+盒數）──
 function calcPackagingDemand(){
   const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled' && o.date);
-  const pkg = { cup:0, cup_lid:0, spoon:0, box_small:0, box_large:0, box_muffin:0, bag_kraft:0 };
+  const pkg = { cup:0, cup_lid:0, spoon:0, box_small:0, box_large:0, box_muffin:0, bag_kraft:0, bag_insulated:0 };
 
   pending.forEach(o => {
     const boxes = (o.orig||0) + (o.matcha||0) + (o.cocoa||0);
@@ -1314,6 +1319,7 @@ function calcPackagingDemand(){
       pkg.box_muffin += boxes;
       pkg.bag_kraft  += 1;
     }
+    pkg.bag_insulated += (o.insulatedBag || 0);
   });
   return pkg;
 }
@@ -2430,6 +2436,7 @@ function fhtml(o){
     o.orig   ? `<span class="flavor-tag tag-original">原味×${o.orig}</span>${lsTag('orig')}`   : '',
     o.matcha ? `<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>${lsTag('matcha')}` : '',
     o.cocoa  ? `<span class="flavor-tag tag-cocoa">可可×${o.cocoa}</span>${lsTag('cocoa')}`    : '',
+    o.insulatedBag ? `<span class="flavor-tag" style="background:#e8f4fc;border:1px solid #7bb8d4;color:#2e7da0;font-size:10px">🧊 保冷袋×${o.insulatedBag}</span>` : '',
   ].filter(Boolean).join('');
   return tags;
 }
@@ -2942,6 +2949,7 @@ function openEdit(id){
   document.getElementById('e-status').value=o.status;
   document.getElementById('e-email').value=o.email||'';
   document.getElementById('e-lineid').value=o.lineId||'';
+  document.getElementById('e-insulated-bag').value=o.insulatedBag||0;
   const isCombo = !!o.comboItems;
   document.getElementById('e-is-combo').value = isCombo ? '1' : '0';
   document.getElementById('e-box-section').style.display   = isCombo ? 'none' : '';
@@ -2958,6 +2966,7 @@ function closeModal(){document.getElementById('edit-modal').classList.remove('op
 function recalc(){
   const isCombo = document.getElementById('e-is-combo').value === '1';
   const deliv   = document.getElementById('e-delivery').value;
+  const insulatedBag = +document.getElementById('e-insulated-bag').value||0;
   let total, ship;
   if(isCombo){
     const origCup   = +document.getElementById('e-combo-orig').value||0;
@@ -2974,6 +2983,7 @@ function recalc(){
     ship  = deliv==='面交' ? 0 : (boxes>=3 ? 100 : 160);
     total = orig*360 + matcha*390 + cocoa*390 + ship;
   }
+  total += insulatedBag * 20;
   document.getElementById('e-total').value=`NT$ ${total.toLocaleString()}${ship?` (含運$${ship})`:''}`;
   return total;
 }
@@ -3007,6 +3017,7 @@ function saveEdit(){
     status:   document.getElementById('e-status').value,
     email:    document.getElementById('e-email').value,
     lineId:   document.getElementById('e-lineid').value.trim(),
+    insulatedBag: +document.getElementById('e-insulated-bag').value||0,
     total:    recalc(),
   };
   if(comboItems) updates.comboItems = comboItems;
