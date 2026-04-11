@@ -1194,14 +1194,14 @@ function renderInvOverrides(overrides){
 // 預設食材（首次使用時寫入 Firebase）
 const DEFAULT_INGREDIENTS = [
   // 食材
-  {id:'milk',       name:'鮮奶',        unit:'g',  stock:0, warnDays:2},
-  {id:'cream',      name:'動物鮮奶油',  unit:'g',  stock:0, warnDays:2},
-  {id:'egg',        name:'洗選蛋',      unit:'g',  stock:0, warnDays:1},
-  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g',  stock:0, warnDays:1},
-  {id:'sugar',      name:'上白糖',      unit:'g',  stock:0, warnDays:3},
-  {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:3},
-  {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:3},
-  {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:3},
+  {id:'milk',       name:'鮮奶',        unit:'g',  stock:0, warnDays:7},
+  {id:'cream',      name:'動物鮮奶油',  unit:'g',  stock:0, warnDays:7},
+  {id:'egg',        name:'洗選蛋',      unit:'g',  stock:0, warnDays:7},
+  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g',  stock:0, warnDays:7},
+  {id:'sugar',      name:'上白糖',      unit:'g',  stock:0, warnDays:7},
+  {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:7},
+  {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:7},
+  {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:7},
 ];
 
 // 預設包材清單
@@ -1699,7 +1699,7 @@ function renderIngAlerts(){
   if(!el) return;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const warnUntil = new Date(today); warnUntil.setDate(today.getDate()+2);
+  const warnUntil = new Date(today); warnUntil.setDate(today.getDate()+7);
 
   const pending = orders.filter(o => o.status!=='shipped' && o.status!=='cancelled' && o.date);
 
@@ -1720,7 +1720,7 @@ function renderIngAlerts(){
   }));
 
   if(!urgentSet.size){
-    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天內沒有製作排程</div>`;
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來7天內沒有製作排程</div>`;
     return;
   }
 
@@ -1770,11 +1770,11 @@ function renderIngAlerts(){
   const urgentList = [...urgentSet].join('、');
 
   if(!hasShortage){
-    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天食材充足（製作日：${urgentList}）</div>`;
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來7天食材充足（製作日：${urgentList}）</div>`;
   } else {
     el.innerHTML = `
       <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;">
-        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來2天食材不足，請盡快補貨</div>
+        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來7天食材不足，請盡快補貨</div>
         ${alerts.filter(a=>a.shortages.length>0).map(a=>`
           <div style="margin-bottom:10px">
             <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${a.totalBoxes}盒）</div>
@@ -1799,7 +1799,7 @@ function renderIngList(){
       return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--rule)">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:500">${ing.name}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">提前 ${ing.warnDays||2} 天提醒</div>
+          <div style="font-size:11px;color:var(--ink-soft)">提前 ${ing.warnDays||7} 天提醒</div>
         </div>
         <input type="number" min="0" value="${ing.stock||0}"
           onblur="saveIngField('${id}','stock',this.value)"
