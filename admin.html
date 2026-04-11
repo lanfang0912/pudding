@@ -2442,6 +2442,50 @@ function fhtml(o){
 }
 const SB={pending:'<span class="badge badge-pending">待確認匯款</span>',paid:'<span class="badge badge-paid">已確認匯款</span>',shipped:'<span class="badge badge-shipped">已出貨</span>'};
 
+// 將盒數（可能是小數）轉為「X盒」或「X杯」或「X盒X杯」
+function fmtBoxes(boxes){
+  const cups = Math.round(boxes * 6);
+  if(!cups) return '0';
+  const b = Math.floor(cups / 6), r = cups % 6;
+  if(b === 0) return `${r}杯`;
+  if(r === 0) return `${b}盒`;
+  return `${b}盒${r}杯`;
+}
+
+// 短格式品項文字（生產/出貨清單用），三拼直接取杯數
+function fmtOrderItemsShort(o){
+  if(o.comboItems){
+    const ci = o.comboItems;
+    return [
+      ci.origCup   ? `原×${ci.origCup}杯`   : '',
+      ci.matchaCup ? `抹×${ci.matchaCup}杯` : '',
+      ci.cocoaCup  ? `可×${ci.cocoaCup}杯`  : '',
+    ].filter(Boolean).join(' ');
+  }
+  return [
+    o.orig   ? `原×${o.orig}盒`   : '',
+    o.matcha ? `抹×${o.matcha}盒` : '',
+    o.cocoa  ? `可×${o.cocoa}盒`  : '',
+  ].filter(Boolean).join(' ');
+}
+
+// 長格式品項文字（SMS / 出貨通知用），三拼直接取杯數
+function fmtOrderItemsFull(o){
+  if(o.comboItems){
+    const ci = o.comboItems;
+    return [
+      ci.origCup   ? `原味×${ci.origCup}杯`   : '',
+      ci.matchaCup ? `抹茶×${ci.matchaCup}杯` : '',
+      ci.cocoaCup  ? `可可×${ci.cocoaCup}杯`  : '',
+    ].filter(Boolean).join('、') + '（三拼）';
+  }
+  return [
+    o.orig   ? `原味×${o.orig}盒`   : '',
+    o.matcha ? `抹茶×${o.matcha}盒` : '',
+    o.cocoa  ? `可可×${o.cocoa}盒`  : '',
+  ].filter(Boolean).join('、');
+}
+
 // ── table ──
 function toggleDateSort(){
   const sel = document.getElementById('f-sort');
@@ -3052,8 +3096,8 @@ function makeOrderCard(o, date){
     itemsHtml = `<div style="font-size:12px;color:var(--ink)">${itemsText}</div>`;
   } else {
     boxes = (o.orig||0)+(o.matcha||0)+(o.cocoa||0);
-    itemsText = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
-    itemsHtml = `${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${boxes}盒</span>`;
+    itemsText = fmtOrderItemsFull(o);
+    itemsHtml = `${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${fmtBoxes(boxes)}</span>`;
   }
 
   const obtLine = o.obtNumber ? `\n托運單號：${o.obtNumber}\n查詢：https://www.t-cat.com.tw/Tracking/TrackingQuery.aspx?no=${o.obtNumber}` : '';
@@ -3268,6 +3312,7 @@ function renderSchedule(){
         orig:   o.orig   || 0,
         matcha: o.matcha || 0,
         cocoa:  o.cocoa  || 0,
+        comboItems: o.comboItems || null,
       });
       // 製作日 = 面交日前一天
       const makeDate = addDays(receiveDate, -1);
@@ -3295,6 +3340,7 @@ function renderSchedule(){
           status: o.status,
           packed: o.packed || false,
           receiveDate,
+          comboItems: o.comboItems || null,
         });
       }
       if(makeDate){
@@ -3352,16 +3398,12 @@ function renderSchedule(){
         return addDays(o.date, -2) === date;
       })
       .map(o => {
-        const items = [];
-        if(o.orig)   items.push(`原×${o.orig}`);
-        if(o.matcha) items.push(`抹×${o.matcha}`);
-        if(o.cocoa)  items.push(`可×${o.cocoa}`);
         const done = o.made === true;
         const combo = isComboOrder(o);
         return `<li style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;cursor:pointer;${done?'opacity:.45;text-decoration:line-through':''}" onclick="toggleMade('${o.id}',${done})">
           <span style="font-size:16px;flex-shrink:0">${done ? '✅' : '⬜'}</span>
           <span style="font-weight:500;flex:1">${o.name}${combo?' <span style="font-size:9px;background:#f5ede9;border:1px solid var(--rule);border-radius:3px;padding:0 4px;color:var(--ink-mid)">🎁</span>':''}</span>
-          <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${items.join(' ')}</span>
+          <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${fmtOrderItemsShort(o)}</span>
         </li>`;
       }).join('') : '';
 
@@ -3383,11 +3425,11 @@ function renderSchedule(){
         const tOver=t>mt;
         return `
           <div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${tOver?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${tOver?'var(--red)':'var(--ink-soft)'}">
-            合計 <strong>${t}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}
+            合計 <strong>${fmtBoxes(t)}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限`:''}
           </div>
-          ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mt*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%"></div></div><span class="prod-num">${make.orig} 盒</span></div>`;})():''}
-          ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mt*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%"></div></div><span class="prod-num">${make.matcha} 盒</span></div>`;})():''}
-          ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mt*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%"></div></div><span class="prod-num">${make.cocoa} 盒</span></div>`;})():''}
+          ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mt*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%"></div></div><span class="prod-num">${fmtBoxes(make.orig)}</span></div>`;})():''}
+          ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mt*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%"></div></div><span class="prod-num">${fmtBoxes(make.matcha)}</span></div>`;})():''}
+          ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mt*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%"></div></div><span class="prod-num">${fmtBoxes(make.cocoa)}</span></div>`;})():''}
         `;
       })()}
       ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
@@ -3412,7 +3454,7 @@ function renderSchedule(){
             <span style="font-size:16px;flex-shrink:0">${met?'✅':'⬜'}</span>
             <div style="flex:1">
               <div style="font-weight:500">${m.name}${mCombo?' <span style="font-size:9px;background:#f5ede9;border:1px solid var(--rule);border-radius:3px;padding:0 4px;color:var(--ink-mid);text-decoration:none">🎁 三拼</span>':''}${!hasContact?' <span style="font-size:10px;color:var(--red);text-decoration:none">⚠️ 無聯絡方式</span>':''}</div>
-              <div style="font-size:10px;color:var(--caramel)">${[m.orig?`原×${m.orig}`:'',m.matcha?`抹×${m.matcha}`:'',m.cocoa?`可×${m.cocoa}`:''].filter(Boolean).join(' ')}${timeStr?' · '+timeStr:''}</div>
+              <div style="font-size:10px;color:var(--caramel)">${fmtOrderItemsShort(m)}${timeStr?' · '+timeStr:''}</div>
               <div style="font-size:10px;color:var(--ink-soft)">${m.address}${m.note?' ・'+m.note:''}</div>
             </div>
           </li>`;
@@ -3434,8 +3476,7 @@ function renderSchedule(){
             <div style="font-weight:500">${s.name}${sCombo?' <span style="font-size:9px;background:#f5ede9;border:1px solid var(--rule);border-radius:3px;padding:0 4px;color:var(--ink-mid);text-decoration:none">🎁 三拼</span>':''}</div>
             <div style="font-size:10px;color:var(--ink-soft)">${s.address}</div>
             <div style="font-size:10px;color:var(--caramel)">
-              ${[s.orig?`原×${s.orig}`:'', s.matcha?`抹×${s.matcha}`:'', s.cocoa?`可×${s.cocoa}`:''].filter(Boolean).join(' ')}
-              &nbsp;→ 客戶 ${fmt(s.receiveDate)} 收到
+              ${fmtOrderItemsShort(s)} → 客戶 ${fmt(s.receiveDate)} 收到
             </div>
             ${s.note?`<div style="font-size:10px;color:var(--ink-soft)">備註：${s.note}</div>`:''}
           </div>
