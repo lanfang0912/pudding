@@ -1830,8 +1830,8 @@ function renderSummary(){
     }
   }
 
-  // Shipping
-  const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
+  // Shipping（三拼 1 組 = 3 盒）
+  const boxes = order.isCombo ? order.comboQty * 3 : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
   if(isPickup){
     rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🤝 宜蘭面交（凱旋國小）</span></div>`;
@@ -1904,7 +1904,7 @@ function submitOrder(){
       return `${f.zh} × ${order.flavors[fid]} 盒 = NT$${sub}`;
     }).join('\n');
   }
-  const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
+  const boxes = order.isCombo ? order.comboQty * 3 : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
   total += ship;
   const bagCost = (order.insulatedBag||0) * 20;
