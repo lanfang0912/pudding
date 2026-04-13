@@ -4011,12 +4011,10 @@ function addAccExpense(){
 async function importMarchData(){
   const btn = document.getElementById('import-march-btn');
   if(!btn) return;
-  if(!confirm('確定要匯入2026年三月的支出資料嗎？\n（運費15筆、食材7筆、包材2筆）')) return;
-  btn.disabled = true; btn.textContent = '匯入中…';
-  const base = Date.now();
-  const updates = {};
-  // ① 運費 15筆
-  [
+  btn.disabled = true; btn.textContent = '比對中…';
+
+  // 要匯入的資料
+  const SHIP = [
     { date:'2026-03-09', amount:160,  note:'統一速達 本島60cm冷藏' },
     { date:'2026-03-10', amount:160,  note:'統一速達 本島60cm冷藏' },
     { date:'2026-03-10', amount:320,  note:'統一速達 本島60cm冷藏' },
@@ -4032,53 +4030,85 @@ async function importMarchData(){
     { date:'2026-03-26', amount:320,  note:'統一速達 本島60cm冷藏' },
     { date:'2026-03-27', amount:160,  note:'統一速達 本島60cm冷藏' },
     { date:'2026-03-27', amount:225,  note:'統一速達 本島90cm冷藏' },
-  ].forEach((e,i) => {
-    updates['settings/expenseLog/'+(base+i)] = {category:'運費', date:e.date, note:e.note, amount:e.amount, ts:new Date(e.date+'T12:00:00+08:00').toISOString()};
-  });
-  // ② 鮮奶 2筆
-  [
-    { date:'2026-03-06', qty:1928, cost:498,  note:'全家 宜蘭嵐峰 光泉鮮乳×2' },
-    { date:'2026-04-07', qty:1928, cost:498,  note:'全家 宜蘭校舍 光泉鮮乳×2' },
-  ].forEach((r,i) => {
-    const ts=new Date(r.date+'T09:00:00+08:00').toISOString();
-    updates['settings/restockLog/'+(base+100+i)]={ingId:'milk',ingName:'鮮奶',unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
-  });
-  // ③ 動物鮮奶油 3筆
-  [
-    { date:'2026-03-17', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
-    { date:'2026-03-26', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
-    { date:'2026-04-07', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
-  ].forEach((r,i) => {
-    const ts=new Date(r.date+'T09:00:00+08:00').toISOString();
-    updates['settings/restockLog/'+(base+200+i)]={ingId:'cream',ingName:'動物鮮奶油',unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
-  });
-  // ④ 蛋液 2筆
-  [
-    { date:'2026-03-16', ingId:'egg_yolk', ingName:'殺菌蛋黃', qty:4850, cost:1190, note:'勤億殺菌蛋黃液 970g×5（蝦皮）' },
-    { date:'2026-03-16', ingId:'egg',      ingName:'洗選蛋',   qty:4850, cost:668,  note:'勤億殺菌全蛋液 970g×5（蝦皮）' },
-  ].forEach((r,i) => {
-    const ts=new Date(r.date+'T09:00:00+08:00').toISOString();
-    updates['settings/restockLog/'+(base+300+i)]={ingId:r.ingId,ingName:r.ingName,unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
-  });
-  // ⑤ 洗選蛋 天成蛋舖
-  updates['settings/restockLog/'+(base+400)]={ingId:'egg',ingName:'洗選蛋',unit:'g',qty:1800,totalCost:180,unitCost:+(180/1800).toFixed(4),note:'天成蛋舖 1件（30顆）',ts:new Date('2026-03-14T09:00:00+08:00').toISOString(),stockBefore:0,stockAfter:1800};
-  // ⑥ 馬芬盒
-  updates['settings/pkgRestockLog/'+(base+500)]={pkgId:'box_muffin',name:'馬芬盒（面交）',unit:'個',qty:45,cost:343,note:'蝦皮 45×$8',ts:new Date('2026-03-06T09:00:00+08:00').toISOString(),stockBefore:0,stockAfter:45};
-  // ⑦ 大紙箱
-  updates['settings/pkgRestockLog/'+(base+600)]={pkgId:'box_large',name:'大紙箱（宅配）',unit:'個',qty:50,cost:200,note:'菖承企業 50個',ts:new Date('2026-03-10T09:00:00+08:00').toISOString(),stockBefore:0,stockAfter:50};
+  ];
+  const ING = [
+    { date:'2026-03-06', ingId:'milk',     ingName:'鮮奶',       qty:1928, cost:498,  note:'全家 宜蘭嵐峰 光泉鮮乳×2' },
+    { date:'2026-04-07', ingId:'milk',     ingName:'鮮奶',       qty:1928, cost:498,  note:'全家 宜蘭校舍 光泉鮮乳×2' },
+    { date:'2026-03-17', ingId:'cream',    ingName:'動物鮮奶油', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
+    { date:'2026-03-26', ingId:'cream',    ingName:'動物鮮奶油', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
+    { date:'2026-04-07', ingId:'cream',    ingName:'動物鮮奶油', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
+    { date:'2026-03-16', ingId:'egg_yolk', ingName:'殺菌蛋黃',   qty:4850, cost:1190, note:'勤億殺菌蛋黃液 970g×5（蝦皮）' },
+    { date:'2026-03-16', ingId:'egg',      ingName:'洗選蛋',     qty:4850, cost:668,  note:'勤億殺菌全蛋液 970g×5（蝦皮）' },
+    { date:'2026-03-14', ingId:'egg',      ingName:'洗選蛋',     qty:1800, cost:180,  note:'天成蛋舖 1件（30顆）' },
+  ];
+  const PKG = [
+    { date:'2026-03-06', pkgId:'box_muffin', name:'馬芬盒（面交）', qty:45, cost:343, note:'蝦皮 45×$8' },
+    { date:'2026-03-10', pkgId:'box_large',  name:'大紙箱（宅配）', qty:50, cost:200, note:'菖承企業 50個' },
+  ];
 
   try {
+    // 讀取現有資料
+    const [expSnap, ingSnap, pkgSnap] = await Promise.all([
+      db.ref('settings/expenseLog').once('value'),
+      db.ref('settings/restockLog').once('value'),
+      db.ref('settings/pkgRestockLog').once('value'),
+    ]);
+    const existExp = Object.values(expSnap.val()||{});
+    const existIng = Object.values(ingSnap.val()||{});
+    const existPkg = Object.values(pkgSnap.val()||{});
+
+    // 比對函數：同日期+同金額視為重複
+    const dupShip = SHIP.filter(e => existExp.some(x => x.date===e.date && x.amount===e.amount && x.category==='運費'));
+    const newShip = SHIP.filter(e => !existExp.some(x => x.date===e.date && x.amount===e.amount && x.category==='運費'));
+    const dupIng  = ING.filter(r => existIng.some(x => x.ts && x.ts.slice(0,10)===r.date && x.ingId===r.ingId && x.totalCost===r.cost));
+    const newIng  = ING.filter(r => !existIng.some(x => x.ts && x.ts.slice(0,10)===r.date && x.ingId===r.ingId && x.totalCost===r.cost));
+    const dupPkg  = PKG.filter(r => existPkg.some(x => x.ts && x.ts.slice(0,10)===r.date && x.pkgId===r.pkgId && x.cost===r.cost));
+    const newPkg  = PKG.filter(r => !existPkg.some(x => x.ts && x.ts.slice(0,10)===r.date && x.pkgId===r.pkgId && x.cost===r.cost));
+
+    const totalNew = newShip.length + newIng.length + newPkg.length;
+    const totalDup = dupShip.length + dupIng.length + dupPkg.length;
+
+    // 顯示比對結果
+    let msg = `📊 比對結果：\n\n`;
+    msg += `✅ 新增 ${totalNew} 筆：\n`;
+    newShip.forEach(e => msg += `  · ${e.date} 運費 NT$${e.amount}（${e.note}）\n`);
+    newIng.forEach(r  => msg += `  · ${r.date} ${r.ingName} NT$${r.cost}\n`);
+    newPkg.forEach(r  => msg += `  · ${r.date} ${r.name} NT$${r.cost}\n`);
+    if(totalDup > 0){
+      msg += `\n⚠️ 已存在（跳過）${totalDup} 筆：\n`;
+      dupShip.forEach(e => msg += `  · ${e.date} 運費 NT$${e.amount}\n`);
+      dupIng.forEach(r  => msg += `  · ${r.date} ${r.ingName} NT$${r.cost}\n`);
+      dupPkg.forEach(r  => msg += `  · ${r.date} ${r.name} NT$${r.cost}\n`);
+    }
+    if(totalNew === 0){ alert(msg + '\n全部都已記過了，不需要匯入。'); btn.disabled=false; btn.textContent='📥 匯入三月資料'; return; }
+    msg += `\n確定匯入？`;
+    if(!confirm(msg)){ btn.disabled=false; btn.textContent='📥 匯入三月資料'; return; }
+
+    // 寫入新增的部分
+    const base = Date.now();
+    const updates = {};
+    newShip.forEach((e,i) => {
+      updates['settings/expenseLog/'+(base+i)] = {category:'運費', date:e.date, note:e.note, amount:e.amount, ts:new Date(e.date+'T12:00:00+08:00').toISOString()};
+    });
+    newIng.forEach((r,i) => {
+      const ts=new Date(r.date+'T09:00:00+08:00').toISOString();
+      updates['settings/restockLog/'+(base+100+i)]={ingId:r.ingId,ingName:r.ingName,unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
+    });
+    newPkg.forEach((r,i) => {
+      updates['settings/pkgRestockLog/'+(base+200+i)]={pkgId:r.pkgId,name:r.name,unit:'個',qty:r.qty,cost:r.cost,note:r.note,ts:new Date(r.date+'T09:00:00+08:00').toISOString(),stockBefore:0,stockAfter:r.qty};
+    });
+
     await db.ref('/').update(updates);
     btn.textContent = '✅ 已完成';
     btn.style.background = '#2e7d32';
     btn.style.borderColor = '#2e7d32';
-    showToast('✅ 三月資料匯入完成！共24筆');
+    showToast(`✅ 匯入完成！新增 ${totalNew} 筆，跳過 ${totalDup} 筆重複`);
     accLoaded = false;
     loadAccounting();
   } catch(e) {
     btn.disabled = false;
     btn.textContent = '📥 匯入三月資料';
-    showToast('❌ 匯入失敗：'+e.message);
+    showToast('❌ 失敗：'+e.message);
   }
 }
 
