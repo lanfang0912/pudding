@@ -1337,6 +1337,16 @@ function loadPackaging(){
       pkgData = defaults;
     } else {
       pkgData = snap.val();
+      // 自動補上 DEFAULT_PACKAGING 中缺少的品項（例如新增的保冷袋）
+      const updates = {};
+      DEFAULT_PACKAGING.forEach(i => {
+        if(!pkgData[i.id]){
+          const {id, ...data} = i;
+          updates[id] = data;
+          pkgData[id] = data;
+        }
+      });
+      if(Object.keys(updates).length) db.ref('settings/packaging').update(updates);
     }
     renderPkgAll();
     renderPkgRestockLog();
