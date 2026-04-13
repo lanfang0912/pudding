@@ -1547,7 +1547,7 @@ try {
         if(o.cocoa)  newInv[prodDate+'_cocoa']    = (newInv[prodDate+'_cocoa']||0)+o.cocoa;
       }
     });
-    totalSold = sold;
+    totalSold = Math.round(sold);
     // 清空重算
     Object.keys(inv).forEach(k => delete inv[k]);
     Object.assign(inv, newInv);
