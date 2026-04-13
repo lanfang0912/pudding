@@ -1242,7 +1242,7 @@ const DEFAULT_INGREDIENTS = [
   {id:'cream',      name:'動物鮮奶油',  unit:'g',  stock:0, warnDays:7},
   {id:'egg',        name:'洗選蛋',      unit:'g',  stock:0, warnDays:7},
   {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g',  stock:0, warnDays:7},
-  {id:'sugar',      name:'上白糖',      unit:'g',  stock:0, warnDays:7},
+  {id:'sugar',      name:'白砂糖',      unit:'g',  stock:0, warnDays:7},
   {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:7},
   {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:7},
   {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:7},
@@ -1292,6 +1292,11 @@ function loadIngredients(){
       ingData = defaults;
     } else {
       ingData = ingSnap.val();
+      // 自動更新舊名稱（上白糖 → 白砂糖）
+      if(ingData.sugar && ingData.sugar.name === '上白糖'){
+        ingData.sugar.name = '白砂糖';
+        db.ref('settings/ingredients/sugar/name').set('白砂糖');
+      }
     }
     if(!recSnap.val()){
       db.ref('settings/recipe').set(DEFAULT_RECIPE);
@@ -3266,7 +3271,7 @@ function renderDaily(){
 function buildRecipeIngHtml(origCups, matchaCups, cocoaCups){
   if(!recipeData || !Object.keys(recipeData).length)
     return '<div style="font-size:11px;color:var(--ink-soft)">配方未載入，請先開啟食材管理頁</div>';
-  const fallbackNames = {milk:'鮮奶', cream:'動物鮮奶油', egg:'洗選蛋', egg_yolk:'殺菌蛋黃', sugar:'上白糖', matcha:'抹茶粉', cocoa:'可可粉', chocolate:'調溫黑巧克力'};
+  const fallbackNames = {milk:'鮮奶', cream:'動物鮮奶油', egg:'洗選蛋', egg_yolk:'殺菌蛋黃', sugar:'白砂糖', matcha:'抹茶粉', cocoa:'可可粉', chocolate:'調溫黑巧克力'};
   const flavors = [
     {key:'original', label:'原味', cups: origCups||0,  color:'var(--caramel)'},
     {key:'matcha',   label:'抹茶', cups: matchaCups||0, color:'var(--matcha)'},
@@ -3900,7 +3905,7 @@ function renderAccounting(){
     : `<table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="border-bottom:2px solid var(--rule)">
           <th style="${thStyle}">日期</th><th style="${thStyle}">食材</th>
-          <th style="${thR}">數量</th><th style="${thR}">金額</th>
+          <th style="${thR}">數量</th><th style="${thR}">金額</th><th></th>
         </tr></thead>
         <tbody>
           ${[...ingEntries].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).map(r=>`
@@ -3909,9 +3914,10 @@ function renderAccounting(){
               <td style="${tdStyle};font-weight:500">${r.ingName||r.name||'—'}</td>
               <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
               <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.totalCost||0).toLocaleString()}</td>
+              <td style="padding:4px 6px;text-align:center"><button onclick="deleteRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px 4px" title="刪除">✕</button></td>
             </tr>`).join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
-            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td colspan="4" style="${tdStyle};font-weight:600">合計</td>
             <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${ingCost.toLocaleString()}</td>
           </tr>
         </tbody></table>`;
@@ -3922,7 +3928,7 @@ function renderAccounting(){
     : `<table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="border-bottom:2px solid var(--rule)">
           <th style="${thStyle}">日期</th><th style="${thStyle}">包材</th>
-          <th style="${thR}">數量</th><th style="${thR}">金額</th>
+          <th style="${thR}">數量</th><th style="${thR}">金額</th><th></th>
         </tr></thead>
         <tbody>
           ${[...pkgEntries].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).map(r=>`
@@ -3931,9 +3937,10 @@ function renderAccounting(){
               <td style="${tdStyle};font-weight:500">${r.name||'—'}</td>
               <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
               <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.cost||0).toLocaleString()}</td>
+              <td style="padding:4px 6px;text-align:center"><button onclick="deletePkgRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px 4px" title="刪除">✕</button></td>
             </tr>`).join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
-            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td colspan="4" style="${tdStyle};font-weight:600">合計</td>
             <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${pkgCost.toLocaleString()}</td>
           </tr>
         </tbody></table>`;
@@ -4110,6 +4117,24 @@ async function importMarchData(){
     btn.textContent = '📥 匯入三月資料';
     showToast('❌ 失敗：'+e.message);
   }
+}
+
+function deleteRestockEntry(key){
+  if(!confirm('確定刪除此筆食材補貨記錄？')) return;
+  delete accIngLog[key];
+  db.ref('settings/restockLog/'+key).remove().then(() => {
+    showToast('🗑 已刪除');
+    renderAccounting();
+  });
+}
+
+function deletePkgRestockEntry(key){
+  if(!confirm('確定刪除此筆包材補貨記錄？')) return;
+  delete accPkgLog[key];
+  db.ref('settings/pkgRestockLog/'+key).remove().then(() => {
+    showToast('🗑 已刪除');
+    renderAccounting();
+  });
 }
 
 function deleteAccExpense(key){
