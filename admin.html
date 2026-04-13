@@ -588,6 +588,8 @@ tr.done-row td{opacity:.45;}
         <select id="acc-month-sel" class="filter-select" onchange="renderAccounting()" style="min-width:130px"></select>
         <button onclick="reloadAccounting()" style="border:1px solid var(--rule);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-soft)">↻ 重新整理</button>
         <button id="import-march-btn" onclick="importMarchData()" style="border:1px solid var(--caramel);background:var(--caramel);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:#fff">📥 匯入三月資料</button>
+        <button onclick="document.getElementById('invoice-file-input').click()" style="border:1px solid var(--ink-mid);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-mid)">📂 匯入電子發票</button>
+        <input type="file" id="invoice-file-input" accept=".csv,.txt" style="display:none" onchange="handleInvoiceFile(this)">
       </div>
 
       <!-- 總覽卡片 -->
@@ -4013,6 +4015,173 @@ function addAccExpense(){
     populateAccMonthSel();
     renderAccounting();
   });
+}
+
+// ═══════════════════════════════════════
+// 📂 電子發票匯入
+// ═══════════════════════════════════════
+
+// 關鍵字分類表
+const INVOICE_RULES = [
+  // 運費
+  { cat:'運費', keys:['統一速達','黑貓','宅急便','郵局','順豐','宅配通'] },
+  // 食材
+  { cat:'食材', ingId:'milk',     ingName:'鮮奶',       keys:['鮮乳','鮮奶','牛乳','光泉','統一鮮奶'] },
+  { cat:'食材', ingId:'cream',    ingName:'動物鮮奶油', keys:['鮮奶油','奶油','cream','德麥','安佳','總統牌'] },
+  { cat:'食材', ingId:'egg_yolk', ingName:'殺菌蛋黃',   keys:['蛋黃液','殺菌蛋黃','蛋黃漿','勤億'] },
+  { cat:'食材', ingId:'egg',      ingName:'洗選蛋',     keys:['殺菌全蛋','全蛋液','洗選蛋','蛋品','蛋舖','天成蛋'] },
+  { cat:'食材', ingId:'sugar',    ingName:'白砂糖',     keys:['砂糖','白糖','細砂'] },
+  { cat:'食材', ingId:'matcha',   ingName:'抹茶粉',     keys:['抹茶'] },
+  { cat:'食材', ingId:'cocoa',    ingName:'可可粉',     keys:['可可','巧克力','cocoa'] },
+  // 包材
+  { cat:'包材', pkgId:'box_muffin', pkgName:'馬芬盒（面交）', keys:['馬芬','包裝盒','底托'] },
+  { cat:'包材', pkgId:'bag_insulated', pkgName:'保冷袋',      keys:['保冷袋'] },
+  { cat:'包材', pkgId:'cup',       pkgName:'布丁杯',           keys:['布丁杯','果凍杯'] },
+  { cat:'包材', pkgId:'cup_lid',   pkgName:'布丁杯蓋',         keys:['杯蓋','封口'] },
+  { cat:'包材', pkgId:'spoon',     pkgName:'布丁匙（湯匙）',   keys:['湯匙','匙','spoon'] },
+  { cat:'包材', pkgId:'box_large', pkgName:'大紙箱（宅配）',   keys:['大紙箱','大箱'] },
+  { cat:'包材', pkgId:'box_small', pkgName:'小紙箱（宅配）',   keys:['小紙箱','小箱'] },
+  { cat:'包材', pkgId:'box_large', pkgName:'大紙箱（宅配）',   keys:['紙箱','包材'] }, // fallback
+];
+
+function classifyInvoice(seller, products){
+  const haystack = (seller + ' ' + products.map(p=>p.name).join(' ')).toLowerCase();
+  for(const rule of INVOICE_RULES){
+    if(rule.keys.some(k => haystack.includes(k.toLowerCase()))){
+      return rule;
+    }
+  }
+  return { cat:'其他', keys:[] };
+}
+
+function parseInvoiceDate(raw){
+  // "2026/3/10 11:20" → "2026-03-10"
+  const m = raw.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if(!m) return '';
+  return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+}
+
+function handleInvoiceFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = e => showInvoicePreview(e.target.result);
+  reader.readAsText(file, 'utf-8');
+}
+
+function showInvoicePreview(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const mRows = {}, dRows = {};
+  lines.forEach(line => {
+    const cols = line.split('\t');
+    if(cols[0]==='M'){ mRows[cols[1]] = cols; }
+    if(cols[0]==='D'){ (dRows[cols[1]] = dRows[cols[1]]||[]).push(cols); }
+  });
+
+  const invoices = Object.entries(mRows).map(([no, m]) => {
+    const ds = (dRows[no]||[]);
+    const products = ds.map(d => ({ name: d[4]||'', qty: +d[5]||1, unit: d[6]||'個', unitPrice: +d[7]||0, amount: +d[8]||0 }));
+    const seller = m[9]||'';
+    const date = parseInvoiceDate(m[5]||'');
+    const total = +m[16]||0;
+    const rule = classifyInvoice(seller, products);
+    return { no, date, seller, products, total, rule };
+  }).filter(inv => inv.date && inv.total > 0)
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  if(!invoices.length){ showToast('⚠️ 找不到有效發票資料'); return; }
+
+  const catOpts = ['運費','食材','包材','其他','略過'].map(c=>`<option value="${c}">${c}</option>`).join('');
+  const rows = invoices.map((inv,i) => `
+    <tr style="border-bottom:1px solid var(--rule);${inv.rule.cat==='其他'?'background:#fff8ec':''}">
+      <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="inv-chk" data-i="${i}" ${inv.rule.cat!=='略過'?'checked':''}></td>
+      <td style="padding:6px 8px;font-size:12px;color:var(--ink-soft)">${inv.date}</td>
+      <td style="padding:6px 8px;font-size:12px" title="${inv.seller}">${inv.seller.slice(0,12)}${inv.seller.length>12?'…':''}</td>
+      <td style="padding:6px 8px;font-size:12px">${inv.products.map(p=>`${p.name}×${p.qty}`).join('、')}</td>
+      <td style="padding:6px 8px;font-size:12px;text-align:right;color:var(--caramel);font-weight:600">NT$${inv.total}</td>
+      <td style="padding:6px 4px">
+        <select class="inv-cat filter-select" data-i="${i}" style="font-size:11px;padding:3px 6px">
+          ${['運費','食材','包材','其他','略過'].map(c=>`<option value="${c}"${c===inv.rule.cat?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
+      <td style="padding:6px 8px;font-size:11px;color:${inv.rule.cat==='其他'?'#c62828':'var(--ink-soft)'}">
+        ${inv.rule.cat==='其他'?'⚠️ 未分類':(inv.rule.ingName||inv.rule.pkgName||'')}
+      </td>
+    </tr>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'invoice-preview-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:4px;width:min(900px,95vw);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+      <div style="padding:20px 24px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:15px;font-weight:600">📂 電子發票匯入預覽</div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">共 ${invoices.length} 張發票，⚠️ 橘色為未分類，請手動調整類別</div>
+        </div>
+        <button onclick="document.getElementById('invoice-preview-overlay').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--ink-soft)">✕</button>
+      </div>
+      <div style="overflow:auto;flex:1;padding:0 8px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:2px solid var(--rule);position:sticky;top:0;background:var(--paper-warm)">
+            <th style="padding:8px;width:36px"></th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink-soft)">日期</th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink-soft)">賣方</th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink-soft)">品名</th>
+            <th style="padding:8px;text-align:right;font-size:11px;color:var(--ink-soft)">金額</th>
+            <th style="padding:8px;font-size:11px;color:var(--ink-soft)">類別</th>
+            <th style="padding:8px;font-size:11px;color:var(--ink-soft)">對應項目</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid var(--rule);display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="document.getElementById('invoice-preview-overlay').remove()" style="padding:9px 20px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">取消</button>
+        <button onclick="confirmInvoiceImport(${JSON.stringify(invoices).replace(/</g,'&lt;')})" style="padding:9px 20px;background:var(--caramel);color:#fff;border:none;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">✓ 匯入勾選項目</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // 勾選框同步類別選單
+  overlay.querySelectorAll('.inv-cat').forEach(sel => {
+    sel.addEventListener('change', function(){
+      const chk = overlay.querySelector(`.inv-chk[data-i="${this.dataset.i}"]`);
+      if(chk) chk.checked = this.value !== '略過';
+    });
+  });
+}
+
+async function confirmInvoiceImport(invoices){
+  const overlay = document.getElementById('invoice-preview-overlay');
+  const checked = [...overlay.querySelectorAll('.inv-chk:checked')].map(el => +el.dataset.i);
+  const cats    = Object.fromEntries([...overlay.querySelectorAll('.inv-cat')].map(el=>[+el.dataset.i, el.value]));
+  if(!checked.length){ showToast('⚠️ 請至少勾選一筆'); return; }
+
+  const base = Date.now();
+  const updates = {};
+  checked.forEach((i, idx) => {
+    const inv = invoices[i];
+    const cat = cats[i] || inv.rule.cat;
+    const note = `${inv.seller.slice(0,15)} ${inv.products.map(p=>p.name).join('、')}`;
+    updates['settings/expenseLog/'+(base+idx)] = {
+      category: cat==='食材'||cat==='包材'||cat==='運費'||cat==='其他' ? cat : '其他',
+      date: inv.date,
+      note: note.trim(),
+      amount: inv.total,
+      ts: new Date(inv.date+'T12:00:00+08:00').toISOString()
+    };
+  });
+
+  try {
+    await db.ref('/').update(updates);
+    overlay.remove();
+    showToast(`✅ 已匯入 ${checked.length} 筆發票記錄`);
+    accLoaded = false;
+    loadAccounting();
+  } catch(e) {
+    showToast('❌ 匯入失敗：'+e.message);
+  }
 }
 
 async function importMarchData(){
