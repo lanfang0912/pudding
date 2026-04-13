@@ -328,6 +328,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn" onclick="switchTab('ingredients',this)">🥛 食材庫存</button>
     <button class="tab-btn" onclick="switchTab('packaging',this)">📦 包材庫存</button>
     <button class="tab-btn" onclick="switchTab('articles',this)">✏️ 文章</button>
+    <button class="tab-btn" onclick="switchTab('accounting',this)">💰 記帳</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -572,6 +573,47 @@ tr.done-row td{opacity:.45;}
             <button id="art-delete-btn" onclick="deleteArticle()" style="display:none;margin-left:auto;padding:10px 18px;background:none;color:var(--red);border:1px solid var(--red);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer">刪除</button>
           </div>
         </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 記帳 ── -->
+  <div class="tab-panel" id="tab-accounting">
+    <div style="max-width:960px;margin:0 auto;padding:24px 28px">
+
+      <!-- 月份篩選 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+        <span style="font-size:10px;letter-spacing:2px;color:var(--ink-soft)">月份</span>
+        <select id="acc-month-sel" class="filter-select" onchange="renderAccounting()" style="min-width:130px"></select>
+        <button onclick="reloadAccounting()" style="border:1px solid var(--rule);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-soft)">↻ 重新整理</button>
+      </div>
+
+      <!-- 總覽卡片 -->
+      <div id="acc-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px"></div>
+
+      <!-- 收入明細 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">訂單收入明細</div>
+        <div style="overflow-x:auto"><div id="acc-revenue-detail"></div></div>
+      </div>
+
+      <!-- 食材費明細 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">食材費明細</div>
+        <div style="overflow-x:auto"><div id="acc-ing-detail"></div></div>
+      </div>
+
+      <!-- 包材費明細 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">包材費明細</div>
+        <div style="overflow-x:auto"><div id="acc-pkg-detail"></div></div>
+      </div>
+
+      <!-- 其他支出 -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">其他支出明細</div>
+        <div id="acc-expense-detail"></div>
       </div>
 
     </div>
@@ -1167,6 +1209,7 @@ function switchTab(n,btn){
   if(n==='ingredients') loadIngredients();
   if(n==='packaging') loadPackaging();
   if(n==='articles' && !articlesLoaded) loadArticles();
+  if(n==='accounting') loadAccounting();
 }
 
 function loadInvSettings(){
@@ -1194,14 +1237,14 @@ function renderInvOverrides(overrides){
 // 預設食材（首次使用時寫入 Firebase）
 const DEFAULT_INGREDIENTS = [
   // 食材
-  {id:'milk',       name:'鮮奶',        unit:'g',  stock:0, warnDays:2},
-  {id:'cream',      name:'動物鮮奶油',  unit:'g',  stock:0, warnDays:2},
-  {id:'egg',        name:'洗選蛋',      unit:'g',  stock:0, warnDays:1},
-  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g',  stock:0, warnDays:1},
-  {id:'sugar',      name:'上白糖',      unit:'g',  stock:0, warnDays:3},
-  {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:3},
-  {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:3},
-  {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:3},
+  {id:'milk',       name:'鮮奶',        unit:'g',  stock:0, warnDays:7},
+  {id:'cream',      name:'動物鮮奶油',  unit:'g',  stock:0, warnDays:7},
+  {id:'egg',        name:'洗選蛋',      unit:'g',  stock:0, warnDays:7},
+  {id:'egg_yolk',   name:'殺菌蛋黃',   unit:'g',  stock:0, warnDays:7},
+  {id:'sugar',      name:'上白糖',      unit:'g',  stock:0, warnDays:7},
+  {id:'matcha',     name:'抹茶粉',      unit:'g',  stock:0, warnDays:7},
+  {id:'cocoa',      name:'可可粉',      unit:'g',  stock:0, warnDays:7},
+  {id:'chocolate',  name:'調溫黑巧克力', unit:'g', stock:0, warnDays:7},
 ];
 
 // 預設包材清單
@@ -1337,6 +1380,16 @@ function loadPackaging(){
       pkgData = defaults;
     } else {
       pkgData = snap.val();
+      // 自動補上 DEFAULT_PACKAGING 中缺少的品項（例如新增的保冷袋）
+      const updates = {};
+      DEFAULT_PACKAGING.forEach(i => {
+        if(!pkgData[i.id]){
+          const {id, ...data} = i;
+          updates[id] = data;
+          pkgData[id] = data;
+        }
+      });
+      if(Object.keys(updates).length) db.ref('settings/packaging').update(updates);
     }
     renderPkgAll();
     renderPkgRestockLog();
@@ -1699,7 +1752,7 @@ function renderIngAlerts(){
   if(!el) return;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const warnUntil = new Date(today); warnUntil.setDate(today.getDate()+2);
+  const warnUntil = new Date(today); warnUntil.setDate(today.getDate()+7);
 
   const pending = orders.filter(o => o.status!=='shipped' && o.status!=='cancelled' && o.date);
 
@@ -1720,7 +1773,7 @@ function renderIngAlerts(){
   }));
 
   if(!urgentSet.size){
-    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天內沒有製作排程</div>`;
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來7天內沒有製作排程</div>`;
     return;
   }
 
@@ -1770,11 +1823,11 @@ function renderIngAlerts(){
   const urgentList = [...urgentSet].join('、');
 
   if(!hasShortage){
-    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來2天食材充足（製作日：${urgentList}）</div>`;
+    el.innerHTML = `<div style="background:#e8f5ee;border:1px solid #b8dfc9;border-radius:4px;padding:12px 16px;font-size:12px;color:#3d7a55;">✅ 未來7天食材充足（製作日：${urgentList}）</div>`;
   } else {
     el.innerHTML = `
       <div style="background:#fdeaea;border:1px solid #f5c0c0;border-radius:4px;padding:14px 16px;">
-        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來2天食材不足，請盡快補貨</div>
+        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來7天食材不足，請盡快補貨</div>
         ${alerts.filter(a=>a.shortages.length>0).map(a=>`
           <div style="margin-bottom:10px">
             <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${a.totalBoxes}盒）</div>
@@ -1799,7 +1852,7 @@ function renderIngList(){
       return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--rule)">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:500">${ing.name}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">提前 ${ing.warnDays||2} 天提醒</div>
+          <div style="font-size:11px;color:var(--ink-soft)">提前 ${ing.warnDays||7} 天提醒</div>
         </div>
         <input type="number" min="0" value="${ing.stock||0}"
           onblur="saveIngField('${id}','stock',this.value)"
@@ -2442,6 +2495,50 @@ function fhtml(o){
 }
 const SB={pending:'<span class="badge badge-pending">待確認匯款</span>',paid:'<span class="badge badge-paid">已確認匯款</span>',shipped:'<span class="badge badge-shipped">已出貨</span>'};
 
+// 將盒數（可能是小數）轉為「X盒」或「X杯」或「X盒X杯」
+function fmtBoxes(boxes){
+  const cups = Math.round(boxes * 6);
+  if(!cups) return '0';
+  const b = Math.floor(cups / 6), r = cups % 6;
+  if(b === 0) return `${r}杯`;
+  if(r === 0) return `${b}盒`;
+  return `${b}盒${r}杯`;
+}
+
+// 短格式品項文字（生產/出貨清單用），三拼直接取杯數
+function fmtOrderItemsShort(o){
+  if(o.comboItems){
+    const ci = o.comboItems;
+    return [
+      ci.origCup   ? `原×${ci.origCup}杯`   : '',
+      ci.matchaCup ? `抹×${ci.matchaCup}杯` : '',
+      ci.cocoaCup  ? `可×${ci.cocoaCup}杯`  : '',
+    ].filter(Boolean).join(' ');
+  }
+  return [
+    o.orig   ? `原×${o.orig}盒`   : '',
+    o.matcha ? `抹×${o.matcha}盒` : '',
+    o.cocoa  ? `可×${o.cocoa}盒`  : '',
+  ].filter(Boolean).join(' ');
+}
+
+// 長格式品項文字（SMS / 出貨通知用），三拼直接取杯數
+function fmtOrderItemsFull(o){
+  if(o.comboItems){
+    const ci = o.comboItems;
+    return [
+      ci.origCup   ? `原味×${ci.origCup}杯`   : '',
+      ci.matchaCup ? `抹茶×${ci.matchaCup}杯` : '',
+      ci.cocoaCup  ? `可可×${ci.cocoaCup}杯`  : '',
+    ].filter(Boolean).join('、') + '（三拼）';
+  }
+  return [
+    o.orig   ? `原味×${o.orig}盒`   : '',
+    o.matcha ? `抹茶×${o.matcha}盒` : '',
+    o.cocoa  ? `可可×${o.cocoa}盒`  : '',
+  ].filter(Boolean).join('、');
+}
+
 // ── table ──
 function toggleDateSort(){
   const sel = document.getElementById('f-sort');
@@ -3052,8 +3149,8 @@ function makeOrderCard(o, date){
     itemsHtml = `<div style="font-size:12px;color:var(--ink)">${itemsText}</div>`;
   } else {
     boxes = (o.orig||0)+(o.matcha||0)+(o.cocoa||0);
-    itemsText = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
-    itemsHtml = `${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${boxes}盒</span>`;
+    itemsText = fmtOrderItemsFull(o);
+    itemsHtml = `${fhtml(o)} <span style="font-size:11px;color:var(--ink-soft)">共${fmtBoxes(boxes)}</span>`;
   }
 
   const obtLine = o.obtNumber ? `\n托運單號：${o.obtNumber}\n查詢：https://www.t-cat.com.tw/Tracking/TrackingQuery.aspx?no=${o.obtNumber}` : '';
@@ -3268,6 +3365,7 @@ function renderSchedule(){
         orig:   o.orig   || 0,
         matcha: o.matcha || 0,
         cocoa:  o.cocoa  || 0,
+        comboItems: o.comboItems || null,
       });
       // 製作日 = 面交日前一天
       const makeDate = addDays(receiveDate, -1);
@@ -3295,6 +3393,7 @@ function renderSchedule(){
           status: o.status,
           packed: o.packed || false,
           receiveDate,
+          comboItems: o.comboItems || null,
         });
       }
       if(makeDate){
@@ -3352,16 +3451,12 @@ function renderSchedule(){
         return addDays(o.date, -2) === date;
       })
       .map(o => {
-        const items = [];
-        if(o.orig)   items.push(`原×${o.orig}`);
-        if(o.matcha) items.push(`抹×${o.matcha}`);
-        if(o.cocoa)  items.push(`可×${o.cocoa}`);
         const done = o.made === true;
         const combo = isComboOrder(o);
         return `<li style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;cursor:pointer;${done?'opacity:.45;text-decoration:line-through':''}" onclick="toggleMade('${o.id}',${done})">
           <span style="font-size:16px;flex-shrink:0">${done ? '✅' : '⬜'}</span>
           <span style="font-weight:500;flex:1">${o.name}${combo?' <span style="font-size:9px;background:#f5ede9;border:1px solid var(--rule);border-radius:3px;padding:0 4px;color:var(--ink-mid)">🎁</span>':''}</span>
-          <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${items.join(' ')}</span>
+          <span style="color:var(--caramel);font-family:monospace;letter-spacing:.5px">${fmtOrderItemsShort(o)}</span>
         </li>`;
       }).join('') : '';
 
@@ -3383,11 +3478,11 @@ function renderSchedule(){
         const tOver=t>mt;
         return `
           <div style="font-size:12px;margin-bottom:8px;padding:4px 8px;border-radius:3px;background:${tOver?'rgba(180,60,60,.08)':'rgba(0,0,0,.03)'};color:${tOver?'var(--red)':'var(--ink-soft)'}">
-            合計 <strong>${t}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限 +${t-mt} 盒`:''}
+            合計 <strong>${fmtBoxes(t)}／${mt} 盒</strong>${tOver?` ⚠️ 超過每日總上限`:''}
           </div>
-          ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mt*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%"></div></div><span class="prod-num">${make.orig} 盒</span></div>`;})():''}
-          ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mt*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%"></div></div><span class="prod-num">${make.matcha} 盒</span></div>`;})():''}
-          ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mt*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%"></div></div><span class="prod-num">${make.cocoa} 盒</span></div>`;})():''}
+          ${make.orig?(()=>{const pct=Math.min(Math.round(make.orig/mt*100),100);return`<div class="prod-row"><span class="prod-label">原味</span><div class="prod-bar"><div class="prod-fill pf-orig" style="width:${pct}%"></div></div><span class="prod-num">${fmtBoxes(make.orig)}</span></div>`;})():''}
+          ${make.matcha?(()=>{const pct=Math.min(Math.round(make.matcha/mt*100),100);return`<div class="prod-row"><span class="prod-label">抹茶</span><div class="prod-bar"><div class="prod-fill pf-matcha" style="width:${pct}%"></div></div><span class="prod-num">${fmtBoxes(make.matcha)}</span></div>`;})():''}
+          ${make.cocoa?(()=>{const pct=Math.min(Math.round(make.cocoa/mt*100),100);return`<div class="prod-row"><span class="prod-label">可可</span><div class="prod-bar"><div class="prod-fill pf-cocoa" style="width:${pct}%"></div></div><span class="prod-num">${fmtBoxes(make.cocoa)}</span></div>`;})():''}
         `;
       })()}
       ${makeOrderRows ? `<ul style="margin:12px 0 0;padding:0;list-style:none">
@@ -3412,7 +3507,7 @@ function renderSchedule(){
             <span style="font-size:16px;flex-shrink:0">${met?'✅':'⬜'}</span>
             <div style="flex:1">
               <div style="font-weight:500">${m.name}${mCombo?' <span style="font-size:9px;background:#f5ede9;border:1px solid var(--rule);border-radius:3px;padding:0 4px;color:var(--ink-mid);text-decoration:none">🎁 三拼</span>':''}${!hasContact?' <span style="font-size:10px;color:var(--red);text-decoration:none">⚠️ 無聯絡方式</span>':''}</div>
-              <div style="font-size:10px;color:var(--caramel)">${[m.orig?`原×${m.orig}`:'',m.matcha?`抹×${m.matcha}`:'',m.cocoa?`可×${m.cocoa}`:''].filter(Boolean).join(' ')}${timeStr?' · '+timeStr:''}</div>
+              <div style="font-size:10px;color:var(--caramel)">${fmtOrderItemsShort(m)}${timeStr?' · '+timeStr:''}</div>
               <div style="font-size:10px;color:var(--ink-soft)">${m.address}${m.note?' ・'+m.note:''}</div>
             </div>
           </li>`;
@@ -3434,8 +3529,7 @@ function renderSchedule(){
             <div style="font-weight:500">${s.name}${sCombo?' <span style="font-size:9px;background:#f5ede9;border:1px solid var(--rule);border-radius:3px;padding:0 4px;color:var(--ink-mid);text-decoration:none">🎁 三拼</span>':''}</div>
             <div style="font-size:10px;color:var(--ink-soft)">${s.address}</div>
             <div style="font-size:10px;color:var(--caramel)">
-              ${[s.orig?`原×${s.orig}`:'', s.matcha?`抹×${s.matcha}`:'', s.cocoa?`可×${s.cocoa}`:''].filter(Boolean).join(' ')}
-              &nbsp;→ 客戶 ${fmt(s.receiveDate)} 收到
+              ${fmtOrderItemsShort(s)} → 客戶 ${fmt(s.receiveDate)} 收到
             </div>
             ${s.note?`<div style="font-size:10px;color:var(--ink-soft)">備註：${s.note}</div>`:''}
           </div>
@@ -3678,6 +3772,248 @@ function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;void t.offsetWidth;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ══════════════════════════════════════════════════
+// 💰 記帳模組
+// ══════════════════════════════════════════════════
+
+let accIngLog = null, accPkgLog = null, accExpLog = {};
+let accLoaded = false;
+
+function loadAccounting(){
+  if(accLoaded){ populateAccMonthSel(); renderAccounting(); return; }
+  accLoaded = true;
+  document.getElementById('acc-summary').innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">載入中…</div>';
+  Promise.all([
+    db.ref('settings/restockLog').once('value'),
+    db.ref('settings/pkgRestockLog').once('value'),
+    db.ref('settings/expenseLog').once('value'),
+  ]).then(([ingSnap, pkgSnap, expSnap]) => {
+    accIngLog = ingSnap.val() || {};
+    accPkgLog = pkgSnap.val() || {};
+    accExpLog = expSnap.val() || {};
+    populateAccMonthSel();
+    renderAccounting();
+  });
+}
+
+function reloadAccounting(){
+  accLoaded = false;
+  accIngLog = null; accPkgLog = null; accExpLog = {};
+  loadAccounting();
+}
+
+function populateAccMonthSel(){
+  const months = new Set();
+  orders.forEach(o => { const d=(o.ts||'').slice(0,7); if(d) months.add(d); });
+  [...Object.values(accIngLog||{}), ...Object.values(accPkgLog||{}), ...Object.values(accExpLog||{})].forEach(r => {
+    const d=(r.ts||r.date||'').slice(0,7); if(d) months.add(d);
+  });
+  months.add(new Date().toISOString().slice(0,7));
+  const sorted = [...months].sort().reverse();
+  const sel = document.getElementById('acc-month-sel');
+  const cur = sel.value || sorted[0] || '';
+  sel.innerHTML = sorted.map(m => {
+    const [y,mo] = m.split('-');
+    return `<option value="${m}"${m===cur?' selected':''}>${y} 年 ${parseInt(mo)} 月</option>`;
+  }).join('');
+  if(!sel.value && sorted.length) sel.value = sorted[0];
+}
+
+function renderAccounting(){
+  const month = document.getElementById('acc-month-sel').value;
+  if(!month || !accIngLog) return;
+
+  // ── 收入（已確認/已出貨訂單，用下單時間 ts 歸月）
+  const revOrders = orders.filter(o => {
+    const m = (o.ts||'').slice(0,7);
+    return m === month && (o.status==='paid' || o.status==='shipped');
+  });
+  const revenue = revOrders.reduce((a,o) => a+(o.total||0), 0);
+
+  // ── 食材費
+  const ingEntries = Object.entries(accIngLog)
+    .map(([k,r]) => ({...r, _key:k}))
+    .filter(r => (r.ts||'').slice(0,7)===month && (r.totalCost||0)>0);
+  const ingCost = ingEntries.reduce((a,r) => a+(r.totalCost||0), 0);
+
+  // ── 包材費
+  const pkgEntries = Object.entries(accPkgLog)
+    .map(([k,r]) => ({...r, _key:k}))
+    .filter(r => (r.ts||'').slice(0,7)===month && (r.cost||0)>0);
+  const pkgCost = pkgEntries.reduce((a,r) => a+(r.cost||0), 0);
+
+  // ── 其他支出
+  const expEntries = Object.entries(accExpLog)
+    .map(([k,r]) => ({...r, _key:k}))
+    .filter(r => (r.date||'').slice(0,7)===month);
+  const expCost = expEntries.reduce((a,r) => a+(r.amount||0), 0);
+
+  const totalCost = ingCost + pkgCost + expCost;
+  const profit = revenue - totalCost;
+
+  // ── 總覽卡片
+  const card = (label, amt, color) => `
+    <div style="background:var(--paper-dark);border-radius:4px;padding:16px 18px">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);margin-bottom:6px">${label}</div>
+      <div style="font-size:20px;font-weight:600;color:${color}">NT$ ${amt.toLocaleString()}</div>
+    </div>`;
+  document.getElementById('acc-summary').innerHTML =
+    card('訂單收入', revenue, 'var(--matcha)') +
+    card('食材費', ingCost, 'var(--caramel)') +
+    card('包材費', pkgCost, 'var(--caramel)') +
+    card('其他支出', expCost, 'var(--caramel)') +
+    card('淨利', profit, profit >= 0 ? 'var(--matcha)' : 'var(--red)');
+
+  // ── 收入明細
+  const thStyle = 'padding:6px 10px;text-align:left;color:var(--ink-soft);font-weight:400';
+  const thR = 'padding:6px 10px;text-align:right;color:var(--ink-soft);font-weight:400';
+  const tdStyle = 'padding:6px 10px';
+  const tdR = 'padding:6px 10px;text-align:right';
+  const tdSub = 'padding:6px 10px;color:var(--ink-soft)';
+  document.getElementById('acc-revenue-detail').innerHTML = !revOrders.length
+    ? `<div style="font-size:12px;color:var(--ink-soft)">本月無已確認訂單</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">收貨日期</th><th style="${thStyle}">姓名</th>
+          <th style="${thStyle}">品項</th><th style="${thR}">金額</th>
+        </tr></thead>
+        <tbody>
+          ${[...revOrders].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(o=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${o.date||'—'}</td>
+              <td style="${tdStyle};font-weight:500">${o.name}</td>
+              <td style="${tdStyle}">${fhtml(o)}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(o.total||0).toLocaleString()}</td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--matcha)">NT$ ${revenue.toLocaleString()}</td>
+          </tr>
+        </tbody></table>`;
+
+  // ── 食材費明細
+  document.getElementById('acc-ing-detail').innerHTML = !ingEntries.length
+    ? `<div style="font-size:12px;color:var(--ink-soft)">本月無食材補貨記錄（或未填金額）</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">日期</th><th style="${thStyle}">食材</th>
+          <th style="${thR}">數量</th><th style="${thR}">金額</th>
+        </tr></thead>
+        <tbody>
+          ${[...ingEntries].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).map(r=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${(r.ts||'').slice(0,10)}</td>
+              <td style="${tdStyle};font-weight:500">${r.ingName||r.name||'—'}</td>
+              <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.totalCost||0).toLocaleString()}</td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${ingCost.toLocaleString()}</td>
+          </tr>
+        </tbody></table>`;
+
+  // ── 包材費明細
+  document.getElementById('acc-pkg-detail').innerHTML = !pkgEntries.length
+    ? `<div style="font-size:12px;color:var(--ink-soft)">本月無包材補貨記錄（或未填金額）</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">日期</th><th style="${thStyle}">包材</th>
+          <th style="${thR}">數量</th><th style="${thR}">金額</th>
+        </tr></thead>
+        <tbody>
+          ${[...pkgEntries].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).map(r=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${(r.ts||'').slice(0,10)}</td>
+              <td style="${tdStyle};font-weight:500">${r.name||'—'}</td>
+              <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.cost||0).toLocaleString()}</td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${pkgCost.toLocaleString()}</td>
+          </tr>
+        </tbody></table>`;
+
+  // ── 其他支出明細
+  const sorted = [...expEntries].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const listHtml = !sorted.length
+    ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:10px">本月無其他支出</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">日期</th><th style="${thStyle}">類別</th>
+          <th style="${thStyle}">說明</th><th style="${thR}">金額</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map(r=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${r.date||'—'}</td>
+              <td style="${tdStyle};font-weight:500">${r.category||'其他'}</td>
+              <td style="${tdStyle}">${r.note||'—'}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.amount||0).toLocaleString()}</td>
+              <td style="padding:4px 8px;text-align:right"><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${expCost.toLocaleString()}</td>
+            <td></td>
+          </tr>
+        </tbody></table>`;
+
+  document.getElementById('acc-expense-detail').innerHTML = `
+    <div style="background:var(--paper-dark);border-radius:4px;padding:14px 16px;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px">新增其他支出</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">日期</label>
+          <input class="form-ctrl" id="acc-exp-date" type="date" value="${month+'-01'}" style="width:130px">
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">類別</label>
+          <select class="form-ctrl" id="acc-exp-cat" style="width:90px">
+            <option>運費</option><option>其他</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">說明</label>
+          <input class="form-ctrl" id="acc-exp-note" placeholder="例：3/10 黑貓宅配費">
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">金額（NT$）</label>
+          <input class="form-ctrl" id="acc-exp-amt" type="number" min="0" placeholder="0" style="width:90px">
+        </div>
+        <button onclick="addAccExpense()" style="padding:8px 16px;background:var(--caramel);color:#fff;border:none;border-radius:2px;cursor:pointer;font-family:'Noto Serif TC',serif;font-size:12px;white-space:nowrap">新增</button>
+      </div>
+    </div>
+    ${listHtml}`;
+}
+
+function addAccExpense(){
+  const date     = document.getElementById('acc-exp-date').value;
+  const category = document.getElementById('acc-exp-cat').value;
+  const note     = document.getElementById('acc-exp-note').value.trim();
+  const amount   = +document.getElementById('acc-exp-amt').value || 0;
+  if(!date){ showToast('請填寫日期'); return; }
+  if(!amount){ showToast('請填寫金額'); return; }
+  const key = Date.now();
+  const record = { date, category, note, amount, ts: new Date().toISOString() };
+  accExpLog[key] = record;
+  db.ref('settings/expenseLog/'+key).set(record).then(() => {
+    showToast('✅ 支出已新增');
+    populateAccMonthSel();
+    renderAccounting();
+  });
+}
+
+function deleteAccExpense(key){
+  if(!confirm('確定刪除此筆支出？')) return;
+  delete accExpLog[key];
+  db.ref('settings/expenseLog/'+key).remove().then(() => {
+    showToast('🗑 已刪除');
+    renderAccounting();
+  });
 }
 
 // ── 文章管理 ──
