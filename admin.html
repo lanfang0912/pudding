@@ -328,6 +328,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn" onclick="switchTab('ingredients',this)">🥛 食材庫存</button>
     <button class="tab-btn" onclick="switchTab('packaging',this)">📦 包材庫存</button>
     <button class="tab-btn" onclick="switchTab('articles',this)">✏️ 文章</button>
+    <button class="tab-btn" onclick="switchTab('accounting',this)">💰 記帳</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -572,6 +573,47 @@ tr.done-row td{opacity:.45;}
             <button id="art-delete-btn" onclick="deleteArticle()" style="display:none;margin-left:auto;padding:10px 18px;background:none;color:var(--red);border:1px solid var(--red);border-radius:2px;font-family:'Noto Serif TC',serif;font-size:12px;cursor:pointer">刪除</button>
           </div>
         </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── 記帳 ── -->
+  <div class="tab-panel" id="tab-accounting">
+    <div style="max-width:960px;margin:0 auto;padding:24px 28px">
+
+      <!-- 月份篩選 -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+        <span style="font-size:10px;letter-spacing:2px;color:var(--ink-soft)">月份</span>
+        <select id="acc-month-sel" class="filter-select" onchange="renderAccounting()" style="min-width:130px"></select>
+        <button onclick="reloadAccounting()" style="border:1px solid var(--rule);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-soft)">↻ 重新整理</button>
+      </div>
+
+      <!-- 總覽卡片 -->
+      <div id="acc-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px"></div>
+
+      <!-- 收入明細 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">訂單收入明細</div>
+        <div style="overflow-x:auto"><div id="acc-revenue-detail"></div></div>
+      </div>
+
+      <!-- 食材費明細 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">食材費明細</div>
+        <div style="overflow-x:auto"><div id="acc-ing-detail"></div></div>
+      </div>
+
+      <!-- 包材費明細 -->
+      <div style="margin-bottom:28px">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">包材費明細</div>
+        <div style="overflow-x:auto"><div id="acc-pkg-detail"></div></div>
+      </div>
+
+      <!-- 其他支出 -->
+      <div>
+        <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);font-weight:600;margin-bottom:10px">其他支出明細</div>
+        <div id="acc-expense-detail"></div>
       </div>
 
     </div>
@@ -1167,6 +1209,7 @@ function switchTab(n,btn){
   if(n==='ingredients') loadIngredients();
   if(n==='packaging') loadPackaging();
   if(n==='articles' && !articlesLoaded) loadArticles();
+  if(n==='accounting') loadAccounting();
 }
 
 function loadInvSettings(){
@@ -3729,6 +3772,248 @@ function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;void t.offsetWidth;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ══════════════════════════════════════════════════
+// 💰 記帳模組
+// ══════════════════════════════════════════════════
+
+let accIngLog = null, accPkgLog = null, accExpLog = {};
+let accLoaded = false;
+
+function loadAccounting(){
+  if(accLoaded){ populateAccMonthSel(); renderAccounting(); return; }
+  accLoaded = true;
+  document.getElementById('acc-summary').innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">載入中…</div>';
+  Promise.all([
+    db.ref('settings/restockLog').once('value'),
+    db.ref('settings/pkgRestockLog').once('value'),
+    db.ref('settings/expenseLog').once('value'),
+  ]).then(([ingSnap, pkgSnap, expSnap]) => {
+    accIngLog = ingSnap.val() || {};
+    accPkgLog = pkgSnap.val() || {};
+    accExpLog = expSnap.val() || {};
+    populateAccMonthSel();
+    renderAccounting();
+  });
+}
+
+function reloadAccounting(){
+  accLoaded = false;
+  accIngLog = null; accPkgLog = null; accExpLog = {};
+  loadAccounting();
+}
+
+function populateAccMonthSel(){
+  const months = new Set();
+  orders.forEach(o => { const d=(o.ts||'').slice(0,7); if(d) months.add(d); });
+  [...Object.values(accIngLog||{}), ...Object.values(accPkgLog||{}), ...Object.values(accExpLog||{})].forEach(r => {
+    const d=(r.ts||r.date||'').slice(0,7); if(d) months.add(d);
+  });
+  months.add(new Date().toISOString().slice(0,7));
+  const sorted = [...months].sort().reverse();
+  const sel = document.getElementById('acc-month-sel');
+  const cur = sel.value || sorted[0] || '';
+  sel.innerHTML = sorted.map(m => {
+    const [y,mo] = m.split('-');
+    return `<option value="${m}"${m===cur?' selected':''}>${y} 年 ${parseInt(mo)} 月</option>`;
+  }).join('');
+  if(!sel.value && sorted.length) sel.value = sorted[0];
+}
+
+function renderAccounting(){
+  const month = document.getElementById('acc-month-sel').value;
+  if(!month || !accIngLog) return;
+
+  // ── 收入（已確認/已出貨訂單，用下單時間 ts 歸月）
+  const revOrders = orders.filter(o => {
+    const m = (o.ts||'').slice(0,7);
+    return m === month && (o.status==='paid' || o.status==='shipped');
+  });
+  const revenue = revOrders.reduce((a,o) => a+(o.total||0), 0);
+
+  // ── 食材費
+  const ingEntries = Object.entries(accIngLog)
+    .map(([k,r]) => ({...r, _key:k}))
+    .filter(r => (r.ts||'').slice(0,7)===month && (r.totalCost||0)>0);
+  const ingCost = ingEntries.reduce((a,r) => a+(r.totalCost||0), 0);
+
+  // ── 包材費
+  const pkgEntries = Object.entries(accPkgLog)
+    .map(([k,r]) => ({...r, _key:k}))
+    .filter(r => (r.ts||'').slice(0,7)===month && (r.cost||0)>0);
+  const pkgCost = pkgEntries.reduce((a,r) => a+(r.cost||0), 0);
+
+  // ── 其他支出
+  const expEntries = Object.entries(accExpLog)
+    .map(([k,r]) => ({...r, _key:k}))
+    .filter(r => (r.date||'').slice(0,7)===month);
+  const expCost = expEntries.reduce((a,r) => a+(r.amount||0), 0);
+
+  const totalCost = ingCost + pkgCost + expCost;
+  const profit = revenue - totalCost;
+
+  // ── 總覽卡片
+  const card = (label, amt, color) => `
+    <div style="background:var(--paper-dark);border-radius:4px;padding:16px 18px">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);margin-bottom:6px">${label}</div>
+      <div style="font-size:20px;font-weight:600;color:${color}">NT$ ${amt.toLocaleString()}</div>
+    </div>`;
+  document.getElementById('acc-summary').innerHTML =
+    card('訂單收入', revenue, 'var(--matcha)') +
+    card('食材費', ingCost, 'var(--caramel)') +
+    card('包材費', pkgCost, 'var(--caramel)') +
+    card('其他支出', expCost, 'var(--caramel)') +
+    card('淨利', profit, profit >= 0 ? 'var(--matcha)' : 'var(--red)');
+
+  // ── 收入明細
+  const thStyle = 'padding:6px 10px;text-align:left;color:var(--ink-soft);font-weight:400';
+  const thR = 'padding:6px 10px;text-align:right;color:var(--ink-soft);font-weight:400';
+  const tdStyle = 'padding:6px 10px';
+  const tdR = 'padding:6px 10px;text-align:right';
+  const tdSub = 'padding:6px 10px;color:var(--ink-soft)';
+  document.getElementById('acc-revenue-detail').innerHTML = !revOrders.length
+    ? `<div style="font-size:12px;color:var(--ink-soft)">本月無已確認訂單</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">收貨日期</th><th style="${thStyle}">姓名</th>
+          <th style="${thStyle}">品項</th><th style="${thR}">金額</th>
+        </tr></thead>
+        <tbody>
+          ${[...revOrders].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(o=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${o.date||'—'}</td>
+              <td style="${tdStyle};font-weight:500">${o.name}</td>
+              <td style="${tdStyle}">${fhtml(o)}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(o.total||0).toLocaleString()}</td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--matcha)">NT$ ${revenue.toLocaleString()}</td>
+          </tr>
+        </tbody></table>`;
+
+  // ── 食材費明細
+  document.getElementById('acc-ing-detail').innerHTML = !ingEntries.length
+    ? `<div style="font-size:12px;color:var(--ink-soft)">本月無食材補貨記錄（或未填金額）</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">日期</th><th style="${thStyle}">食材</th>
+          <th style="${thR}">數量</th><th style="${thR}">金額</th>
+        </tr></thead>
+        <tbody>
+          ${[...ingEntries].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).map(r=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${(r.ts||'').slice(0,10)}</td>
+              <td style="${tdStyle};font-weight:500">${r.ingName||r.name||'—'}</td>
+              <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.totalCost||0).toLocaleString()}</td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${ingCost.toLocaleString()}</td>
+          </tr>
+        </tbody></table>`;
+
+  // ── 包材費明細
+  document.getElementById('acc-pkg-detail').innerHTML = !pkgEntries.length
+    ? `<div style="font-size:12px;color:var(--ink-soft)">本月無包材補貨記錄（或未填金額）</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">日期</th><th style="${thStyle}">包材</th>
+          <th style="${thR}">數量</th><th style="${thR}">金額</th>
+        </tr></thead>
+        <tbody>
+          ${[...pkgEntries].sort((a,b)=>(a.ts||'').localeCompare(b.ts||'')).map(r=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${(r.ts||'').slice(0,10)}</td>
+              <td style="${tdStyle};font-weight:500">${r.name||'—'}</td>
+              <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.cost||0).toLocaleString()}</td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${pkgCost.toLocaleString()}</td>
+          </tr>
+        </tbody></table>`;
+
+  // ── 其他支出明細
+  const sorted = [...expEntries].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const listHtml = !sorted.length
+    ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:10px">本月無其他支出</div>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:12px">
+        <thead><tr style="border-bottom:2px solid var(--rule)">
+          <th style="${thStyle}">日期</th><th style="${thStyle}">類別</th>
+          <th style="${thStyle}">說明</th><th style="${thR}">金額</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map(r=>`
+            <tr style="border-bottom:1px solid var(--rule)">
+              <td style="${tdSub}">${r.date||'—'}</td>
+              <td style="${tdStyle};font-weight:500">${r.category||'其他'}</td>
+              <td style="${tdStyle}">${r.note||'—'}</td>
+              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.amount||0).toLocaleString()}</td>
+              <td style="padding:4px 8px;text-align:right"><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
+            </tr>`).join('')}
+          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
+            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${expCost.toLocaleString()}</td>
+            <td></td>
+          </tr>
+        </tbody></table>`;
+
+  document.getElementById('acc-expense-detail').innerHTML = `
+    <div style="background:var(--paper-dark);border-radius:4px;padding:14px 16px;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px">新增其他支出</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">日期</label>
+          <input class="form-ctrl" id="acc-exp-date" type="date" value="${month+'-01'}" style="width:130px">
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">類別</label>
+          <select class="form-ctrl" id="acc-exp-cat" style="width:90px">
+            <option>運費</option><option>其他</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">說明</label>
+          <input class="form-ctrl" id="acc-exp-note" placeholder="例：3/10 黑貓宅配費">
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">金額（NT$）</label>
+          <input class="form-ctrl" id="acc-exp-amt" type="number" min="0" placeholder="0" style="width:90px">
+        </div>
+        <button onclick="addAccExpense()" style="padding:8px 16px;background:var(--caramel);color:#fff;border:none;border-radius:2px;cursor:pointer;font-family:'Noto Serif TC',serif;font-size:12px;white-space:nowrap">新增</button>
+      </div>
+    </div>
+    ${listHtml}`;
+}
+
+function addAccExpense(){
+  const date     = document.getElementById('acc-exp-date').value;
+  const category = document.getElementById('acc-exp-cat').value;
+  const note     = document.getElementById('acc-exp-note').value.trim();
+  const amount   = +document.getElementById('acc-exp-amt').value || 0;
+  if(!date){ showToast('請填寫日期'); return; }
+  if(!amount){ showToast('請填寫金額'); return; }
+  const key = Date.now();
+  const record = { date, category, note, amount, ts: new Date().toISOString() };
+  accExpLog[key] = record;
+  db.ref('settings/expenseLog/'+key).set(record).then(() => {
+    showToast('✅ 支出已新增');
+    populateAccMonthSel();
+    renderAccounting();
+  });
+}
+
+function deleteAccExpense(key){
+  if(!confirm('確定刪除此筆支出？')) return;
+  delete accExpLog[key];
+  db.ref('settings/expenseLog/'+key).remove().then(() => {
+    showToast('🗑 已刪除');
+    renderAccounting();
+  });
 }
 
 // ── 文章管理 ──
