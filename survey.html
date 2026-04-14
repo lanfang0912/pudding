@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Noto+Serif+TC:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <style>
 :root{
   --ink:#1a1208; --ink-mid:#4a3820; --ink-soft:#8a7060;
@@ -229,6 +230,8 @@ firebase.initializeApp({
   projectId: 'whitedessert',
 });
 const db = firebase.database();
+// 匿名登入，讓訪客可以寫入問卷
+firebase.auth().signInAnonymously().catch(() => {});
 
 // Scale state
 const scaleVals = { flavor: 0, packaging: 0 };
