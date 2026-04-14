@@ -1,5 +1,7 @@
 node_modules/
 functions/node_modules/
+package.json
+package-lock.json
 
 # wrangler files
 .wrangler

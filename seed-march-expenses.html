@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>匯入三月支出</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+body{font-family:sans-serif;max-width:600px;margin:60px auto;padding:0 24px;background:#faf7f2;}
+h2{font-size:18px;margin-bottom:24px;}
+.card{background:#fff;border:1px solid #ddd;border-radius:6px;padding:20px;margin-bottom:16px;}
+.btn{display:block;width:100%;padding:14px;background:#c4832a;color:#fff;border:none;border-radius:4px;font-size:15px;cursor:pointer;margin-top:16px;}
+.btn:disabled{background:#aaa;cursor:not-allowed;}
+.log{font-size:13px;color:#555;line-height:1.8;margin-top:12px;white-space:pre-wrap;}
+.ok{color:#2e7d32;} .err{color:#c62828;}
+</style>
+</head>
+<body>
+<h2>📦 White Dessert — 三月支出資料匯入</h2>
+
+<div class="card">
+  <div id="auth-status" class="log">🔄 確認登入狀態中…</div>
+</div>
+
+<div class="card">
+  <b>將要寫入的資料：</b>
+  <div class="log">
+① 運費（統一速達）15 筆 → expenseLog
+② 鮮奶補貨 2 筆 → restockLog
+③ 動物鮮奶油補貨 3 筆 → restockLog
+④ 蛋液補貨 2 筆 → restockLog
+⑤ 洗選蛋補貨 1 筆 → restockLog
+⑥ 馬芬盒補貨 1 筆 → pkgRestockLog
+⑦ 大紙箱補貨 1 筆 → pkgRestockLog
+  </div>
+  <button class="btn" id="run-btn" disabled onclick="runImport()">▶ 開始匯入</button>
+</div>
+
+<div class="card" id="result-card" style="display:none">
+  <b>執行結果：</b>
+  <div id="result-log" class="log"></div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
+  authDomain: 'whitedessert.firebaseapp.com',
+  databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'whitedessert',
+});
+const db = firebase.database();
+const auth = firebase.auth();
+
+auth.onAuthStateChanged(user => {
+  const el = document.getElementById('auth-status');
+  if(user){
+    el.innerHTML = '<span class="ok">✅ 已登入：' + (user.email||user.displayName||user.uid) + '</span>';
+    document.getElementById('run-btn').disabled = false;
+  } else {
+    el.innerHTML = '<span class="err">❌ 未登入。請先開啟後台管理頁登入後，再回到此頁執行。</span>';
+  }
+});
+
+function log(msg, cls=''){
+  const el = document.getElementById('result-log');
+  el.innerHTML += '<span class="'+(cls||'')+'">' + msg + '</span>\n';
+  document.getElementById('result-card').style.display = 'block';
+}
+
+async function runImport(){
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').textContent = '匯入中…';
+
+  const base = Date.now();
+  const updates = {};
+
+  // ① 運費 15筆
+  const shipEntries = [
+    { date:'2026-03-09', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-10', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-10', category:'運費', note:'統一速達 本島60cm冷藏', amount:320 },
+    { date:'2026-03-10', category:'運費', note:'統一速達 本島60cm冷藏', amount:480 },
+    { date:'2026-03-11', category:'運費', note:'統一速達 本島60cm冷藏', amount:320 },
+    { date:'2026-03-12', category:'運費', note:'統一速達 本島60cm冷藏', amount:480 },
+    { date:'2026-03-13', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-16', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-17', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-18', category:'運費', note:'統一速達 本島60cm冷藏', amount:320 },
+    { date:'2026-03-19', category:'運費', note:'統一速達 本島60cm冷藏', amount:320 },
+    { date:'2026-03-25', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-26', category:'運費', note:'統一速達 本島60cm冷藏', amount:320 },
+    { date:'2026-03-27', category:'運費', note:'統一速達 本島60cm冷藏', amount:160 },
+    { date:'2026-03-27', category:'運費', note:'統一速達 本島90cm冷藏', amount:225 },
+  ];
+  shipEntries.forEach((e,i) => {
+    updates['settings/expenseLog/'+(base+i)] = {...e, ts: new Date(e.date+'T12:00:00+08:00').toISOString()};
+  });
+
+  // ② 鮮奶 2筆
+  [
+    { date:'2026-03-06', qty:1928, cost:498, note:'全家 宜蘭嵐峰 光泉鮮乳×2' },
+    { date:'2026-04-07', qty:1928, cost:498, note:'全家 宜蘭校舍 光泉鮮乳×2' },
+  ].forEach((r,i) => {
+    const ts = new Date(r.date+'T09:00:00+08:00').toISOString();
+    updates['settings/restockLog/'+(base+100+i)] = {ingId:'milk',ingName:'鮮奶',unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
+  });
+
+  // ③ 動物鮮奶油 3筆
+  [
+    { date:'2026-03-17', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
+    { date:'2026-03-26', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
+    { date:'2026-04-07', qty:5000, cost:1250, note:'德麥 動物鮮奶油×5' },
+  ].forEach((r,i) => {
+    const ts = new Date(r.date+'T09:00:00+08:00').toISOString();
+    updates['settings/restockLog/'+(base+200+i)] = {ingId:'cream',ingName:'動物鮮奶油',unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
+  });
+
+  // ④ 蛋液 2筆
+  [
+    { date:'2026-03-16', ingId:'egg_yolk', ingName:'殺菌蛋黃', qty:4850, cost:1190, note:'勤億殺菌蛋黃液 970g×5（蝦皮）' },
+    { date:'2026-03-16', ingId:'egg',      ingName:'洗選蛋',   qty:4850, cost:668,  note:'勤億殺菌全蛋液 970g×5（蝦皮）' },
+  ].forEach((r,i) => {
+    const ts = new Date(r.date+'T09:00:00+08:00').toISOString();
+    updates['settings/restockLog/'+(base+300+i)] = {ingId:r.ingId,ingName:r.ingName,unit:'g',qty:r.qty,totalCost:r.cost,unitCost:+(r.cost/r.qty).toFixed(4),note:r.note,ts,stockBefore:0,stockAfter:r.qty};
+  });
+
+  // ⑤ 洗選蛋 天成蛋舖
+  updates['settings/restockLog/'+(base+400)] = {
+    ingId:'egg', ingName:'洗選蛋', unit:'g', qty:1800, totalCost:180,
+    unitCost:+(180/1800).toFixed(4), note:'天成蛋舖 1件（30顆）',
+    ts: new Date('2026-03-14T09:00:00+08:00').toISOString(),
+    stockBefore:0, stockAfter:1800
+  };
+
+  // ⑥ 馬芬盒
+  updates['settings/pkgRestockLog/'+(base+500)] = {
+    pkgId:'box_muffin', name:'馬芬盒（面交）', unit:'個', qty:45, cost:343,
+    note:'蝦皮 45×$8',
+    ts: new Date('2026-03-06T09:00:00+08:00').toISOString(),
+    stockBefore:0, stockAfter:45
+  };
+
+  // ⑦ 大紙箱
+  updates['settings/pkgRestockLog/'+(base+600)] = {
+    pkgId:'box_large', name:'大紙箱（宅配）', unit:'個', qty:50, cost:200,
+    note:'菖承企業 50個',
+    ts: new Date('2026-03-10T09:00:00+08:00').toISOString(),
+    stockBefore:0, stockAfter:50
+  };
+
+  try {
+    await db.ref('/').update(updates);
+    log('✅ 運費 15 筆（expenseLog）', 'ok');
+    log('✅ 鮮奶 2 筆（restockLog）', 'ok');
+    log('✅ 動物鮮奶油 3 筆（restockLog）', 'ok');
+    log('✅ 蛋液 2 筆（restockLog）', 'ok');
+    log('✅ 洗選蛋 1 筆（restockLog）', 'ok');
+    log('✅ 馬芬盒 1 筆（pkgRestockLog）', 'ok');
+    log('✅ 大紙箱 1 筆（pkgRestockLog）', 'ok');
+    log('\n🎉 全部完成！請回到後台記帳分頁按「↻ 重新整理」', 'ok');
+    document.getElementById('run-btn').textContent = '✅ 完成';
+  } catch(err) {
+    log('❌ 失敗：' + err.message, 'err');
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('run-btn').textContent = '▶ 重試';
+  }
+}
+</script>
+</body>
+</html>
