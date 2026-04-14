@@ -3937,7 +3937,10 @@ function renderAccounting(){
               <td style="${tdStyle};font-weight:500">${r.ingName||r.name||'—'}</td>
               <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
               <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.totalCost||0).toLocaleString()}</td>
-              <td style="padding:4px 6px;text-align:center"><button onclick="deleteRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px 4px" title="刪除">✕</button></td>
+              <td style="padding:4px 6px;text-align:center;white-space:nowrap">
+                <button onclick="editRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:13px;padding:2px 4px" title="編輯">✎</button>
+                <button onclick="deleteRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px 4px" title="刪除">✕</button>
+              </td>
             </tr>`).join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
             <td colspan="4" style="${tdStyle};font-weight:600">合計</td>
@@ -3960,7 +3963,10 @@ function renderAccounting(){
               <td style="${tdStyle};font-weight:500">${r.name||'—'}</td>
               <td style="${tdR}">${r.qty||0} ${r.unit||''}</td>
               <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.cost||0).toLocaleString()}</td>
-              <td style="padding:4px 6px;text-align:center"><button onclick="deletePkgRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px 4px" title="刪除">✕</button></td>
+              <td style="padding:4px 6px;text-align:center;white-space:nowrap">
+                <button onclick="editPkgRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:13px;padding:2px 4px" title="編輯">✎</button>
+                <button onclick="deletePkgRestockEntry('${r._key}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px 4px" title="刪除">✕</button>
+              </td>
             </tr>`).join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
             <td colspan="4" style="${tdStyle};font-weight:600">合計</td>
@@ -3984,7 +3990,10 @@ function renderAccounting(){
               <td style="${tdStyle};font-weight:500">${r.category||'其他'}</td>
               <td style="${tdStyle}">${r.note||'—'}</td>
               <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.amount||0).toLocaleString()}</td>
-              <td style="padding:4px 8px;text-align:right"><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
+              <td style="padding:4px 8px;text-align:right;white-space:nowrap">
+                <button onclick="editAccExpense('${r._key}')" style="border:none;background:var(--paper-dark);color:var(--ink-soft);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;margin-right:4px">編輯</button>
+                <button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button>
+              </td>
             </tr>`).join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
             <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
@@ -4309,6 +4318,20 @@ async function importMarchData(){
   }
 }
 
+function editRestockEntry(key){
+  const r = accIngLog[key]; if(!r) return;
+  const newName = prompt('食材名稱', r.ingName||r.name||'');
+  if(newName === null) return;
+  const newCost = prompt('金額（NT$）', r.totalCost||0);
+  if(newCost === null) return;
+  const c = parseInt(newCost);
+  if(isNaN(c)||c<0){ alert('金額格式錯誤'); return; }
+  db.ref('settings/restockLog/'+key).update({ ingName: newName.trim(), totalCost: c }).then(() => {
+    accIngLog[key] = {...r, ingName: newName.trim(), totalCost: c};
+    showToast('✅ 已更新'); renderAccounting();
+  });
+}
+
 function deleteRestockEntry(key){
   if(!confirm('確定刪除此筆食材補貨記錄？')) return;
   delete accIngLog[key];
@@ -4318,12 +4341,40 @@ function deleteRestockEntry(key){
   });
 }
 
+function editPkgRestockEntry(key){
+  const r = accPkgLog[key]; if(!r) return;
+  const newName = prompt('包材名稱', r.name||'');
+  if(newName === null) return;
+  const newCost = prompt('金額（NT$）', r.cost||0);
+  if(newCost === null) return;
+  const c = parseInt(newCost);
+  if(isNaN(c)||c<0){ alert('金額格式錯誤'); return; }
+  db.ref('settings/pkgRestockLog/'+key).update({ name: newName.trim(), cost: c }).then(() => {
+    accPkgLog[key] = {...r, name: newName.trim(), cost: c};
+    showToast('✅ 已更新'); renderAccounting();
+  });
+}
+
 function deletePkgRestockEntry(key){
   if(!confirm('確定刪除此筆包材補貨記錄？')) return;
   delete accPkgLog[key];
   db.ref('settings/pkgRestockLog/'+key).remove().then(() => {
     showToast('🗑 已刪除');
     renderAccounting();
+  });
+}
+
+function editAccExpense(key){
+  const r = accExpLog[key]; if(!r) return;
+  const newNote = prompt('說明', r.note||'');
+  if(newNote === null) return;
+  const newAmt = prompt('金額（NT$）', r.amount||0);
+  if(newAmt === null) return;
+  const a = parseInt(newAmt);
+  if(isNaN(a)||a<0){ alert('金額格式錯誤'); return; }
+  db.ref('settings/expenseLog/'+key).update({ note: newNote.trim(), amount: a }).then(() => {
+    accExpLog[key] = {...r, note: newNote.trim(), amount: a};
+    showToast('✅ 已更新'); renderAccounting();
   });
 }
 
@@ -4345,7 +4396,7 @@ const STYLE_LABELS  = { rich:'濃郁系', fruity:'清爽果香', tea:'茶香系�
 function loadSurvey(){
   document.getElementById('survey-stats').innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">載入中…</div>';
   document.getElementById('survey-list').innerHTML = '';
-  db.ref('surveys/responses').once('value').then(snap => {
+  db.ref('settings/surveyResponses').once('value').then(snap => {
     const raw = snap.val() || {};
     const responses = Object.entries(raw)
       .map(([k,v]) => ({...v, _key:k}))
@@ -4424,7 +4475,7 @@ function renderSurveyList(responses){
 
 function deleteSurveyResponse(key){
   if(!confirm('確定刪除此筆回覆？')) return;
-  db.ref('surveys/responses/'+key).remove().then(() => {
+  db.ref('settings/surveyResponses/'+key).remove().then(() => {
     showToast('🗑 已刪除');
     loadSurvey();
   });

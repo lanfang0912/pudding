@@ -292,7 +292,7 @@ async function submitSurvey(e){
   data.message = document.getElementById('q-message').value.trim();
 
   try {
-    await db.ref('surveys/responses/' + Date.now()).set(data);
+    await db.ref('settings/surveyResponses/' + Date.now()).set(data);
     document.getElementById('survey-form').style.display = 'none';
     document.getElementById('thankyou').style.display = 'block';
     window.scrollTo({top:0, behavior:'smooth'});

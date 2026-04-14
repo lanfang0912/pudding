@@ -64,7 +64,18 @@ export default {
     const path = url.pathname.replace(/^\//, '');
 
     if (path === 'getPDF') {
-      const { fileNo } = await request.json();
+      let fileNo;
+      if (request.method === 'GET') {
+        fileNo = url.searchParams.get('fileNo');
+      } else {
+        const body = await request.json();
+        fileNo = body.fileNo;
+      }
+      if (!fileNo) {
+        return new Response(JSON.stringify({ error: '缺少 fileNo' }), {
+          status: 400, headers: { ...CORS, 'Content-Type': 'application/json' }
+        });
+      }
       const result = await tryGetPDF(fileNo);
       if (result.ok) {
         const blob = await result.res.arrayBuffer();
@@ -95,7 +106,9 @@ export default {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await r.json();
+      const text = await r.text();
+      let json;
+      try { json = JSON.parse(text); } catch(_) { json = { IsOK: 'N', Message: text.slice(0, 300) }; }
       return new Response(JSON.stringify(json), {
         headers: { ...CORS, 'Content-Type': 'application/json' }
       });
