@@ -1139,7 +1139,7 @@ function startFirebaseListener(){
     orders = [];
     snap.forEach(child => { orders.push(child.val()); });
     orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
-    renderStats(); renderTable(); renderDaily(); renderSchedule();
+    renderStats(); renderTable(); renderDaily(); renderSchedule(); renderIngAll();
     autoSyncToGCal();
   });
   db.ref('settings/packaging').on('value', snap => {
@@ -1783,7 +1783,7 @@ function renderIngAlerts(){
   const today = new Date(); today.setHours(0,0,0,0);
   const warnUntil = new Date(today); warnUntil.setDate(today.getDate()+7);
 
-  const pending = orders.filter(o => o.status!=='shipped' && o.status!=='cancelled' && o.date);
+  const pending = orders.filter(o => o.status!=='shipped' && o.status!=='cancelled' && o.date && !o.made);
 
   // 從「已完成製作至」的隔天開始算，沒設定則從今天
   const startDate = new Date(completedUntil || today);
