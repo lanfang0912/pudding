@@ -1147,7 +1147,7 @@ footer {
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <div class="delivery-opt selected" id="opt-delivery" onclick="setDelivery('delivery')">
             <div class="delivery-opt-icon">🚚</div>
-            <div class="delivery-opt-title">宅配到府</div>
+            <div class="delivery-opt-title">黑貓冷藏宅配</div>
             <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>週二至週六收送（週日、一不到貨）</div>
           </div>
           <div class="delivery-opt" id="opt-pickup" onclick="setDelivery('pickup')">
@@ -1158,7 +1158,22 @@ footer {
         </div>
       </div>
 
-      <button class="btn-primary" onclick="goTo(2)">下一步：選擇收貨日期 →</button>
+      <div style="margin-top:16px;">
+        <div class="sec-label" style="margin-bottom:10px;">加購保冷袋（選填）</div>
+        <div style="border:1.5px solid var(--rule);border-radius:4px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink)">🧊 保冷袋</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">NT$20 / 個・一個可裝 2〜3 盒</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button type="button" class="qty-btn" onclick="chgBag(-1)">−</button>
+            <span id="bag-qty" style="min-width:20px;text-align:center;font-size:15px;font-weight:600">0</span>
+            <button type="button" class="qty-btn" onclick="chgBag(1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="goTo(2)" style="margin-top:20px;">下一步：選擇收貨日期 →</button>
     </div>
 
     <!-- PAGE 2 -->
@@ -1220,20 +1235,6 @@ footer {
         <div class="form-field full">
           <label class="form-label">備註 / 特殊需求</label>
           <textarea class="form-textarea" id="f-note" placeholder="如需禮盒包裝、指定配送時段等，請在此說明..."></textarea>
-        </div>
-        <div class="form-field full">
-          <label class="form-label">加購保冷袋（選填）</label>
-          <div style="border:1.5px solid var(--rule);border-radius:4px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--ink)">保冷袋</div>
-              <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">NT$20 / 個・一個可裝 2〜3 盒</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;">
-              <button type="button" class="qty-btn" onclick="chgBag(-1)">−</button>
-              <span id="bag-qty" style="min-width:20px;text-align:center;font-size:15px;font-weight:600">0</span>
-              <button type="button" class="qty-btn" onclick="chgBag(1)">+</button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1664,7 +1665,7 @@ function updateComboCard(){
   const price = qty * 380;
   document.getElementById('combo-qv').textContent = qty;
   document.getElementById('combo-info').textContent =
-    `共 ${qty*6} 杯・NT$${price.toLocaleString()}（宅配 +NT$${qty>=3?0:160}）`;
+    `共 ${qty*6} 杯・NT$${price.toLocaleString()}（冷藏宅配 +NT$${qty>=3?0:160}）`;
 }
 
 function toggleFlavor(id){
@@ -1840,11 +1841,11 @@ function renderSummary(){
     rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🤝 宜蘭面交（凱旋國小）</span></div>`;
     rows+=`<div class="summary-row"><span class="summary-row-label">運費</span><span class="summary-row-value" style="color:var(--matcha)">免運 🎉</span></div>`;
   } else if(ship>0){
-    rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🚚 宅配到府</span></div>`;
+    rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🚚 黑貓冷藏宅配</span></div>`;
     rows+=`<div class="summary-row"><span class="summary-row-label">運費</span><span class="summary-row-value">NT$ ${ship}</span></div>`;
     total+=ship;
   } else {
-    rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🚚 宅配到府</span></div>`;
+    rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🚚 黑貓冷藏宅配</span></div>`;
     rows+=`<div class="summary-row"><span class="summary-row-label">運費</span><span class="summary-row-value" style="color:var(--matcha)">免運 🎉</span></div>`;
   }
 
@@ -1923,7 +1924,7 @@ function submitOrder(){
     customer_email: order.email,
     customer_phone: order.phone,
     delivery_date:  fmtDisplay(order.date),
-    delivery_mode:  isPickup ? '宜蘭面交（凱旋國小）' : '宅配到府',
+    delivery_mode:  isPickup ? '宜蘭面交（凱旋國小）' : '黑貓冷藏宅配',
     address:        isPickup ? '宜蘭凱旋國小' : order.address,
     flavor_lines:   flavorLines,
     shipping_fee:   ship > 0 ? `NT$${ship}` : '免運',
@@ -1978,7 +1979,7 @@ function submitOrder(){
 
   // LINE 訂購確認通知
   if(lineUserId){
-    const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${isPickup?'宜蘭面交':'宅配到府'}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
+    const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${isPickup?'宜蘭面交':'黑貓冷藏宅配'}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
     fetch('https://tcat-proxy.lanfang-hsu.workers.dev/sendLine', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
