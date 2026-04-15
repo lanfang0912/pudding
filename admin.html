@@ -1146,10 +1146,24 @@ function startFirebaseListener(){
     if(snap.val()){ pkgData = snap.val(); renderPkgAll(); }
   });
   db.ref('settings/ingredients').on('value', snap => {
-    if(snap.val()){ ingData = snap.val(); renderIngAll(); }
+    if(snap.val()){
+      ingData = snap.val();
+    } else {
+      const defaults = {};
+      DEFAULT_INGREDIENTS.forEach(i => { defaults[i.id] = {...i}; delete defaults[i.id].id; });
+      ingData = defaults;
+      db.ref('settings/ingredients').set(defaults);
+    }
+    renderIngAll();
   });
   db.ref('settings/recipe').on('value', snap => {
-    if(snap.val()){ recipeData = snap.val(); renderIngAll(); renderSchedule(); }
+    if(snap.val()){
+      recipeData = snap.val();
+    } else {
+      recipeData = DEFAULT_RECIPE;
+      db.ref('settings/recipe').set(DEFAULT_RECIPE);
+    }
+    renderIngAll(); renderSchedule();
   });
   db.ref('settings/completedUntil').on('value', snap => {
     completedUntil = snap.val() || '';
@@ -2739,6 +2753,10 @@ function calcShippingPkg(o){
 function toggleMade(id, currentDone){
   const o = orders.find(x => x.id === id);
   if(!o) return;
+  if(!Object.keys(ingData).length || !Object.keys(recipeData).length){
+    showToast('⚠️ 食材/配方資料尚未載入，請先開啟「食材庫存」頁讓系統初始化');
+    return;
+  }
   const newDone = !currentDone;
   const ingUse = calcOrderIngredients(o);
   const pkgUse = calcProductionPkg(o);
