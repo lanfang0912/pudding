@@ -242,6 +242,29 @@ export default {
       }
     }
 
+    // ── 電子發票：下載 PDF ──
+    if (path === 'invoiceFile') {
+      const { invoiceNo, orderId } = await request.json();
+      const dataObj = invoiceNo
+        ? { type: 'invoice', invoice_number: invoiceNo }
+        : { type: 'order',   order_id: orderId };
+      try {
+        const r = await fetch(`${AMEGO.base}/json/invoice_file`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: buildAmegoBody(dataObj),
+        });
+        const ct = r.headers.get('content-type') || '';
+        if (ct.includes('pdf')) {
+          const buf = await r.arrayBuffer();
+          return new Response(buf, { headers: { ...CORS, 'Content-Type': 'application/pdf' } });
+        }
+        return json(await r.json());
+      } catch(e) {
+        return json({ success: false, message: e.message });
+      }
+    }
+
     return new Response('Not found', { status: 404, headers: CORS });
   }
 };
