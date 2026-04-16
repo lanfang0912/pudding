@@ -4654,7 +4654,9 @@ function openInvoiceModal(id) {
                    ? o.invCarrier
                    : (o.email ? 'email' : '');
   overlay.querySelector('#inv-carrier-type').value = invCarrier;
-  overlay.querySelector('#inv-carrier-num').value  = o.invNum || '';
+  // 只有手機條碼(3J0002)和自然人憑證(CQ0001)才需要載具號碼；其他類型清空殘留值
+  const needsCarrierNum = (invCarrier === '3J0002' || invCarrier === 'CQ0001');
+  overlay.querySelector('#inv-carrier-num').value  = needsCarrierNum ? (o.invNum || '') : '';
   overlay.querySelector('#inv-npo-id').value       = o.invNpo || '';
   _updateInvCarrierUI(overlay);
   overlay.classList.add('open');
@@ -4733,9 +4735,11 @@ async function submitInvoice() {
 
   btn.disabled = true; btn.textContent = '開立中…';
   try {
-    // 雲端寄送：CarrierType=''，BuyerEmailAddress 傳 email，amego 自動寄送
+    // 光貿加值中心載具：email 型態 CarrierType 留空，但 CarrierId1/2 填入 email
+    // 讓 amego 把發票存入該 email 的會員載具，客戶可直接線上歸戶，無需事先註冊
     const realCarrierType = (carrierType === 'donation' || carrierType === 'email') ? '' : carrierType;
-    const realCarrierNum  = realCarrierType ? carrierNum : '';
+    const realCarrierNum  = carrierType === 'email' ? buyerEmail :
+                            (realCarrierType         ? carrierNum : '');
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4754,10 +4758,22 @@ async function submitInvoice() {
     // amego 回傳：{ code: 1, data: { e: "發票號碼", ... } }
     const ok = json.code === 1 || json.success === true || json.RtnCode === 1;
     if (ok) {
-      const invoiceNo          = (json.data && (json.data.e || json.data.invoice_no)) || json.InvoiceNo || json.invoiceNo || '';
-      const invoiceDate        = (json.data && json.data.invoice_date) || json.InvoiceDate || new Date().toISOString().slice(0,10);
+      const invoiceNo          = (json.data && (json.data.e || json.data.invoice_no || json.data.InvoiceNo || json.data.invoiceNo || json.data.invoice_number)) || json.InvoiceNo || json.invoiceNo || '';
+      const invoiceDate        = (json.data && (json.data.invoice_date || json.data.InvoiceDate)) || json.InvoiceDate || new Date().toISOString().slice(0,10);
       const invoiceUrl         = (json.data && json.data.url) || '';
       const invoiceCarrierType = carrierType;
+      if (!invoiceNo) {
+        // 發票已在 amego 開立成功，但系統無法從回傳中取得發票號碼
+        const manualNo = prompt('發票已開立成功，但系統無法取得發票號碼。\n請至 amego 後台查詢後輸入發票號碼：');
+        if (manualNo && manualNo.trim()) {
+          await db.ref('orders/' + o.id).update({ invoiceNo: manualNo.trim(), invoiceDate, invoiceUrl, invoiceCarrierType });
+          closeInvoiceModal();
+          showToast(`🧾 發票號碼已記錄：${manualNo.trim()}`);
+        } else {
+          showToast('⚠️ 發票已在 amego 開立，請至後台查詢號碼後再點「開發票」→ 系統會提示手動輸入');
+        }
+        return;
+      }
       await db.ref('orders/' + o.id).update({ invoiceNo, invoiceDate, invoiceUrl, invoiceCarrierType });
       closeInvoiceModal();
       showToast(`🧾 發票開立成功：${invoiceNo}`);
