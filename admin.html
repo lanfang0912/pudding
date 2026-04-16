@@ -79,6 +79,10 @@ tr.done-row td{opacity:.45;}
 .act-btn.reset:hover{border-color:var(--red);color:var(--red);}
 .act-btn.del{border-color:transparent;color:#ccc;}
 .act-btn.del:hover{border-color:var(--red);color:var(--red);background:rgba(180,60,60,.07);}
+.act-btn.inv{border-color:#7b5ea7;color:#7b5ea7;}
+.act-btn.inv:hover{background:#7b5ea7;color:white;}
+.inv-issued{display:inline-block;padding:2px 7px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.1);color:#7b5ea7;letter-spacing:.5px;white-space:nowrap;cursor:pointer;}
+.inv-issued:hover{background:rgba(123,94,167,.2);}
 /* daily */
 .day-section{padding:20px 28px 0;}
 .day-header{display:flex;align-items:center;gap:14px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--rule);}
@@ -917,6 +921,15 @@ const schedule=[
   {date:'3/29 (六)',label:'面交',tags:['meet'],orig:0,matcha:0,cocoa:0,furnace:'—',
    meet:[{name:'方虹云',time:'15:00',place:'凱旋國小',warn:'⚠️ 帶餐具'},{name:'潘倩玉',time:'待定',place:'凱旋國小',warn:'或3/31(二)'}],ship:[]},
 ];
+
+// ── 光貿電子發票 ──
+const GUANGMAO = {
+  // Cloudflare Worker proxy（已在線上，不需額外部署）
+  issueUrl: 'https://tcat-proxy.lanfang-hsu.workers.dev/issueInvoice',
+  voidUrl:  'https://tcat-proxy.lanfang-hsu.workers.dev/voidInvoice',
+  // 品項單價
+  prices: { original: 360, matcha: 390, cocoa: 390 },
+};
 
 // ── 黑貓 API ──
 const TCAT = {
@@ -2663,6 +2676,9 @@ function renderTable(){
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
           <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
+          ${o.invoiceNo
+            ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
+            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button>` : '')}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div>
       </div>`;
@@ -2695,6 +2711,9 @@ function renderTable(){
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
           <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
+          ${o.invoiceNo
+            ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
+            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button>` : '')}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div></td>
       </tr>`;
@@ -4599,6 +4618,217 @@ async function deleteArticle() {
 }
 
 function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ═══════════════════════════════════════
+// 🧾 光貿電子發票
+// ═══════════════════════════════════════
+
+let _invOrderId = null;
+
+function openInvoiceModal(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  _invOrderId = id;
+
+  // 組品項預覽
+  const lines = [];
+  if (o.orig  > 0) lines.push(`原味布丁 ×${o.orig}`);
+  if (o.matcha> 0) lines.push(`抹茶布丁 ×${o.matcha}`);
+  if (o.cocoa > 0) lines.push(`可可布丁 ×${o.cocoa}`);
+  const itemsPreview = lines.join('、') || '—';
+
+  const overlay = document.getElementById('invoice-modal-overlay');
+  overlay.querySelector('#inv-order-summary').textContent =
+    `${o.name}｜${itemsPreview}｜NT$${o.total.toLocaleString()}`;
+  overlay.querySelector('#inv-buyer-name').value  = o.name  || '';
+  overlay.querySelector('#inv-buyer-email').value = o.email || '';
+  overlay.querySelector('#inv-buyer-phone').value = (o.phone !== '未填') ? o.phone : '';
+  overlay.querySelector('#inv-carrier-type').value = '';
+  overlay.querySelector('#inv-carrier-num').value  = '';
+  overlay.querySelector('#inv-npo-id').value       = '';
+  _updateInvCarrierUI(overlay);
+  overlay.classList.add('open');
+}
+
+function _updateInvCarrierUI(overlay) {
+  const type = overlay.querySelector('#inv-carrier-type').value;
+  overlay.querySelector('#inv-carrier-num-row').style.display =
+    (type === '3J0002' || type === 'CQ0001') ? '' : 'none';
+  overlay.querySelector('#inv-npo-row').style.display =
+    type === 'donation' ? '' : 'none';
+}
+
+function closeInvoiceModal() {
+  document.getElementById('invoice-modal-overlay').classList.remove('open');
+  _invOrderId = null;
+}
+
+async function submitInvoice() {
+  const o = orders.find(x => x.id === _invOrderId);
+  if (!o) return;
+
+  const overlay  = document.getElementById('invoice-modal-overlay');
+  const btn      = overlay.querySelector('#inv-submit-btn');
+  const buyerName  = overlay.querySelector('#inv-buyer-name').value.trim();
+  const buyerEmail = overlay.querySelector('#inv-buyer-email').value.trim();
+  const buyerPhone = overlay.querySelector('#inv-buyer-phone').value.trim();
+  const carrierType = overlay.querySelector('#inv-carrier-type').value;
+  const carrierNum  = overlay.querySelector('#inv-carrier-num').value.trim();
+  const npoId       = overlay.querySelector('#inv-npo-id').value.trim();
+
+  // 載具格式驗證
+  if (carrierType === '3J0002' && !/^\/[0-9A-Z+\-.]{7}$/.test(carrierNum)) {
+    showToast('⚠️ 手機條碼格式錯誤（應為 /XXXXXXX）'); return;
+  }
+  if (carrierType === 'CQ0001' && !/^[A-Z]{2}[0-9]{14}$/.test(carrierNum)) {
+    showToast('⚠️ 自然人憑證格式錯誤（2碼英文 + 14碼數字）'); return;
+  }
+  if (carrierType === 'donation' && !/^\d{3,7}$/.test(npoId)) {
+    showToast('⚠️ 愛心碼格式錯誤（3~7位數字）'); return;
+  }
+
+  // 組品項
+  const items = [];
+  if (o.orig  > 0) items.push({ name:'原味布丁', count:o.orig,   unit:'盒', price:GUANGMAO.prices.original, amount:GUANGMAO.prices.original * o.orig });
+  if (o.matcha> 0) items.push({ name:'抹茶布丁', count:o.matcha, unit:'盒', price:GUANGMAO.prices.matcha,   amount:GUANGMAO.prices.matcha   * o.matcha });
+  if (o.cocoa > 0) items.push({ name:'可可布丁', count:o.cocoa,  unit:'盒', price:GUANGMAO.prices.cocoa,    amount:GUANGMAO.prices.cocoa    * o.cocoa });
+  if (!items.length) items.push({ name:'手工布丁', count:1, unit:'份', price:o.total, amount:o.total });
+
+  // 若品項合計與訂單金額有差（如運費），加一筆補差額
+  const itemsTotal = items.reduce((s, i) => s + i.amount, 0);
+  if (itemsTotal !== o.total) {
+    const diff = o.total - itemsTotal;
+    items.push({ name:'運費', count:1, unit:'次', price:diff, amount:diff });
+  }
+
+  btn.disabled = true; btn.textContent = '開立中…';
+  try {
+    const realCarrierType = carrierType === 'donation' ? '' : carrierType;
+    const r = await fetch(GUANGMAO.issueUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: o.id,
+        buyerName, buyerEmail, buyerPhone,
+        carrierType: realCarrierType,
+        carrierNum: realCarrierType ? carrierNum : '',
+        npoId: carrierType === 'donation' ? npoId : '',
+        items,
+        totalAmount: o.total,
+      }),
+    });
+    const json = await r.json();
+
+    // amego 回傳：{ success: true, data: { invoice_no, invoice_date, ... } }
+    const ok = json.success === true || json.RtnCode === 1;
+    if (ok) {
+      const invoiceNo   = (json.data && json.data.invoice_no)   || json.InvoiceNo   || json.invoiceNo   || '';
+      const invoiceDate = (json.data && json.data.invoice_date) || json.InvoiceDate || new Date().toISOString().slice(0,10);
+      await db.ref('orders/' + o.id).update({ invoiceNo, invoiceDate });
+      closeInvoiceModal();
+      showToast(`🧾 發票開立成功：${invoiceNo}`);
+    } else {
+      showToast('❌ 開立失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
+    }
+  } catch (e) {
+    showToast('❌ 開立失敗：' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '確認開立';
+  }
+}
+
+function showInvoiceInfo(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o || !o.invoiceNo) return;
+  const date = o.invoiceDate || '';
+  if (confirm(`發票號碼：${o.invoiceNo}\n開立日期：${date}\n\n點「確定」可作廢此發票`)) {
+    voidInvoice(id);
+  }
+}
+
+async function voidInvoice(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o || !o.invoiceNo) return;
+  const reason = prompt('作廢原因：', '訂單取消');
+  if (reason === null) return;
+  showToast('⏳ 作廢中…');
+  try {
+    const r = await fetch(GUANGMAO.voidUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoiceNo: o.invoiceNo, invoiceDate: o.invoiceDate, reason }),
+    });
+    const json = await r.json();
+    const ok = json.success === true || json.RtnCode === 1;
+    if (ok) {
+      await db.ref('orders/' + id).update({ invoiceNo: null, invoiceDate: null });
+      showToast('🧾 發票已作廢');
+    } else {
+      showToast('❌ 作廢失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
+    }
+  } catch (e) {
+    showToast('❌ 作廢失敗：' + e.message);
+  }
+}
 </script>
+
+<!-- 光貿電子發票 Modal -->
+<div id="invoice-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeInvoiceModal()">
+  <div class="modal" style="width:480px">
+    <div class="modal-hdr">
+      <span class="modal-title">🧾 開立電子發票</span>
+      <button class="modal-close" onclick="closeInvoiceModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px;padding:10px 12px;background:var(--paper-dark);border-radius:3px" id="inv-order-summary"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">買受人名稱</label>
+          <input class="form-ctrl" id="inv-buyer-name" placeholder="選填">
+        </div>
+        <div class="form-group">
+          <label class="form-label">買受人電話</label>
+          <input class="form-ctrl" id="inv-buyer-phone" placeholder="選填">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label class="form-label">買受人 Email</label>
+          <input class="form-ctrl" id="inv-buyer-email" type="email" placeholder="選填，填入後系統寄送發票">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label class="form-label">載具類型</label>
+          <select class="form-ctrl" id="inv-carrier-type"
+            onchange="_updateInvCarrierUI(document.getElementById('invoice-modal-overlay'))">
+            <option value="">無（列印紙本）</option>
+            <option value="3J0002">手機條碼</option>
+            <option value="CQ0001">自然人憑證</option>
+            <option value="donation">捐贈（愛心碼）</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row full" id="inv-carrier-num-row" style="display:none">
+        <div class="form-group">
+          <label class="form-label" id="inv-carrier-num-label">載具號碼</label>
+          <input class="form-ctrl" id="inv-carrier-num" placeholder="手機條碼：/XXXXXXX　自然人憑證：XX00000000000000">
+        </div>
+      </div>
+      <div class="form-row full" id="inv-npo-row" style="display:none">
+        <div class="form-group">
+          <label class="form-label">愛心碼（捐贈碼）</label>
+          <input class="form-ctrl" id="inv-npo-id" placeholder="3~7 位數字">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeInvoiceModal()">取消</button>
+      <button class="btn-save" id="inv-submit-btn" onclick="submitInvoice()"
+        style="background:#7b5ea7">確認開立</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
