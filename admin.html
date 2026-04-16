@@ -4731,10 +4731,9 @@ async function submitInvoice() {
 
   btn.disabled = true; btn.textContent = '開立中…';
   try {
-    // 光貿雲端載具：CarrierType='1'，CarrierId = email
+    // 雲端寄送：CarrierType=''，BuyerEmailAddress 傳 email，amego 自動寄送
     const realCarrierType = (carrierType === 'donation' || carrierType === 'email') ? '' : carrierType;
-    const realCarrierNum  = false ? buyerEmail
-                          
+    const realCarrierNum  = realCarrierType ? carrierNum : '';
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
