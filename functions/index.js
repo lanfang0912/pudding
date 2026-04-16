@@ -11,8 +11,8 @@ const CUSTOMER_TOKEN = 'jkuck204';
 // 測試憑證：統編 12345678 / App Key sHeq7t8G1wiQvhAuIM27
 // 正式上線後請換為貴公司統編與 App Key（向 amego 客服取得）
 const AMEGO_BASE     = 'https://invoice-api.amego.tw';
-const AMEGO_TAX_ID   = 'CHANGE_ME'; // TODO: 填入公司統編（正式）
-const AMEGO_APP_KEY  = 'CHANGE_ME'; // TODO: 填入 App Key（正式）
+const AMEGO_TAX_ID   = '12345678';              // 測試統編，正式上線換成公司統編
+const AMEGO_APP_KEY  = 'sHeq7t8G1wiQvhAuIM27'; // 測試 App Key，正式上線向 amego 客服取得
 
 // Proxy: 建立托運單
 exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req, res) => {
