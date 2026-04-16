@@ -2678,7 +2678,7 @@ function renderTable(){
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           ${o.invoiceNo
             ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
-            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button>` : '')}
+            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button><button class="act-btn" onclick="fillInvoiceNo('${o.id}')" title="補填已在 amego 開立的發票號碼" style="font-size:11px;border-color:#aaa;color:#aaa">補填</button>` : '')}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div>
       </div>`;
@@ -4744,7 +4744,8 @@ async function submitInvoice() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        orderId: o.id,
+        // 作廢後重開：amego 不允許相同 OrderId，改用 o.id + 時間戳後綴
+        orderId: o.invoiceVoided ? `${o.id}-R${Math.floor(Date.now()/1000)}` : o.id,
         buyerName, buyerEmail, buyerPhone,
         carrierType: realCarrierType,
         carrierNum: realCarrierNum,
@@ -4824,6 +4825,19 @@ function openInvoiceOnAmego() {
   window.open(url, '_blank');
 }
 
+// 補填已在 amego 開立但未記錄的發票號碼
+async function fillInvoiceNo(id) {
+  const no = prompt('請輸入 amego 後台查到的發票號碼：');
+  if (!no || !no.trim()) return;
+  const invoiceNo = no.trim().toUpperCase();
+  await db.ref('orders/' + id).update({
+    invoiceNo,
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    invoiceCarrierType: 'email',
+  });
+  showToast('🧾 發票號碼已補記錄：' + invoiceNo);
+}
+
 function confirmVoidInvoice() {
   const id = _invViewOrderId;
   closeInvoiceViewModal();
@@ -4843,9 +4857,9 @@ async function voidInvoice(id) {
       body: JSON.stringify({ invoiceNo: o.invoiceNo, invoiceDate: o.invoiceDate, reason }),
     });
     const json = await r.json();
-    const ok = json.code === 1 || json.success === true || json.RtnCode === 1;
+    const ok = json.code === 0 || json.code === 1 || json.success === true || json.RtnCode === 1;
     if (ok) {
-      await db.ref('orders/' + id).update({ invoiceNo: null, invoiceDate: null });
+      await db.ref('orders/' + id).update({ invoiceNo: null, invoiceDate: null, invoiceVoided: true });
       showToast('🧾 發票已作廢');
     } else {
       showToast('❌ 作廢失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
