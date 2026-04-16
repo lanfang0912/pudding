@@ -5,17 +5,13 @@ const TCAT_ENDPOINT = 'https://api.suda.com.tw/api/Egs';
 const CUSTOMER_ID = '9355596901';
 const CUSTOMER_TOKEN = 'jkuck204';
 
-// ── 光貿電子發票 ──
-// 請至光貿後台取得以下憑證後填入：
-//   GUANGMAO_MERCHANT_ID : 商家代號
-//   GUANGMAO_API_HASH_KEY: HashKey
-//   GUANGMAO_API_HASH_IV : HashIV
-// 測試環境: https://einvoice-stage.ecrm.com.tw/B2CInvoice/Issue
-// 正式環境: https://einvoice.ecrm.com.tw/B2CInvoice/Issue
-const GUANGMAO_ENDPOINT   = 'https://einvoice.ecrm.com.tw/B2CInvoice/Issue';
-const GUANGMAO_MERCHANT_ID = 'CHANGE_ME'; // TODO: 填入光貿商家代號
-const GUANGMAO_HASH_KEY    = 'CHANGE_ME'; // TODO: 填入 HashKey
-const GUANGMAO_HASH_IV     = 'CHANGE_ME'; // TODO: 填入 HashIV
+// ── 光貿電子發票（amego 平台）──
+// API 文件：https://invoice.amego.tw/
+// 測試憑證：統編 12345678 / App Key sHeq7t8G1wiQvhAuIM27
+// 正式上線後請換為貴公司統編與 App Key（向 amego 客服取得）
+const AMEGO_BASE     = 'https://invoice-api.amego.tw';
+const AMEGO_TAX_ID   = 'CHANGE_ME'; // TODO: 填入公司統編（正式）
+const AMEGO_APP_KEY  = 'CHANGE_ME'; // TODO: 填入 App Key（正式）
 
 // Proxy: 建立托運單
 exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req, res) => {
@@ -68,7 +64,16 @@ exports.tcatGetPDF = functions.region('asia-east1').https.onRequest(async (req, 
   res.status(404).json({ error: '找不到可用的 PDF endpoint' });
 });
 
-// Proxy: 光貿電子發票 — 開立發票
+// 共用：amego API 請求標頭
+function amegoHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'tax-id':  AMEGO_TAX_ID,
+    'app-key': AMEGO_APP_KEY,
+  };
+}
+
+// Proxy: amego 電子發票 — 開立發票
 exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -82,65 +87,52 @@ exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req
       items, totalAmount,
     } = req.body;
 
-    // 根據載具/捐贈決定 Print / Donation 旗標
-    const isDonation  = !!npoId;
-    const hasCarrier  = !!carrierType && !!carrierNum;
-    const shouldPrint = (!isDonation && !hasCarrier) ? '1' : '0';
+    // 根據載具/捐贈決定旗標
+    const isDonation = !!npoId;
+    const hasCarrier = !!carrierType && !!carrierNum;
+    const print      = (!isDonation && !hasCarrier) ? 1 : 0;
 
     // 稅額計算（含稅 5%）
     const salesAmount = Math.floor(totalAmount / 1.05);
     const taxAmount   = totalAmount - salesAmount;
 
-    // 品項欄位（| 分隔）
-    const itemName   = items.map(i => i.name).join('|');
-    const itemCount  = items.map(i => String(i.count)).join('|');
-    const itemWord   = items.map(i => i.unit || '盒').join('|');
-    const itemPrice  = items.map(i => String(i.price)).join('|');
-    const itemAmount = items.map(i => String(i.amount)).join('|');
-
-    const timeStamp = Math.floor(Date.now() / 1000);
-
     const payload = {
-      MerchantID:   GUANGMAO_MERCHANT_ID,
-      TimeStamp:    timeStamp,
-      BuyerName:    buyerName   || '',
-      BuyerEmail:   buyerEmail  || '',
-      BuyerPhone:   buyerPhone  || '',
-      CarrierType:  isDonation ? '' : (carrierType || ''),
-      CarrierNum:   isDonation ? '' : (carrierNum  || ''),
-      NpoId:        isDonation ? npoId : '',
-      Print:        shouldPrint,
-      Donation:     isDonation ? '1' : '0',
-      TaxType:      '1',       // 1 = 應稅
-      TaxRate:      5,
-      SalesAmount:  salesAmount,
-      TaxAmount:    taxAmount,
-      TotalAmount:  totalAmount,
-      ItemName:     itemName,
-      ItemCount:    itemCount,
-      ItemWord:     itemWord,
-      ItemPrice:    itemPrice,
-      ItemAmount:   itemAmount,
+      tax_id:       AMEGO_TAX_ID,
+      buyer_name:   buyerName  || '',
+      buyer_email:  buyerEmail || '',
+      buyer_phone:  buyerPhone || '',
+      carrier_type: isDonation ? '' : (carrierType || ''),
+      carrier_num:  isDonation ? '' : (carrierNum  || ''),
+      npo_id:       isDonation ? npoId : '',
+      print,
+      donation:     isDonation ? 1 : 0,
+      tax_type:     1,   // 1 = 應稅
+      tax_rate:     5,
+      sales_amount: salesAmount,
+      tax_amount:   taxAmount,
+      total_amount: totalAmount,
+      items: items.map(i => ({
+        name:   i.name,
+        count:  i.count,
+        unit:   i.unit  || '盒',
+        price:  i.price,
+        amount: i.amount,
+      })),
     };
 
-    const r = await fetch(GUANGMAO_ENDPOINT, {
+    const r = await fetch(`${AMEGO_BASE}/invoice`, {
       method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'X-HashKey':     GUANGMAO_HASH_KEY,
-        'X-HashIV':      GUANGMAO_HASH_IV,
-        'X-MerchantID':  GUANGMAO_MERCHANT_ID,
-      },
+      headers: amegoHeaders(),
       body: JSON.stringify(payload),
     });
     const json = await r.json();
     res.json(json);
   } catch (e) {
-    res.status(500).json({ RtnCode: 0, RtnMsg: e.message });
+    res.status(500).json({ success: false, message: e.message });
   }
 });
 
-// Proxy: 光貿電子發票 — 作廢發票
+// Proxy: amego 電子發票 — 作廢發票
 exports.voidInvoice = functions.region('asia-east1').https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -149,30 +141,22 @@ exports.voidInvoice = functions.region('asia-east1').https.onRequest(async (req,
 
   try {
     const { invoiceNo, invoiceDate, reason } = req.body;
-    const timeStamp = Math.floor(Date.now() / 1000);
 
     const payload = {
-      MerchantID:  GUANGMAO_MERCHANT_ID,
-      TimeStamp:   timeStamp,
-      InvoiceNo:   invoiceNo,
-      InvoiceDate: invoiceDate,
-      Reason:      reason || '訂單取消',
+      tax_id:       AMEGO_TAX_ID,
+      invoice_no:   invoiceNo,
+      invoice_date: invoiceDate,
+      reason:       reason || '訂單取消',
     };
 
-    const voidEndpoint = GUANGMAO_ENDPOINT.replace('/Issue', '/Invalid');
-    const r = await fetch(voidEndpoint, {
+    const r = await fetch(`${AMEGO_BASE}/invoice/void`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-HashKey':    GUANGMAO_HASH_KEY,
-        'X-HashIV':     GUANGMAO_HASH_IV,
-        'X-MerchantID': GUANGMAO_MERCHANT_ID,
-      },
+      headers: amegoHeaders(),
       body: JSON.stringify(payload),
     });
     const json = await r.json();
     res.json(json);
   } catch (e) {
-    res.status(500).json({ RtnCode: 0, RtnMsg: e.message });
+    res.status(500).json({ success: false, message: e.message });
   }
 });

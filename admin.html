@@ -4718,14 +4718,16 @@ async function submitInvoice() {
     });
     const json = await r.json();
 
-    if (json.RtnCode === 1) {
-      const invoiceNo = json.InvoiceNo || json.invoiceNo || '';
-      const invoiceDate = json.InvoiceDate || new Date().toISOString().slice(0,10);
+    // amego 回傳：{ success: true, data: { invoice_no, invoice_date, ... } }
+    const ok = json.success === true || json.RtnCode === 1;
+    if (ok) {
+      const invoiceNo   = (json.data && json.data.invoice_no)   || json.InvoiceNo   || json.invoiceNo   || '';
+      const invoiceDate = (json.data && json.data.invoice_date) || json.InvoiceDate || new Date().toISOString().slice(0,10);
       await db.ref('orders/' + o.id).update({ invoiceNo, invoiceDate });
       closeInvoiceModal();
       showToast(`🧾 發票開立成功：${invoiceNo}`);
     } else {
-      showToast('❌ 開立失敗：' + (json.RtnMsg || json.message || JSON.stringify(json)));
+      showToast('❌ 開立失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
     }
   } catch (e) {
     showToast('❌ 開立失敗：' + e.message);
@@ -4756,11 +4758,12 @@ async function voidInvoice(id) {
       body: JSON.stringify({ invoiceNo: o.invoiceNo, invoiceDate: o.invoiceDate, reason }),
     });
     const json = await r.json();
-    if (json.RtnCode === 1) {
+    const ok = json.success === true || json.RtnCode === 1;
+    if (ok) {
       await db.ref('orders/' + id).update({ invoiceNo: null, invoiceDate: null });
       showToast('🧾 發票已作廢');
     } else {
-      showToast('❌ 作廢失敗：' + (json.RtnMsg || JSON.stringify(json)));
+      showToast('❌ 作廢失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
     }
   } catch (e) {
     showToast('❌ 作廢失敗：' + e.message);
