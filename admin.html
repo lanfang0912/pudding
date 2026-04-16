@@ -4735,9 +4735,13 @@ async function submitInvoice() {
 
   btn.disabled = true; btn.textContent = '開立中…';
   try {
-    // 雲端寄送：CarrierType=''，BuyerEmailAddress 傳 email，amego 自動寄送
-    const realCarrierType = (carrierType === 'donation' || carrierType === 'email') ? '' : carrierType;
-    const realCarrierNum  = realCarrierType ? carrierNum : '';
+    // email 載具：使用光貿會員載具（CarrierType='1'），以 email 為載具號碼
+    // → 客戶可線上查看發票並歸戶；CarrierType='' 才是紙本，不可混淆
+    const realCarrierType = carrierType === 'donation' ? '' :
+                            carrierType === 'email'    ? '1' :
+                            carrierType;
+    const realCarrierNum  = carrierType === 'email' ? buyerEmail :
+                            (realCarrierType         ? carrierNum : '');
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
