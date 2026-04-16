@@ -4651,6 +4651,10 @@ function openInvoiceModal(id) {
   overlay.querySelector('#inv-carrier-type').value = '';
   overlay.querySelector('#inv-carrier-num').value  = '';
   overlay.querySelector('#inv-npo-id').value       = '';
+  // 有 email 預設光貿雲端
+  if (overlay.querySelector('#inv-buyer-email').value.trim()) {
+    overlay.querySelector('#inv-carrier-type').value = '1';
+  }
   _updateInvCarrierUI(overlay);
   overlay.classList.add('open');
 }
@@ -4661,6 +4665,19 @@ function _updateInvCarrierUI(overlay) {
     (type === '3J0002' || type === 'CQ0001') ? '' : 'none';
   overlay.querySelector('#inv-npo-row').style.display =
     type === 'donation' ? '' : 'none';
+}
+
+function _onInvEmailInput(input) {
+  const overlay = document.getElementById('invoice-modal-overlay');
+  const sel = overlay.querySelector('#inv-carrier-type');
+  if (input.value.trim()) {
+    // 有 email：若目前是紙本，自動切換成光貿雲端
+    if (sel.value === '') sel.value = '1';
+  } else {
+    // 清空 email：若目前是光貿雲端，切回紙本
+    if (sel.value === '1') sel.value = '';
+  }
+  _updateInvCarrierUI(overlay);
 }
 
 function closeInvoiceModal() {
@@ -4682,6 +4699,9 @@ async function submitInvoice() {
   const npoId       = overlay.querySelector('#inv-npo-id').value.trim();
 
   // 載具格式驗證
+  if (carrierType === '1' && !buyerEmail) {
+    showToast('⚠️ 光貿雲端需填入買受人 Email'); return;
+  }
   if (carrierType === '3J0002' && !/^\/[0-9A-Z+\-.]{7}$/.test(carrierNum)) {
     showToast('⚠️ 手機條碼格式錯誤（應為 /XXXXXXX）'); return;
   }
@@ -4712,7 +4732,10 @@ async function submitInvoice() {
 
   btn.disabled = true; btn.textContent = '開立中…';
   try {
+    // 光貿雲端載具：CarrierType='1'，CarrierId = email
     const realCarrierType = carrierType === 'donation' ? '' : carrierType;
+    const realCarrierNum  = carrierType === '1' ? buyerEmail
+                          : (realCarrierType ? carrierNum : '');
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4720,7 +4743,7 @@ async function submitInvoice() {
         orderId: o.id,
         buyerName, buyerEmail, buyerPhone,
         carrierType: realCarrierType,
-        carrierNum: realCarrierType ? carrierNum : '',
+        carrierNum: realCarrierNum,
         npoId: carrierType === 'donation' ? npoId : '',
         items,
         totalAmount: o.total,
@@ -4803,7 +4826,8 @@ async function voidInvoice(id) {
       <div class="form-row full">
         <div class="form-group">
           <label class="form-label">買受人 Email</label>
-          <input class="form-ctrl" id="inv-buyer-email" type="email" placeholder="選填，填入後系統寄送發票">
+          <input class="form-ctrl" id="inv-buyer-email" type="email" placeholder="選填，填入後自動切換光貿雲端（無紙化）"
+            oninput="_onInvEmailInput(this)">
         </div>
       </div>
       <div class="form-row full">
@@ -4812,6 +4836,7 @@ async function voidInvoice(id) {
           <select class="form-ctrl" id="inv-carrier-type"
             onchange="_updateInvCarrierUI(document.getElementById('invoice-modal-overlay'))">
             <option value="">無（列印紙本）</option>
+            <option value="1">光貿雲端（Email，無紙化）</option>
             <option value="3J0002">手機條碼</option>
             <option value="CQ0001">自然人憑證</option>
             <option value="donation">捐贈（愛心碼）</option>
