@@ -4629,6 +4629,7 @@ function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace
 // ═══════════════════════════════════════
 
 let _invOrderId = null;
+let _invViewOrderId = null;
 
 function openInvoiceModal(id) {
   const o = orders.find(x => x.id === id);
@@ -4648,8 +4649,9 @@ function openInvoiceModal(id) {
   overlay.querySelector('#inv-buyer-name').value  = o.name  || '';
   overlay.querySelector('#inv-buyer-email').value = o.email || '';
   overlay.querySelector('#inv-buyer-phone').value = (o.phone !== '未填') ? o.phone : '';
-  // 優先帶入客人下單時填的發票資料，否則依 email 決定
-  const invCarrier = o.invCarrier !== undefined ? o.invCarrier
+  // 優先帶入客人填的載具；若沒有指定（空白/未填），但有 email，預設用光貿雲端
+  const invCarrier = (o.invCarrier && o.invCarrier !== '')
+                   ? o.invCarrier
                    : (o.email ? 'email' : '');
   overlay.querySelector('#inv-carrier-type').value = invCarrier;
   overlay.querySelector('#inv-carrier-num').value  = o.invNum || '';
@@ -4752,9 +4754,11 @@ async function submitInvoice() {
     // amego 回傳：{ code: 1, data: { e: "發票號碼", ... } }
     const ok = json.code === 1 || json.success === true || json.RtnCode === 1;
     if (ok) {
-      const invoiceNo   = (json.data && (json.data.e || json.data.invoice_no)) || json.InvoiceNo || json.invoiceNo || '';
-      const invoiceDate = (json.data && json.data.invoice_date) || json.InvoiceDate || new Date().toISOString().slice(0,10);
-      await db.ref('orders/' + o.id).update({ invoiceNo, invoiceDate });
+      const invoiceNo          = (json.data && (json.data.e || json.data.invoice_no)) || json.InvoiceNo || json.invoiceNo || '';
+      const invoiceDate        = (json.data && json.data.invoice_date) || json.InvoiceDate || new Date().toISOString().slice(0,10);
+      const invoiceUrl         = (json.data && json.data.url) || '';
+      const invoiceCarrierType = carrierType;
+      await db.ref('orders/' + o.id).update({ invoiceNo, invoiceDate, invoiceUrl, invoiceCarrierType });
       closeInvoiceModal();
       showToast(`🧾 發票開立成功：${invoiceNo}`);
     } else if (json.code === 3040171) {
@@ -4775,13 +4779,39 @@ async function submitInvoice() {
   }
 }
 
+function _carrierTypeLabel(type) {
+  const map = { '': '無（紙本）', 'email': '雲端寄送（Email）', '3J0002': '手機條碼', 'CQ0001': '自然人憑證', 'donation': '捐贈（愛心碼）' };
+  return map[type] !== undefined ? map[type] : (type || '無（紙本）');
+}
+
 function showInvoiceInfo(id) {
   const o = orders.find(x => x.id === id);
   if (!o || !o.invoiceNo) return;
-  const date = o.invoiceDate || '';
-  if (confirm(`發票號碼：${o.invoiceNo}\n開立日期：${date}\n\n點「確定」可作廢此發票`)) {
-    voidInvoice(id);
-  }
+  _invViewOrderId = id;
+  const overlay = document.getElementById('invoice-view-modal-overlay');
+  overlay.querySelector('#inv-view-no').textContent     = o.invoiceNo;
+  overlay.querySelector('#inv-view-date').textContent   = o.invoiceDate || '—';
+  const carrier = o.invoiceCarrierType !== undefined ? o.invoiceCarrierType : (o.invCarrier || '');
+  overlay.querySelector('#inv-view-carrier').textContent = _carrierTypeLabel(carrier);
+  overlay.classList.add('open');
+}
+
+function closeInvoiceViewModal() {
+  document.getElementById('invoice-view-modal-overlay').classList.remove('open');
+  _invViewOrderId = null;
+}
+
+function openInvoiceOnAmego() {
+  const o = orders.find(x => x.id === _invViewOrderId);
+  if (!o) return;
+  const url = o.invoiceUrl || `https://invoice.amego.tw/invoice?e=${encodeURIComponent(o.invoiceNo)}`;
+  window.open(url, '_blank');
+}
+
+function confirmVoidInvoice() {
+  const id = _invViewOrderId;
+  closeInvoiceViewModal();
+  if (id) voidInvoice(id);
 }
 
 async function voidInvoice(id) {
@@ -4809,6 +4839,30 @@ async function voidInvoice(id) {
   }
 }
 </script>
+
+<!-- 發票資訊 Modal（查看已開立發票） -->
+<div id="invoice-view-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeInvoiceViewModal()">
+  <div class="modal" style="width:400px">
+    <div class="modal-hdr">
+      <span class="modal-title">🧾 發票資訊</span>
+      <button class="modal-close" onclick="closeInvoiceViewModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr><td style="padding:8px 0;color:var(--ink-soft);width:80px">發票號碼</td><td style="padding:8px 0;font-weight:600;letter-spacing:1px" id="inv-view-no"></td></tr>
+        <tr><td style="padding:8px 0;color:var(--ink-soft)">開立日期</td><td style="padding:8px 0" id="inv-view-date"></td></tr>
+        <tr><td style="padding:8px 0;color:var(--ink-soft)">載具類型</td><td style="padding:8px 0" id="inv-view-carrier"></td></tr>
+      </table>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn-cancel" style="color:#c0392b;border-color:#c0392b" onclick="confirmVoidInvoice()">作廢發票</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-cancel" onclick="closeInvoiceViewModal()">關閉</button>
+        <button class="btn-save" style="background:#7b5ea7" onclick="openInvoiceOnAmego()">在 Amego 查看 ↗</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 光貿電子發票 Modal -->
 <div id="invoice-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeInvoiceModal()">
