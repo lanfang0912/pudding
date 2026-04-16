@@ -4749,14 +4749,22 @@ async function submitInvoice() {
     });
     const json = await r.json();
 
-    // amego 回傳：{ success: true, data: { invoice_no, invoice_date, ... } }
-    const ok = json.success === true || json.RtnCode === 1;
+    // amego 回傳：{ code: 1, data: { e: "發票號碼", ... } }
+    const ok = json.code === 1 || json.success === true || json.RtnCode === 1;
     if (ok) {
-      const invoiceNo   = (json.data && json.data.invoice_no)   || json.InvoiceNo   || json.invoiceNo   || '';
+      const invoiceNo   = (json.data && (json.data.e || json.data.invoice_no)) || json.InvoiceNo || json.invoiceNo || '';
       const invoiceDate = (json.data && json.data.invoice_date) || json.InvoiceDate || new Date().toISOString().slice(0,10);
       await db.ref('orders/' + o.id).update({ invoiceNo, invoiceDate });
       closeInvoiceModal();
       showToast(`🧾 發票開立成功：${invoiceNo}`);
+    } else if (json.code === 3040171) {
+      // OrderId 重複：發票已在 amego 開立但未記錄，讓管理員手動輸入號碼
+      const manualNo = prompt('此訂單發票已在 amego 開立，請至 amego 後台查詢後輸入發票號碼：');
+      if (manualNo && manualNo.trim()) {
+        await db.ref('orders/' + o.id).update({ invoiceNo: manualNo.trim(), invoiceDate: new Date().toISOString().slice(0,10) });
+        closeInvoiceModal();
+        showToast(`🧾 發票號碼已補記錄：${manualNo.trim()}`);
+      }
     } else {
       showToast('❌ 開立失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
     }
@@ -4789,7 +4797,7 @@ async function voidInvoice(id) {
       body: JSON.stringify({ invoiceNo: o.invoiceNo, invoiceDate: o.invoiceDate, reason }),
     });
     const json = await r.json();
-    const ok = json.success === true || json.RtnCode === 1;
+    const ok = json.code === 1 || json.success === true || json.RtnCode === 1;
     if (ok) {
       await db.ref('orders/' + id).update({ invoiceNo: null, invoiceDate: null });
       showToast('🧾 發票已作廢');
