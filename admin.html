@@ -4764,13 +4764,15 @@ async function submitInvoice() {
     const ok = json.code === 0 || json.code === 1 || json.success === true || json.RtnCode === 1;
     if (ok) {
       const d = Array.isArray(json.data) ? json.data[0] : json.data;
-      const invoiceNo   = (d && (d.invoice_number || d.e || d.invoice_no || d.InvoiceNo || d.invoiceNo)) || json.InvoiceNo || json.invoiceNo || '';
+      const invoiceNo   = (d && (d.invoice_number || d.InvoiceNumber || d.e || d.invoice_no || d.InvoiceNo || d.invoiceNo || d.no))
+                       || json.invoice_number || json.InvoiceNumber || json.InvoiceNo || json.invoiceNo || '';
       const invoiceDate = (d && (d.invoice_date || d.InvoiceDate)) || json.InvoiceDate || new Date().toISOString().slice(0,10);
       const invoiceUrl  = (d && d.url) || '';
       const invoiceCarrierType = carrierType;
       if (!invoiceNo) {
         // 發票已在 amego 開立成功，但系統無法從回傳中取得發票號碼
-        const manualNo = prompt('發票已開立成功，但系統無法取得發票號碼。\n請至 amego 後台查詢後輸入發票號碼：');
+        const rawHint = JSON.stringify(d || json).slice(0, 200);
+        const manualNo = prompt(`發票已開立成功，但系統無法取得發票號碼。\n請至 amego 後台查詢後輸入發票號碼：\n\n（原始回傳：${rawHint}）`);
         if (manualNo && manualNo.trim()) {
           await db.ref('orders/' + o.id).update({ invoiceNo: manualNo.trim(), invoiceDate, invoiceUrl, invoiceCarrierType });
           closeInvoiceModal();
