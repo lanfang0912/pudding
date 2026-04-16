@@ -1,0 +1,7 @@
+{
+  "name": "pudding",
+  "private": true,
+  "devDependencies": {
+    "wrangler": "^3"
+  }
+}
