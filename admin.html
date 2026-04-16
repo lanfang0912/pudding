@@ -4735,9 +4735,11 @@ async function submitInvoice() {
 
   btn.disabled = true; btn.textContent = '開立中…';
   try {
-    // 光貿加值中心載具：email 型態 CarrierType 留空，但 CarrierId1/2 填入 email
-    // 讓 amego 把發票存入該 email 的會員載具，客戶可直接線上歸戶，無需事先註冊
-    const realCarrierType = (carrierType === 'donation' || carrierType === 'email') ? '' : carrierType;
+    // 光貿雲端載具（email）：CarrierType 填 '2'（光貿平台載具碼），CarrierId1/2 填 email
+    // amego 規格：CarrierId 不為空時 CarrierType 不可為空，否則回傳「載具類別不可為空」
+    const realCarrierType = carrierType === 'donation' ? '' :
+                            carrierType === 'email'    ? '2' :
+                            carrierType;
     const realCarrierNum  = carrierType === 'email' ? buyerEmail :
                             (realCarrierType         ? carrierNum : '');
     const r = await fetch(GUANGMAO.issueUrl, {
