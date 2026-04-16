@@ -4757,6 +4757,7 @@ async function submitInvoice() {
       }),
     });
     const json = await r.json();
+    console.log('[amego response]', JSON.stringify(json));
 
     // amego 回傳：{ code: 1, data: { e: "發票號碼", ... } }
     const ok = json.code === 1 || json.success === true || json.RtnCode === 1;
