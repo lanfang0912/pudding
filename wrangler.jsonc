@@ -3,6 +3,7 @@
   "name": "pudding",
   "account_id": "d77e8d747299f73349bc212d8cf95026",
   "compatibility_date": "2025-09-27",
+  "main": "_worker.js",
   "assets": {
     "directory": "."
   }
