@@ -924,9 +924,9 @@ const schedule=[
 
 // ── 光貿電子發票 ──
 const GUANGMAO = {
-  // Firebase Functions proxy（部署後自動產生，如有自訂 domain 請修改）
-  issueUrl: 'https://asia-east1-whitedessert.cloudfunctions.net/issueInvoice',
-  voidUrl:  'https://asia-east1-whitedessert.cloudfunctions.net/voidInvoice',
+  // Cloudflare Worker proxy（已在線上，不需額外部署）
+  issueUrl: 'https://tcat-proxy.lanfang-hsu.workers.dev/issueInvoice',
+  voidUrl:  'https://tcat-proxy.lanfang-hsu.workers.dev/voidInvoice',
   // 品項單價
   prices: { original: 360, matcha: 390, cocoa: 390 },
 };
