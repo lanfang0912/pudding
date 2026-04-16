@@ -4735,11 +4735,14 @@ async function submitInvoice() {
 
   btn.disabled = true; btn.textContent = '開立中…';
   try {
-    // email 載具（光貿雲端）：CarrierType 和 CarrierId 皆留空，
-    // amego 依 BuyerEmailAddress 自動寄送電子發票，無需額外載具碼。
-    // 傳入任何非空 CarrierType 都需要是 6 碼（如 3J0002），'2' 不符合格式。
-    const realCarrierType = (carrierType === 'donation' || carrierType === 'email') ? '' : carrierType;
-    const realCarrierNum  = (carrierType === 'email' || !realCarrierType) ? '' : carrierNum;
+    // amego 官方範例：光貿雲端載具 CarrierType 填 "amego"，CarrierId1/2 填 email
+    // 捐贈：CarrierType / CarrierId 留空，NPOBAN 填愛心碼
+    const realCarrierType = carrierType === 'donation' ? '' :
+                            carrierType === 'email'    ? 'amego' :
+                            carrierType;
+    const realCarrierNum  = carrierType === 'email'    ? buyerEmail :
+                            carrierType === 'donation' ? '' :
+                            carrierNum;
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
