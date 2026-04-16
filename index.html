@@ -1251,7 +1251,7 @@ footer {
           <label class="form-label">載具類型</label>
           <select class="form-input" id="f-inv-carrier" onchange="_invCarrierChange()">
             <option value="">無（索取紙本）</option>
-            <option value="1">會員載具（光貿雲端，Email）</option>
+            <option value="email">雲端寄送（Email，無紙化）</option>
             <option value="3J0002">手機條碼</option>
             <option value="CQ0001">自然人憑證</option>
             <option value="donation">捐贈（愛心碼）</option>
@@ -1918,9 +1918,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (emailFld) emailFld.addEventListener('input', () => {
     const sel = document.getElementById('f-inv-carrier');
     if (emailFld.value.trim()) {
-      if (sel.value === '') { sel.value = '1'; _invCarrierChange(); }
+      if (sel.value === '') { sel.value = 'email'; _invCarrierChange(); }
     } else {
-      if (sel.value === '1') { sel.value = ''; _invCarrierChange(); }
+      if (sel.value === 'email') { sel.value = ''; _invCarrierChange(); }
     }
   });
 });
