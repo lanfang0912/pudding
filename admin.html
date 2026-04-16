@@ -4787,7 +4787,7 @@ async function submitInvoice() {
       // OrderId 重複：發票已在 amego 開立但未記錄，讓管理員手動輸入號碼
       const manualNo = prompt('此訂單發票已在 amego 開立，請至 amego 後台查詢後輸入發票號碼：');
       if (manualNo && manualNo.trim()) {
-        await db.ref('orders/' + o.id).update({ invoiceNo: manualNo.trim(), invoiceDate: new Date().toISOString().slice(0,10) });
+        await db.ref('orders/' + o.id).update({ invoiceNo: manualNo.trim(), invoiceDate: new Date().toISOString().slice(0,10), invoiceCarrierType: carrierType });
         closeInvoiceModal();
         showToast(`🧾 發票號碼已補記錄：${manualNo.trim()}`);
       }
@@ -4813,7 +4813,9 @@ function showInvoiceInfo(id) {
   const overlay = document.getElementById('invoice-view-modal-overlay');
   overlay.querySelector('#inv-view-no').textContent     = o.invoiceNo;
   overlay.querySelector('#inv-view-date').textContent   = o.invoiceDate || '—';
-  const carrier = o.invoiceCarrierType !== undefined ? o.invoiceCarrierType : (o.invCarrier || '');
+  const carrier = (o.invoiceCarrierType !== undefined && o.invoiceCarrierType !== null)
+    ? o.invoiceCarrierType
+    : (o.invCarrier || (o.email ? 'email' : ''));
   overlay.querySelector('#inv-view-carrier').textContent = _carrierTypeLabel(carrier);
   overlay.classList.add('open');
 }
