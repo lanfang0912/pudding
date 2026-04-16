@@ -4650,7 +4650,7 @@ function openInvoiceModal(id) {
   overlay.querySelector('#inv-buyer-phone').value = (o.phone !== '未填') ? o.phone : '';
   // 優先帶入客人下單時填的發票資料，否則依 email 決定
   const invCarrier = o.invCarrier !== undefined ? o.invCarrier
-                   : (o.email ? '1' : '');
+                   : (o.email ? 'email' : '');
   overlay.querySelector('#inv-carrier-type').value = invCarrier;
   overlay.querySelector('#inv-carrier-num').value  = o.invNum || '';
   overlay.querySelector('#inv-npo-id').value       = o.invNpo || '';
@@ -4671,10 +4671,10 @@ function _onInvEmailInput(input) {
   const sel = overlay.querySelector('#inv-carrier-type');
   if (input.value.trim()) {
     // 有 email：若目前是紙本，自動切換成光貿雲端
-    if (sel.value === '') sel.value = '1';
+    if (sel.value === '') sel.value = 'email';
   } else {
     // 清空 email：若目前是光貿雲端，切回紙本
-    if (sel.value === '1') sel.value = '';
+    if (sel.value === 'email') sel.value = '';
   }
   _updateInvCarrierUI(overlay);
 }
@@ -4698,8 +4698,8 @@ async function submitInvoice() {
   const npoId       = overlay.querySelector('#inv-npo-id').value.trim();
 
   // 載具格式驗證
-  if (carrierType === '1' && !buyerEmail) {
-    showToast('⚠️ 光貿雲端需填入買受人 Email'); return;
+  if (carrierType === 'email' && !buyerEmail) {
+    showToast('⚠️ 雲端寄送需填入買受人 Email'); return;
   }
   if (carrierType === '3J0002' && !/^\/[0-9A-Z+\-.]{7}$/.test(carrierNum)) {
     showToast('⚠️ 手機條碼格式錯誤（應為 /XXXXXXX）'); return;
@@ -4732,9 +4732,9 @@ async function submitInvoice() {
   btn.disabled = true; btn.textContent = '開立中…';
   try {
     // 光貿雲端載具：CarrierType='1'，CarrierId = email
-    const realCarrierType = carrierType === 'donation' ? '' : carrierType;
-    const realCarrierNum  = carrierType === '1' ? buyerEmail
-                          : (realCarrierType ? carrierNum : '');
+    const realCarrierType = (carrierType === 'donation' || carrierType === 'email') ? '' : carrierType;
+    const realCarrierNum  = false ? buyerEmail
+                          
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4835,7 +4835,7 @@ async function voidInvoice(id) {
           <select class="form-ctrl" id="inv-carrier-type"
             onchange="_updateInvCarrierUI(document.getElementById('invoice-modal-overlay'))">
             <option value="">無（列印紙本）</option>
-            <option value="1">會員載具（光貿雲端，Email）</option>
+            <option value="email">雲端寄送（Email，無紙化）</option>
             <option value="3J0002">手機條碼</option>
             <option value="CQ0001">自然人憑證</option>
             <option value="donation">捐贈（愛心碼）</option>
