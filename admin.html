@@ -4708,6 +4708,7 @@ async function submitInvoice() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        orderId: o.id,
         buyerName, buyerEmail, buyerPhone,
         carrierType: realCarrierType,
         carrierNum: realCarrierType ? carrierNum : '',

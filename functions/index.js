@@ -100,38 +100,40 @@ exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req
 
     // 根據載具/捐贈決定旗標
     const isDonation = !!npoId;
-    const hasCarrier = !!carrierType && !!carrierNum;
-    const print      = (!isDonation && !hasCarrier) ? 1 : 0;
 
-    // 稅額計算（含稅 5%）
-    const salesAmount = Math.floor(totalAmount / 1.05);
-    const taxAmount   = totalAmount - salesAmount;
-
-    // data 欄位內容（依 amego B2C 發票格式）
+    // data 欄位內容（amego B2C 開立發票，MIG 4.0，/json/f0401）
+    // B2C 不打統編：TaxAmount 一律帶 0，含稅單價直接填入 UnitPrice
     const dataObj = {
-      buyer_name:   buyerName  || '',
-      buyer_email:  buyerEmail || '',
-      buyer_phone:  buyerPhone || '',
-      carrier_type: isDonation ? '' : (carrierType || ''),
-      carrier_num:  isDonation ? '' : (carrierNum  || ''),
-      npo_id:       isDonation ? npoId : '',
-      print,
-      donation:     isDonation ? 1 : 0,
-      tax_type:     1,   // 1 = 應稅
-      tax_rate:     5,
-      sales_amount: salesAmount,
-      tax_amount:   taxAmount,
-      total_amount: totalAmount,
-      items: items.map(i => ({
-        name:   i.name,
-        count:  i.count,
-        unit:   i.unit || '盒',
-        price:  i.price,
-        amount: i.amount,
+      OrderId:              req.body.orderId || `WD-${Date.now()}`,
+      BuyerIdentifier:      '0000000000',   // B2C 一律填 0000000000
+      BuyerName:            buyerName  || '客人',
+      BuyerAddress:         '',
+      BuyerTelephoneNumber: buyerPhone || '',
+      BuyerEmailAddress:    buyerEmail || '',
+      MainRemark:           '',
+      CarrierType:          isDonation ? '' : (carrierType || ''),
+      CarrierId1:           isDonation ? '' : (carrierNum  || ''),
+      CarrierId2:           isDonation ? '' : (carrierNum  || ''),
+      NPOBAN:               isDonation ? npoId : '',
+      ProductItem: items.map(i => ({
+        Description: i.name,
+        Quantity:    i.count,          // Number
+        Unit:        i.unit || '盒',
+        UnitPrice:   i.price,          // Number，含稅單價
+        Amount:      i.amount,         // Number
+        Remark:      '',
+        TaxType:     1,                // Number：1 = 應稅
       })),
+      SalesAmount:        totalAmount, // Number，B2C 含稅，應稅額 = 總計
+      FreeTaxSalesAmount: 0,           // Number
+      ZeroTaxSalesAmount: 0,           // Number
+      TaxType:            1,           // Number：1 = 應稅
+      TaxRate:            '0.05',      // String
+      TaxAmount:          0,           // Number：B2C 不打統編一律帶 0
+      TotalAmount:        totalAmount, // Number
     };
 
-    const r = await fetch(`${AMEGO_BASE}/B2CInvoice/Issue`, {
+    const r = await fetch(`${AMEGO_BASE}/json/f0401`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: buildAmegoBody(dataObj),
@@ -159,7 +161,7 @@ exports.voidInvoice = functions.region('asia-east1').https.onRequest(async (req,
       reason:       reason || '訂單取消',
     };
 
-    const r = await fetch(`${AMEGO_BASE}/B2CInvoice/Invalid`, {
+    const r = await fetch(`${AMEGO_BASE}/json/f0501`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: buildAmegoBody(dataObj),
