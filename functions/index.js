@@ -1,5 +1,6 @@
 const functions = require('firebase-functions');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 const TCAT_ENDPOINT = 'https://api.suda.com.tw/api/Egs';
 const CUSTOMER_ID = '9355596901';
@@ -64,13 +65,23 @@ exports.tcatGetPDF = functions.region('asia-east1').https.onRequest(async (req, 
   res.status(404).json({ error: '找不到可用的 PDF endpoint' });
 });
 
-// 共用：amego API 請求標頭
-function amegoHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'tax-id':  AMEGO_TAX_ID,
-    'app-key': AMEGO_APP_KEY,
-  };
+// 共用：組 amego API 請求 body
+// 格式：Content-Type: application/x-www-form-urlencoded
+// 欄位：invoice（統編）、data（url-encoded JSON）、time（timestamp）、sign（md5）
+// 簽名：md5(data的JSON字串 + time + APP_KEY)
+function buildAmegoBody(dataObj) {
+  const time     = Math.floor(Date.now() / 1000);
+  const dataJson = JSON.stringify(dataObj);
+  const sign     = crypto.createHash('md5')
+    .update(dataJson + time + AMEGO_APP_KEY)
+    .digest('hex');
+
+  return new URLSearchParams({
+    invoice: AMEGO_TAX_ID,
+    data:    dataJson,
+    time:    String(time),
+    sign,
+  }).toString();
 }
 
 // Proxy: amego 電子發票 — 開立發票
@@ -96,8 +107,8 @@ exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req
     const salesAmount = Math.floor(totalAmount / 1.05);
     const taxAmount   = totalAmount - salesAmount;
 
-    const payload = {
-      tax_id:       AMEGO_TAX_ID,
+    // data 欄位內容（依 amego B2C 發票格式）
+    const dataObj = {
       buyer_name:   buyerName  || '',
       buyer_email:  buyerEmail || '',
       buyer_phone:  buyerPhone || '',
@@ -114,16 +125,16 @@ exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req
       items: items.map(i => ({
         name:   i.name,
         count:  i.count,
-        unit:   i.unit  || '盒',
+        unit:   i.unit || '盒',
         price:  i.price,
         amount: i.amount,
       })),
     };
 
-    const r = await fetch(`${AMEGO_BASE}/invoice`, {
+    const r = await fetch(`${AMEGO_BASE}/B2CInvoice/Issue`, {
       method: 'POST',
-      headers: amegoHeaders(),
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: buildAmegoBody(dataObj),
     });
     const json = await r.json();
     res.json(json);
@@ -142,17 +153,16 @@ exports.voidInvoice = functions.region('asia-east1').https.onRequest(async (req,
   try {
     const { invoiceNo, invoiceDate, reason } = req.body;
 
-    const payload = {
-      tax_id:       AMEGO_TAX_ID,
+    const dataObj = {
       invoice_no:   invoiceNo,
       invoice_date: invoiceDate,
       reason:       reason || '訂單取消',
     };
 
-    const r = await fetch(`${AMEGO_BASE}/invoice/void`, {
+    const r = await fetch(`${AMEGO_BASE}/B2CInvoice/Invalid`, {
       method: 'POST',
-      headers: amegoHeaders(),
-      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: buildAmegoBody(dataObj),
     });
     const json = await r.json();
     res.json(json);
