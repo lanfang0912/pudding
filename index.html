@@ -1240,6 +1240,35 @@ footer {
 
       <hr class="divider">
 
+      <!-- 電子發票 -->
+      <div class="sec-label" style="margin-bottom:6px;">電子發票</div>
+      <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;line-height:1.8;">
+        填入 Email 即可將發票存入光貿雲端並寄送至信箱（無紙化）。<br>
+        若有手機條碼或自然人憑證，也可選擇歸戶。
+      </p>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label class="form-label">載具類型</label>
+          <select class="form-input" id="f-inv-carrier" onchange="_invCarrierChange()">
+            <option value="">無（索取紙本）</option>
+            <option value="1">光貿雲端（Email，無紙化）</option>
+            <option value="3J0002">手機條碼</option>
+            <option value="CQ0001">自然人憑證</option>
+            <option value="donation">捐贈（愛心碼）</option>
+          </select>
+        </div>
+        <div class="form-field full" id="f-inv-num-row" style="display:none">
+          <label class="form-label" id="f-inv-num-label">載具號碼</label>
+          <input class="form-input" id="f-inv-num" placeholder="">
+        </div>
+        <div class="form-field full" id="f-inv-npo-row" style="display:none">
+          <label class="form-label">愛心碼（捐贈碼）</label>
+          <input class="form-input" id="f-inv-npo" placeholder="3~7 位數字" inputmode="numeric">
+        </div>
+      </div>
+
+      <hr class="divider">
+
       <div class="btn-row">
         <button class="btn-ghost" onclick="goTo(2)">← 返回</button>
         <button class="btn-primary" onclick="goTo(4)">下一步：確認訂單 →</button>
@@ -1799,6 +1828,10 @@ function goTo(n){
     order.name=name; order.phone=phone; order.address=addr; order.email=email;
     order.phone2=document.getElementById('f-phone2').value.trim();
     order.note=document.getElementById('f-note').value.trim();
+    // 發票資訊
+    order.invCarrier = document.getElementById('f-inv-carrier').value;
+    order.invNum     = document.getElementById('f-inv-num').value.trim();
+    order.invNpo     = document.getElementById('f-inv-npo').value.trim();
     renderSummary();
   }
 
@@ -1865,6 +1898,32 @@ function renderSummary(){
   document.getElementById('summary-body').innerHTML=rows;
   document.getElementById('summary-total-price').textContent='NT$ '+total.toLocaleString();
 }
+
+// ─── 電子發票載具 UI ───
+function _invCarrierChange() {
+  const v = document.getElementById('f-inv-carrier').value;
+  const numRow = document.getElementById('f-inv-num-row');
+  const numLbl = document.getElementById('f-inv-num-label');
+  const numFld = document.getElementById('f-inv-num');
+  const npoRow = document.getElementById('f-inv-npo-row');
+  numRow.style.display = (v === '3J0002' || v === 'CQ0001') ? '' : 'none';
+  npoRow.style.display = (v === 'donation') ? '' : 'none';
+  if (v === '3J0002') { numLbl.textContent = '手機條碼'; numFld.placeholder = '/XXXXXXX（斜線開頭，共8碼）'; }
+  if (v === 'CQ0001') { numLbl.textContent = '自然人憑證號碼'; numFld.placeholder = '2碼英文 + 14碼數字'; }
+}
+
+// email 欄自動切換載具
+document.addEventListener('DOMContentLoaded', () => {
+  const emailFld = document.getElementById('f-email');
+  if (emailFld) emailFld.addEventListener('input', () => {
+    const sel = document.getElementById('f-inv-carrier');
+    if (emailFld.value.trim()) {
+      if (sel.value === '') { sel.value = '1'; _invCarrierChange(); }
+    } else {
+      if (sel.value === '1') { sel.value = ''; _invCarrierChange(); }
+    }
+  });
+});
 
 // ─── SUBMIT ───
 function submitOrder(){
@@ -1962,6 +2021,9 @@ function submitOrder(){
     lowSugar: Object.keys(order.lowSugar).filter(k=>order.lowSugar[k] && order.flavors[k]).length > 0
       ? { orig: !!order.lowSugar['original'], matcha: !!order.lowSugar['matcha'], cocoa: !!order.lowSugar['cocoa'] }
       : null,
+    invCarrier: order.invCarrier || '',
+    invNum:     order.invNum     || '',
+    invNpo:     order.invNpo     || '',
   };
   if(order.isCombo){
     firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };

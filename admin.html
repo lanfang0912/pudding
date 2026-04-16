@@ -4648,13 +4648,12 @@ function openInvoiceModal(id) {
   overlay.querySelector('#inv-buyer-name').value  = o.name  || '';
   overlay.querySelector('#inv-buyer-email').value = o.email || '';
   overlay.querySelector('#inv-buyer-phone').value = (o.phone !== '未填') ? o.phone : '';
-  overlay.querySelector('#inv-carrier-type').value = '';
-  overlay.querySelector('#inv-carrier-num').value  = '';
-  overlay.querySelector('#inv-npo-id').value       = '';
-  // 有 email 預設光貿雲端
-  if (overlay.querySelector('#inv-buyer-email').value.trim()) {
-    overlay.querySelector('#inv-carrier-type').value = '1';
-  }
+  // 優先帶入客人下單時填的發票資料，否則依 email 決定
+  const invCarrier = o.invCarrier !== undefined ? o.invCarrier
+                   : (o.email ? '1' : '');
+  overlay.querySelector('#inv-carrier-type').value = invCarrier;
+  overlay.querySelector('#inv-carrier-num').value  = o.invNum || '';
+  overlay.querySelector('#inv-npo-id').value       = o.invNpo || '';
   _updateInvCarrierUI(overlay);
   overlay.classList.add('open');
 }
