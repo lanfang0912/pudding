@@ -4029,7 +4029,7 @@ function renderAccounting(){
               <td style="${tdStyle};font-weight:500">${r.category||'其他'}</td>
               <td style="${tdStyle}">${r.note||'—'}</td>
               <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.amount||0).toLocaleString()}</td>
-              <td style="padding:4px 8px;text-align:right"><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
+              <td style="padding:4px 8px;text-align:right;white-space:nowrap"><button onclick="editAccExpense('${r._key}')" style="border:none;background:#e8f4fd;color:#2196f3;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;margin-right:4px">編輯</button><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
             </tr>`).join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
             <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
@@ -4040,7 +4040,10 @@ function renderAccounting(){
 
   document.getElementById('acc-expense-detail').innerHTML = `
     <div style="background:var(--paper-dark);border-radius:4px;padding:14px 16px;margin-bottom:4px">
-      <div style="font-size:12px;font-weight:600;margin-bottom:10px">新增其他支出</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:600">新增其他支出</div>
+        <button onclick="autoCategorizExpenses()" style="padding:4px 10px;border:1px solid var(--caramel);background:var(--paper);border-radius:2px;cursor:pointer;font-size:11px;font-family:inherit;color:var(--caramel)">✨ 一鍵自動分類</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div>
           <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">日期</label>
@@ -4049,12 +4052,12 @@ function renderAccounting(){
         <div>
           <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">類別</label>
           <select class="form-ctrl" id="acc-exp-cat" style="width:90px">
-            <option>食材</option><option>包材</option><option>運費</option><option>其他</option>
+            <option>食材</option><option>包材</option><option>運費</option><option>快遞費</option><option>其他</option>
           </select>
         </div>
         <div style="flex:1;min-width:120px">
           <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">說明</label>
-          <input class="form-ctrl" id="acc-exp-note" placeholder="例：3/10 黑貓宅配費">
+          <input class="form-ctrl" id="acc-exp-note" placeholder="例：3/10 黑貓宅配費" oninput="autoFillExpCat()">
         </div>
         <div>
           <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">金額（NT$）</label>
@@ -4158,7 +4161,7 @@ function showInvoicePreview(text){
 
   if(!invoices.length){ showToast('⚠️ 找不到有效發票資料'); return; }
 
-  const catOpts = ['運費','食材','包材','其他','略過'].map(c=>`<option value="${c}">${c}</option>`).join('');
+  const catOpts = ['運費','快遞費','食材','包材','其他','略過'].map(c=>`<option value="${c}">${c}</option>`).join('');
   const rows = invoices.map((inv,i) => `
     <tr style="border-bottom:1px solid var(--rule);${inv.rule.cat==='其他'?'background:#fff8ec':''}">
       <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="inv-chk" data-i="${i}" ${inv.rule.cat!=='略過'?'checked':''}></td>
@@ -4168,7 +4171,7 @@ function showInvoicePreview(text){
       <td style="padding:6px 8px;font-size:12px;text-align:right;color:var(--caramel);font-weight:600">NT$${inv.total}</td>
       <td style="padding:6px 4px">
         <select class="inv-cat filter-select" data-i="${i}" style="font-size:11px;padding:3px 6px">
-          ${['運費','食材','包材','其他','略過'].map(c=>`<option value="${c}"${c===inv.rule.cat?'selected':''}>${c}</option>`).join('')}
+          ${['運費','快遞費','食材','包材','其他','略過'].map(c=>`<option value="${c}"${c===inv.rule.cat?'selected':''}>${c}</option>`).join('')}
         </select>
       </td>
       <td style="padding:6px 8px;font-size:11px;color:${inv.rule.cat==='其他'?'#c62828':'var(--ink-soft)'}">
@@ -4231,7 +4234,7 @@ async function confirmInvoiceImport(invoices){
     const cat = cats[i] || inv.rule.cat;
     const note = `${inv.seller.slice(0,15)} ${inv.products.map(p=>p.name).join('、')}`;
     updates['settings/expenseLog/'+(base+idx)] = {
-      category: cat==='食材'||cat==='包材'||cat==='運費'||cat==='其他' ? cat : '其他',
+      category: cat==='食材'||cat==='包材'||cat==='運費'||cat==='快遞費'||cat==='其他' ? cat : '其他',
       date: inv.date,
       note: note.trim(),
       amount: inv.total,
@@ -4377,6 +4380,104 @@ function deleteAccExpense(key){
   delete accExpLog[key];
   db.ref('settings/expenseLog/'+key).remove().then(() => {
     showToast('🗑 已刪除');
+    renderAccounting();
+  });
+}
+
+function autoClassifyByNote(note){
+  const hay = note.toLowerCase();
+  for(const rule of INVOICE_RULES){
+    if(rule.keys.some(k => hay.includes(k.toLowerCase()))) return rule.cat;
+  }
+  return null;
+}
+
+function autoFillExpCat(){
+  const note = document.getElementById('acc-exp-note').value;
+  const cat = autoClassifyByNote(note);
+  if(cat){ const sel = document.getElementById('acc-exp-cat'); if(sel) sel.value = cat; }
+}
+
+function autoFillEditExpCat(){
+  const note = document.getElementById('edit-exp-note').value;
+  const cat = autoClassifyByNote(note);
+  if(cat){ const sel = document.getElementById('edit-exp-cat'); if(sel) sel.value = cat; }
+}
+
+async function autoCategorizExpenses(){
+  const toUpdate = {};
+  let count = 0;
+  Object.entries(accExpLog).forEach(([key, r]) => {
+    if(!r.note) return;
+    const detected = autoClassifyByNote(r.note);
+    if(detected && detected !== (r.category||'其他')){
+      toUpdate['settings/expenseLog/'+key+'/category'] = detected;
+      accExpLog[key] = {...r, category: detected};
+      count++;
+    }
+  });
+  if(!count){ showToast('⚠️ 沒有需要更新的項目'); return; }
+  if(!confirm(`將自動更新 ${count} 筆分類，確定嗎？`)) return;
+  await db.ref('/').update(toUpdate);
+  showToast(`✅ 已自動分類 ${count} 筆`);
+  renderAccounting();
+}
+
+function editAccExpense(key){
+  const r = accExpLog[key];
+  if(!r) return;
+  const cats = ['食材','包材','運費','快遞費','其他'];
+  const overlay = document.createElement('div');
+  overlay.id = 'edit-exp-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--paper);border-radius:4px;width:min(420px,92vw);box-shadow:0 8px 32px rgba(0,0,0,0.2);padding:24px" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-size:14px;font-weight:600">編輯支出</div>
+        <button onclick="document.getElementById('edit-exp-overlay').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft)">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">日期</label>
+          <input class="form-ctrl" id="edit-exp-date" type="date" value="${r.date||''}" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">類別</label>
+          <select class="form-ctrl" id="edit-exp-cat" style="width:100%">
+            ${cats.map(c=>`<option value="${c}"${c===(r.category||'其他')?' selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">說明</label>
+          <input class="form-ctrl" id="edit-exp-note" value="${(r.note||'').replace(/"/g,'&quot;')}" style="width:100%" oninput="autoFillEditExpCat()">
+        </div>
+        <div>
+          <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">金額（NT$）</label>
+          <input class="form-ctrl" id="edit-exp-amt" type="number" min="0" value="${r.amount||0}" style="width:100%">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button onclick="document.getElementById('edit-exp-overlay').remove()" style="padding:8px 16px;border:1px solid var(--rule);background:var(--paper-dark);border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">取消</button>
+          <button onclick="saveEditedExpense('${key}')" style="padding:8px 16px;background:var(--caramel);color:#fff;border:none;border-radius:2px;cursor:pointer;font-family:inherit;font-size:12px">儲存</button>
+        </div>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function saveEditedExpense(key){
+  const date     = document.getElementById('edit-exp-date').value;
+  const category = document.getElementById('edit-exp-cat').value;
+  const note     = document.getElementById('edit-exp-note').value.trim();
+  const amount   = +document.getElementById('edit-exp-amt').value || 0;
+  if(!date){ showToast('請填寫日期'); return; }
+  if(!amount){ showToast('請填寫金額'); return; }
+  const updates = { date, category, note, amount };
+  accExpLog[key] = { ...accExpLog[key], ...updates };
+  db.ref('settings/expenseLog/'+key).update(updates).then(() => {
+    document.getElementById('edit-exp-overlay').remove();
+    showToast('✅ 已更新');
+    populateAccMonthSel();
     renderAccounting();
   });
 }
