@@ -4858,9 +4858,9 @@ async function openInvoiceOnAmego() {
         urlEl.href = url;
         urlRow.style.display = '';
         showToast('連結已顯示，請點發票資訊裡的「發票連結」');
-      } else {
-        showToast('❌ 無法取得連結：' + (j.msg || j.message || JSON.stringify(j)));
       }
+      // debug: 顯示完整回傳
+      showToast('API 回傳：' + JSON.stringify(j).slice(0, 200));
     }
   } catch(e) {
     showToast('❌ 下載失敗：' + e.message);
