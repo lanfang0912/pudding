@@ -194,20 +194,20 @@ export default {
         NPOBAN:               isDonation ? npoId : '',
         ProductItem: items.map(i => ({
           Description: i.name,
-          Quantity:    i.count,
+          Quantity:    String(i.count),
           Unit:        i.unit || '盒',
-          UnitPrice:   i.price,
-          Amount:      i.amount,
+          UnitPrice:   String(i.price),
+          Amount:      String(i.amount),
           Remark:      '',
-          TaxType:     1,
+          TaxType:     '1',
         })),
-        SalesAmount:        totalAmount,
-        FreeTaxSalesAmount: 0,
-        ZeroTaxSalesAmount: 0,
-        TaxType:            1,
+        SalesAmount:        String(totalAmount),
+        FreeTaxSalesAmount: '0',
+        ZeroTaxSalesAmount: '0',
+        TaxType:            '1',
         TaxRate:            '0.05',
-        TaxAmount:          0,        // B2C 不打統編一律帶 0
-        TotalAmount:        totalAmount,
+        TaxAmount:          '0',
+        TotalAmount:        String(totalAmount),
       };
 
       try {
