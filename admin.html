@@ -607,6 +607,7 @@ tr.done-row td{opacity:.45;}
         <span style="font-size:10px;letter-spacing:2px;color:var(--ink-soft)">月份</span>
         <select id="acc-month-sel" class="filter-select" onchange="renderAccounting()" style="min-width:130px"></select>
         <button onclick="reloadAccounting()" style="border:1px solid var(--rule);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-soft)">↻ 重新整理</button>
+        <button onclick="autoClassifyExpenses()" style="border:1px solid var(--ink-mid);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-mid)">✨ 自動歸類</button>
         <button id="import-march-btn" onclick="importMarchData()" style="border:1px solid var(--caramel);background:var(--caramel);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:#fff">📥 匯入三月資料</button>
         <button onclick="document.getElementById('invoice-file-input').click()" style="border:1px solid var(--ink-mid);background:var(--paper);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12px;font-family:'Noto Serif TC',serif;color:var(--ink-mid)">📂 匯入電子發票</button>
         <input type="file" id="invoice-file-input" accept=".csv,.txt" style="display:none" onchange="handleInvoiceFile(this)">
@@ -4082,6 +4083,29 @@ function classifyInvoice(seller, products){
     }
   }
   return { cat:'其他', keys:[] };
+}
+
+async function autoClassifyExpenses(){
+  if(!accExpLog) return;
+  const updates = {};
+  let count = 0;
+  for(const [key, r] of Object.entries(accExpLog)){
+    const haystack = (r.note||'').toLowerCase();
+    for(const rule of INVOICE_RULES){
+      if(rule.keys.some(k => haystack.includes(k.toLowerCase()))){
+        if(r.category !== rule.cat){
+          updates['settings/expenseLog/'+key+'/category'] = rule.cat;
+          accExpLog[key] = {...r, category: rule.cat};
+          count++;
+        }
+        break;
+      }
+    }
+  }
+  if(!count){ showToast('沒有需要更新的項目'); return; }
+  await db.ref('/').update(updates);
+  showToast(`✅ 已歸類 ${count} 筆`);
+  renderAccounting();
 }
 
 function parseInvoiceDate(raw){
