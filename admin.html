@@ -2725,10 +2725,12 @@ function renderTable(){
 function setS(id,status){
   db.ref('orders/'+id).update({status});
   showToast({paid:'✓ 已確認匯款',shipped:'📦 已出貨',pending:'↩ 重置'}[status]);
-  // 出貨時若尚未開發票，自動開啟發票視窗
   if (status === 'shipped') {
     const o = orders.find(x => x.id === id);
-    if (o && !o.invoiceNo) setTimeout(() => openInvoiceModal(id), 400);
+    if (o) {
+      if (o.email && o.email.includes('@')) sendShipNotify(id);
+      if (!o.invoiceNo) setTimeout(() => openInvoiceModal(id), 400);
+    }
   }
 }
 
