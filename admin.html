@@ -4720,8 +4720,12 @@ async function submitInvoice() {
   if (carrierType === 'donation' && !/^\d{3,7}$/.test(npoId)) {
     showToast('⚠️ 愛心碼格式錯誤（3~7位數字）'); return;
   }
+  const taxIdName   = overlay.querySelector('#inv-taxid-name').value.trim();
   if (carrierType === 'taxid' && !/^\d{8}$/.test(taxId)) {
     showToast('⚠️ 統編格式錯誤（8碼數字）'); return;
+  }
+  if (carrierType === 'taxid' && !taxIdName) {
+    showToast('⚠️ 打統編時需填入買方公司名稱'); return;
   }
 
   // 組品項
@@ -4759,7 +4763,8 @@ async function submitInvoice() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         orderId: o.invoiceVoided ? `${o.id}-R${Math.floor(Date.now()/1000)}` : o.id,
-        buyerName, buyerEmail, buyerPhone,
+        buyerName: carrierType === 'taxid' ? (taxIdName || taxId) : buyerName,
+        buyerEmail, buyerPhone,
         buyerIdentifier: carrierType === 'taxid' ? taxId : '',
         carrierType: realCarrierType,
         carrierNum: realCarrierNum,
@@ -5012,10 +5017,18 @@ async function voidInvoice(id) {
           <input class="form-ctrl" id="inv-npo-id" placeholder="3~7 位數字">
         </div>
       </div>
-      <div class="form-row full" id="inv-taxid-row" style="display:none">
-        <div class="form-group">
-          <label class="form-label">公司統編（8 碼）</label>
-          <input class="form-ctrl" id="inv-taxid" placeholder="12345678" maxlength="8">
+      <div id="inv-taxid-row" style="display:none">
+        <div class="form-row full" style="margin-bottom:0">
+          <div class="form-group">
+            <label class="form-label">公司統編（8 碼）</label>
+            <input class="form-ctrl" id="inv-taxid" placeholder="12345678" maxlength="8">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label class="form-label">買方公司名稱</label>
+            <input class="form-ctrl" id="inv-taxid-name" placeholder="請填公司名稱（必填）">
+          </div>
         </div>
       </div>
     </div>
