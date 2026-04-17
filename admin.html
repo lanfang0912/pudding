@@ -3918,20 +3918,10 @@ function renderAccounting(){
     .filter(r => (r.ts||'').slice(0,7)===month && (r.cost||0)>0);
   const pkgCost = pkgEntries.reduce((a,r) => a+(r.cost||0), 0);
 
-  // ── 其他支出（自動分類 category='其他' 且有關鍵字的項目）
+  // ── 其他支出
   const expEntries = Object.entries(accExpLog)
     .map(([k,r]) => ({...r, _key:k}))
     .filter(r => (r.date||'').slice(0,7)===month);
-  const catUpdates = {};
-  expEntries.forEach(r => {
-    const detected = autoClassifyByNote(r.note||'');
-    if(!detected || detected==='其他') return;
-    if(r.category === detected) return;
-    r.category = detected;
-    catUpdates['settings/expenseLog/'+r._key+'/category'] = detected;
-    if(accExpLog[r._key]) accExpLog[r._key].category = detected;
-  });
-  if(Object.keys(catUpdates).length) db.ref('/').update(catUpdates);
   const shipCost  = expEntries.filter(r => r.category==='運費').reduce((a,r) => a+(r.amount||0), 0);
   const otherCost = expEntries.filter(r => r.category!=='運費').reduce((a,r) => a+(r.amount||0), 0);
   const expCost = shipCost + otherCost;
@@ -4026,37 +4016,44 @@ function renderAccounting(){
           </tr>
         </tbody></table>`;
 
-  // ── 其他支出明細
-  const sorted = [...expEntries].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  const listHtml = !sorted.length
+  // ── 其他支出明細（按分類分組）
+  const CAT_ORDER = ['食材','包材','運費','其他'];
+  const grouped = {};
+  CAT_ORDER.forEach(c => { grouped[c] = []; });
+  expEntries.forEach(r => {
+    const cat = r.category || '其他';
+    if(!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(r);
+  });
+  const listHtml = !expEntries.length
     ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:10px">本月無其他支出</div>`
-    : `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:12px">
-        <thead><tr style="border-bottom:2px solid var(--rule)">
-          <th style="${thStyle}">日期</th><th style="${thStyle}">類別</th>
-          <th style="${thStyle}">說明</th><th style="${thR}">金額</th><th></th>
-        </tr></thead>
-        <tbody>
-          ${sorted.map(r=>`
-            <tr style="border-bottom:1px solid var(--rule)">
-              <td style="${tdSub}">${r.date||'—'}</td>
-              <td style="${tdStyle};font-weight:500">${r.category||'其他'}</td>
-              <td style="${tdStyle}">${r.note||'—'}</td>
-              <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.amount||0).toLocaleString()}</td>
-              <td style="padding:4px 8px;text-align:right;white-space:nowrap"><button onclick="editAccExpense('${r._key}')" style="border:none;background:#e8f4fd;color:#2196f3;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;margin-right:4px">編輯</button><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
-            </tr>`).join('')}
-          <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
-            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
-            <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${expCost.toLocaleString()}</td>
-            <td></td>
-          </tr>
-        </tbody></table>`;
+    : CAT_ORDER.filter(cat => grouped[cat].length > 0).map(cat => {
+        const items = [...grouped[cat]].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+        const subtotal = items.reduce((a,r) => a+(r.amount||0), 0);
+        return `<div style="margin-top:14px">
+          <div style="font-size:11px;font-weight:600;letter-spacing:1px;color:var(--ink-soft);padding:4px 0;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between">
+            <span>${cat}</span><span>NT$ ${subtotal.toLocaleString()}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <tbody>
+              ${items.map(r=>`
+                <tr style="border-bottom:1px solid var(--rule)">
+                  <td style="${tdSub}">${r.date||'—'}</td>
+                  <td style="${tdStyle}">${r.note||'—'}</td>
+                  <td style="${tdR};color:var(--caramel);font-weight:500">NT$ ${(r.amount||0).toLocaleString()}</td>
+                  <td style="padding:4px 8px;text-align:right;white-space:nowrap"><button onclick="editAccExpense('${r._key}')" style="border:none;background:#e8f4fd;color:#2196f3;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit;margin-right:4px">編輯</button><button onclick="deleteAccExpense('${r._key}')" style="border:none;background:#e0e0e0;color:#555;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:11px;font-family:inherit">刪除</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      }).join('') + `<div style="margin-top:12px;padding-top:8px;border-top:2px solid var(--rule);display:flex;justify-content:space-between">
+        <span style="font-size:12px;font-weight:600">總計</span>
+        <span style="font-size:12px;font-weight:600;color:var(--caramel)">NT$ ${expCost.toLocaleString()}</span>
+      </div>`;
 
   document.getElementById('acc-expense-detail').innerHTML = `
     <div style="background:var(--paper-dark);border-radius:4px;padding:14px 16px;margin-bottom:4px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:12px;font-weight:600">新增其他支出</div>
-        <button onclick="autoCategorizExpenses()" style="padding:4px 10px;border:1px solid var(--caramel);background:var(--paper);border-radius:2px;cursor:pointer;font-size:11px;font-family:inherit;color:var(--caramel)">✨ 一鍵自動分類</button>
-      </div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px">新增其他支出</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div>
           <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">日期</label>
