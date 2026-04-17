@@ -927,7 +927,7 @@ const GUANGMAO = {
   // Cloudflare Worker proxy（已在線上，不需額外部署）
   issueUrl: 'https://tcat-proxy.lanfang-hsu.workers.dev/issueInvoice',
   voidUrl:  'https://tcat-proxy.lanfang-hsu.workers.dev/voidInvoice',
-  // 品項單價
+  taxId: '12345678', // 測試帳號；正式換回 93555969
   prices: { original: 360, matcha: 390, cocoa: 390 },
 };
 
@@ -4840,16 +4840,18 @@ async function openInvoiceOnAmego() {
     const j = await r.json();
     const d = j.data;
     if (j.code === 0 && d) {
+      const invoiceUrl = `https://invoice.amego.tw/user/order_query?v=${GUANGMAO.taxId}&order_id=${encodeURIComponent(d.order_id)}&data=${encodeURIComponent(d.carrier_id1)}`;
       const items = (d.product_item || []).map(p =>
         `<tr>
           <td style="padding:4px 0">${p.description}</td>
           <td style="padding:4px 8px;text-align:center">${p.quantity}</td>
-          <td style="padding:4px 0;text-align:right">NT$ ${p.amount}</td>
+          <td style="padding:4px 0;text-align:right">NT$${p.amount}</td>
         </tr>`
       ).join('');
       document.getElementById('inv-view-items').innerHTML =
         `<tr style="color:var(--ink-soft);font-size:12px"><td>品項</td><td style="text-align:center">數量</td><td style="text-align:right">金額</td></tr>${items}`;
       document.getElementById('inv-view-total').textContent = d.total_amount;
+      document.getElementById('inv-view-link').href = invoiceUrl;
       document.getElementById('inv-view-detail').style.display = '';
     } else {
       showToast('❌ 無法取得明細：' + (j.msg || JSON.stringify(j)));
@@ -4906,7 +4908,7 @@ async function voidInvoice(id) {
 
 <!-- 發票資訊 Modal（查看已開立發票） -->
 <div id="invoice-view-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeInvoiceViewModal()">
-  <div class="modal" style="width:400px">
+  <div class="modal" style="width:min(400px,92vw)">
     <div class="modal-hdr">
       <span class="modal-title">🧾 發票資訊</span>
       <button class="modal-close" onclick="closeInvoiceViewModal()">✕</button>
@@ -4920,7 +4922,10 @@ async function voidInvoice(id) {
       <div id="inv-view-detail" style="display:none;margin-top:12px;border-top:1px solid #eee;padding-top:12px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">發票明細</div>
         <table id="inv-view-items" style="width:100%;border-collapse:collapse;font-size:13px"></table>
-        <div style="display:flex;justify-content:flex-end;margin-top:6px;font-weight:600;font-size:14px">合計：NT$ <span id="inv-view-total"></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px">
+          <a id="inv-view-link" href="#" target="_blank" style="font-size:13px;color:#7b5ea7">查看發票 ↗</a>
+          <div style="font-weight:600;font-size:14px">合計 NT$<span id="inv-view-total"></span></div>
+        </div>
       </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
