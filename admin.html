@@ -4830,6 +4830,7 @@ function closeInvoiceViewModal() {
 async function openInvoiceOnAmego() {
   const o = orders.find(x => x.id === _invViewOrderId);
   if (!o) return;
+  if (o.invoiceUrl) { window.open(o.invoiceUrl, '_blank'); return; }
   try {
     const r = await fetch(`${GUANGMAO.issueUrl.replace('issueInvoice','invoiceFile')}`, {
       method: 'POST',
@@ -4842,7 +4843,11 @@ async function openInvoiceOnAmego() {
       window.open(url, '_blank');
     } else {
       const j = await r.json();
-      showToast('❌ 無法取得 PDF：' + (j.message || JSON.stringify(j)));
+      if (j.code === 53) {
+        window.open(`https://invoice.amego.tw/invoice/query?invoice_number=${o.invoiceNo}`, '_blank');
+      } else {
+        showToast('❌ 無法取得 PDF：' + (j.msg || j.message || JSON.stringify(j)));
+      }
     }
   } catch(e) {
     showToast('❌ 下載失敗：' + e.message);

@@ -225,11 +225,11 @@ export default {
     // ── 電子發票：作廢 ──
     if (path === 'voidInvoice') {
       const { invoiceNo, invoiceDate, reason } = await request.json();
-      const dataObj = {
-        InvoiceNo:   invoiceNo,
-        InvoiceDate: invoiceDate,
-        Reason:      reason || '訂單取消',
-      };
+      const dataObj = [{
+        CancelInvoiceNumber: invoiceNo,
+        CancelDate:          invoiceDate,
+        Reason:              reason || '訂單取消',
+      }];
       try {
         const r = await fetch(`${AMEGO.base}/json/f0501`, {
           method: 'POST',
