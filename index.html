@@ -1255,6 +1255,7 @@ footer {
             <option value="3J0002">手機條碼</option>
             <option value="CQ0001">自然人憑證</option>
             <option value="donation">捐贈（愛心碼）</option>
+            <option value="taxid">公司統編（三聯式）</option>
           </select>
         </div>
         <div class="form-field full" id="f-inv-num-row" style="display:none">
@@ -1264,6 +1265,15 @@ footer {
         <div class="form-field full" id="f-inv-npo-row" style="display:none">
           <label class="form-label">愛心碼（捐贈碼）</label>
           <input class="form-input" id="f-inv-npo" placeholder="3~7 位數字" inputmode="numeric">
+        </div>
+        <div id="f-inv-taxid-row" style="display:none">
+          <div class="form-field full">
+            <label class="form-label">公司統編（8碼）</label>
+            <input class="form-input" id="f-inv-taxid" placeholder="12345678" maxlength="8" inputmode="numeric">
+          </div>
+          <div class="form-field full">
+            <label class="form-label">買方公司名稱</label>
+            <input class="form-input" id="f-inv-taxname" placeholder="請填公司名稱">
         </div>
       </div>
 
@@ -1832,6 +1842,8 @@ function goTo(n){
     order.invCarrier = document.getElementById('f-inv-carrier').value;
     order.invNum     = document.getElementById('f-inv-num').value.trim();
     order.invNpo     = document.getElementById('f-inv-npo').value.trim();
+    order.invTaxId   = document.getElementById('f-inv-taxid').value.trim();
+    order.invTaxName = document.getElementById('f-inv-taxname').value.trim();
     renderSummary();
   }
 
@@ -1906,8 +1918,10 @@ function _invCarrierChange() {
   const numLbl = document.getElementById('f-inv-num-label');
   const numFld = document.getElementById('f-inv-num');
   const npoRow = document.getElementById('f-inv-npo-row');
+  const taxRow = document.getElementById('f-inv-taxid-row');
   numRow.style.display = (v === '3J0002' || v === 'CQ0001') ? '' : 'none';
   npoRow.style.display = (v === 'donation') ? '' : 'none';
+  taxRow.style.display = (v === 'taxid') ? '' : 'none';
   if (v === '3J0002') { numLbl.textContent = '手機條碼'; numFld.placeholder = '/XXXXXXX（斜線開頭，共8碼）'; }
   if (v === 'CQ0001') { numLbl.textContent = '自然人憑證號碼'; numFld.placeholder = '2碼英文 + 14碼數字'; }
 }
@@ -2021,9 +2035,11 @@ function submitOrder(){
     lowSugar: Object.keys(order.lowSugar).filter(k=>order.lowSugar[k] && order.flavors[k]).length > 0
       ? { orig: !!order.lowSugar['original'], matcha: !!order.lowSugar['matcha'], cocoa: !!order.lowSugar['cocoa'] }
       : null,
-    invCarrier: order.invCarrier || '',
-    invNum:     order.invNum     || '',
-    invNpo:     order.invNpo     || '',
+    invCarrier:  order.invCarrier  || '',
+    invNum:      order.invNum      || '',
+    invNpo:      order.invNpo      || '',
+    invTaxId:    order.invTaxId    || '',
+    invTaxName:  order.invTaxName  || '',
   };
   if(order.isCombo){
     firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };

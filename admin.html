@@ -4660,7 +4660,9 @@ function openInvoiceModal(id) {
   // 只有手機條碼(3J0002)和自然人憑證(CQ0001)才需要載具號碼；其他類型清空殘留值
   const needsCarrierNum = (invCarrier === '3J0002' || invCarrier === 'CQ0001');
   overlay.querySelector('#inv-carrier-num').value  = needsCarrierNum ? (o.invNum || '') : '';
-  overlay.querySelector('#inv-npo-id').value       = o.invNpo || '';
+  overlay.querySelector('#inv-npo-id').value        = o.invNpo    || '';
+  overlay.querySelector('#inv-taxid').value         = o.invTaxId  || '';
+  overlay.querySelector('#inv-taxid-name').value    = o.invTaxName || '';
   _updateInvCarrierUI(overlay);
   overlay.classList.add('open');
 }
