@@ -4767,7 +4767,7 @@ async function submitInvoice() {
       const invoiceNo   = (d && (d.invoice_number || d.InvoiceNumber || d.e || d.invoice_no || d.InvoiceNo || d.invoiceNo || d.no))
                        || json.invoice_number || json.InvoiceNumber || json.InvoiceNo || json.invoiceNo || '';
       const invoiceDate = (d && (d.invoice_date || d.InvoiceDate)) || json.InvoiceDate || new Date().toISOString().slice(0,10);
-      const invoiceUrl  = (d && d.url) || '';
+      const invoiceUrl  = (d && (d.url || d.invoice_url || d.link || d.pdf_url || d.download_url)) || json.url || json.invoice_url || '';
       const invoiceCarrierType = carrierType;
       if (!invoiceNo) {
         // 發票已在 amego 開立成功，但系統無法從回傳中取得發票號碼
@@ -4819,6 +4819,14 @@ function showInvoiceInfo(id) {
     ? o.invoiceCarrierType
     : (o.invCarrier || (o.email ? 'email' : ''));
   overlay.querySelector('#inv-view-carrier').textContent = _carrierTypeLabel(carrier);
+  const urlRow = overlay.querySelector('#inv-view-url-row');
+  const urlEl  = overlay.querySelector('#inv-view-url');
+  if (o.invoiceUrl) {
+    urlEl.href = o.invoiceUrl;
+    urlRow.style.display = '';
+  } else {
+    urlRow.style.display = 'none';
+  }
   overlay.classList.add('open');
 }
 
@@ -4911,6 +4919,7 @@ async function voidInvoice(id) {
         <tr><td style="padding:8px 0;color:var(--ink-soft);width:80px">發票號碼</td><td style="padding:8px 0;font-weight:600;letter-spacing:1px" id="inv-view-no"></td></tr>
         <tr><td style="padding:8px 0;color:var(--ink-soft)">開立日期</td><td style="padding:8px 0" id="inv-view-date"></td></tr>
         <tr><td style="padding:8px 0;color:var(--ink-soft)">載具類型</td><td style="padding:8px 0" id="inv-view-carrier"></td></tr>
+        <tr id="inv-view-url-row" style="display:none"><td style="padding:8px 0;color:var(--ink-soft)">發票連結</td><td style="padding:8px 0"><a id="inv-view-url" href="#" target="_blank" style="color:#7b5ea7;word-break:break-all;font-size:13px">開啟</a></td></tr>
       </table>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
