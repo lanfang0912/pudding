@@ -4874,6 +4874,14 @@ async function fillInvoiceNo(id) {
   showToast('🧾 發票號碼已補記錄：' + invoiceNo);
 }
 
+async function clearInvoiceRecord() {
+  const id = _invViewOrderId;
+  if (!id || !confirm('清除此筆發票記錄？（不會呼叫 Amego API，適用於已在後台作廢或測試發票）')) return;
+  closeInvoiceViewModal();
+  await db.ref('orders/' + id).update({ invoiceNo: null, invoiceDate: null, invoiceVoided: true });
+  showToast('🧾 發票記錄已清除，可重新開立');
+}
+
 function confirmVoidInvoice() {
   const id = _invViewOrderId;
   closeInvoiceViewModal();
@@ -4929,7 +4937,10 @@ async function voidInvoice(id) {
       </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
-      <button class="btn-cancel" style="color:#c0392b;border-color:#c0392b" onclick="confirmVoidInvoice()">作廢發票</button>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="btn-cancel" style="color:#c0392b;border-color:#c0392b" onclick="confirmVoidInvoice()">作廢發票</button>
+        <button class="btn-cancel" style="color:#999;border-color:#ddd;font-size:12px" onclick="clearInvoiceRecord()">清除記錄（不呼叫 API）</button>
+      </div>
       <div style="display:flex;gap:8px">
         <button class="btn-cancel" onclick="closeInvoiceViewModal()">關閉</button>
         <button class="btn-save" style="background:#7b5ea7" onclick="openInvoiceOnAmego()">查看明細</button>
