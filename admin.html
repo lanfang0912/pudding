@@ -3924,13 +3924,12 @@ function renderAccounting(){
     .filter(r => (r.date||'').slice(0,7)===month);
   const catUpdates = {};
   expEntries.forEach(r => {
-    if((r.category && r.category!=='其他')) return;
     const detected = autoClassifyByNote(r.note||'');
-    if(detected && detected!=='其他'){
-      r.category = detected;
-      catUpdates['settings/expenseLog/'+r._key+'/category'] = detected;
-      if(accExpLog[r._key]) accExpLog[r._key].category = detected;
-    }
+    if(!detected || detected==='其他') return;
+    if(r.category === detected) return;
+    r.category = detected;
+    catUpdates['settings/expenseLog/'+r._key+'/category'] = detected;
+    if(accExpLog[r._key]) accExpLog[r._key].category = detected;
   });
   if(Object.keys(catUpdates).length) db.ref('/').update(catUpdates);
   const shipCost  = expEntries.filter(r => r.category==='運費').reduce((a,r) => a+(r.amount||0), 0);
@@ -4107,7 +4106,7 @@ function addAccExpense(){
 // 關鍵字分類表
 const INVOICE_RULES = [
   // 運費
-  { cat:'運費', keys:['統一速達','黑貓','宅急便','郵局','順豐','宅配通'] },
+  { cat:'運費', keys:['統一速達','黑貓','宅急便','郵局','順豐','宅配通','集運','快遞','運費'] },
   // 食材
   { cat:'食材', ingId:'milk',     ingName:'鮮奶',       keys:['鮮乳','鮮奶','牛乳','光泉','統一鮮奶'] },
   { cat:'食材', ingId:'cream',    ingName:'動物鮮奶油', keys:['鮮奶油','奶油','cream','德麥','安佳','總統牌'] },
@@ -4119,11 +4118,12 @@ const INVOICE_RULES = [
   // 包材
   { cat:'包材', pkgId:'box_muffin', pkgName:'馬芬盒（面交）', keys:['馬芬','包裝盒','底托'] },
   { cat:'包材', pkgId:'bag_insulated', pkgName:'保冷袋',      keys:['保冷袋'] },
-  { cat:'包材', pkgId:'cup',       pkgName:'布丁杯',           keys:['布丁杯','果凍杯'] },
+  { cat:'包材', pkgId:'cup',       pkgName:'布丁杯',           keys:['布丁杯','果凍杯','嘟嘟罐'] },
   { cat:'包材', pkgId:'cup_lid',   pkgName:'布丁杯蓋',         keys:['杯蓋','封口'] },
   { cat:'包材', pkgId:'spoon',     pkgName:'布丁匙（湯匙）',   keys:['湯匙','匙','spoon'] },
   { cat:'包材', pkgId:'box_large', pkgName:'大紙箱（宅配）',   keys:['大紙箱','大箱'] },
   { cat:'包材', pkgId:'box_small', pkgName:'小紙箱（宅配）',   keys:['小紙箱','小箱'] },
+  { cat:'包材', keys:['標籤紙','標籤貼','餅乾袋','包裝袋','夾鏈袋','封口袋','氣泡袋','膠帶','束帶'] },
   { cat:'包材', pkgId:'box_large', pkgName:'大紙箱（宅配）',   keys:['紙箱','包材'] }, // fallback
 ];
 
