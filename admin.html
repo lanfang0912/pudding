@@ -3922,7 +3922,9 @@ function renderAccounting(){
   const expEntries = Object.entries(accExpLog)
     .map(([k,r]) => ({...r, _key:k}))
     .filter(r => (r.date||'').slice(0,7)===month);
-  const expCost = expEntries.reduce((a,r) => a+(r.amount||0), 0);
+  const shipCost  = expEntries.filter(r => r.category==='運費').reduce((a,r) => a+(r.amount||0), 0);
+  const otherCost = expEntries.filter(r => r.category!=='運費').reduce((a,r) => a+(r.amount||0), 0);
+  const expCost = shipCost + otherCost;
 
   const totalCost = ingCost + pkgCost + expCost;
   const profit = revenue - totalCost;
@@ -3937,7 +3939,8 @@ function renderAccounting(){
     card('訂單收入', revenue, 'var(--matcha)') +
     card('食材費', ingCost, 'var(--caramel)') +
     card('包材費', pkgCost, 'var(--caramel)') +
-    card('其他支出', expCost, 'var(--caramel)') +
+    card('運費', shipCost, 'var(--caramel)') +
+    card('其他支出', otherCost, 'var(--caramel)') +
     card('淨利', profit, profit >= 0 ? 'var(--matcha)' : 'var(--red)');
 
   // ── 收入明細
@@ -4052,7 +4055,7 @@ function renderAccounting(){
         <div>
           <label style="font-size:10px;letter-spacing:1px;color:var(--ink-soft);display:block;margin-bottom:4px">類別</label>
           <select class="form-ctrl" id="acc-exp-cat" style="width:90px">
-            <option>食材</option><option>包材</option><option>運費</option><option>快遞費</option><option>其他</option>
+            <option>食材</option><option>包材</option><option>運費</option><option>其他</option>
           </select>
         </div>
         <div style="flex:1;min-width:120px">
@@ -4161,7 +4164,7 @@ function showInvoicePreview(text){
 
   if(!invoices.length){ showToast('⚠️ 找不到有效發票資料'); return; }
 
-  const catOpts = ['運費','快遞費','食材','包材','其他','略過'].map(c=>`<option value="${c}">${c}</option>`).join('');
+  const catOpts = ['運費','食材','包材','其他','略過'].map(c=>`<option value="${c}">${c}</option>`).join('');
   const rows = invoices.map((inv,i) => `
     <tr style="border-bottom:1px solid var(--rule);${inv.rule.cat==='其他'?'background:#fff8ec':''}">
       <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="inv-chk" data-i="${i}" ${inv.rule.cat!=='略過'?'checked':''}></td>
@@ -4171,7 +4174,7 @@ function showInvoicePreview(text){
       <td style="padding:6px 8px;font-size:12px;text-align:right;color:var(--caramel);font-weight:600">NT$${inv.total}</td>
       <td style="padding:6px 4px">
         <select class="inv-cat filter-select" data-i="${i}" style="font-size:11px;padding:3px 6px">
-          ${['運費','快遞費','食材','包材','其他','略過'].map(c=>`<option value="${c}"${c===inv.rule.cat?'selected':''}>${c}</option>`).join('')}
+          ${['運費','食材','包材','其他','略過'].map(c=>`<option value="${c}"${c===inv.rule.cat?'selected':''}>${c}</option>`).join('')}
         </select>
       </td>
       <td style="padding:6px 8px;font-size:11px;color:${inv.rule.cat==='其他'?'#c62828':'var(--ink-soft)'}">
@@ -4234,7 +4237,7 @@ async function confirmInvoiceImport(invoices){
     const cat = cats[i] || inv.rule.cat;
     const note = `${inv.seller.slice(0,15)} ${inv.products.map(p=>p.name).join('、')}`;
     updates['settings/expenseLog/'+(base+idx)] = {
-      category: cat==='食材'||cat==='包材'||cat==='運費'||cat==='快遞費'||cat==='其他' ? cat : '其他',
+      category: cat==='食材'||cat==='包材'||cat==='運費'||cat==='其他' ? cat : '其他',
       date: inv.date,
       note: note.trim(),
       amount: inv.total,
@@ -4426,7 +4429,7 @@ async function autoCategorizExpenses(){
 function editAccExpense(key){
   const r = accExpLog[key];
   if(!r) return;
-  const cats = ['食材','包材','運費','快遞費','其他'];
+  const cats = ['食材','包材','運費','其他'];
   const overlay = document.createElement('div');
   overlay.id = 'edit-exp-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
