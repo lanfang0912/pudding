@@ -4830,6 +4830,7 @@ function closeInvoiceViewModal() {
 async function openInvoiceOnAmego() {
   const o = orders.find(x => x.id === _invViewOrderId);
   if (!o) return;
+  if (o.invoiceUrl) { window.open(o.invoiceUrl, '_blank'); return; }
   try {
     const r = await fetch(`${GUANGMAO.issueUrl.replace('issueInvoice','invoiceFile')}`, {
       method: 'POST',
@@ -4843,7 +4844,7 @@ async function openInvoiceOnAmego() {
     } else {
       const j = await r.json();
       if (j.code === 53) {
-        showToast('載具發票需中獎後才可下載，請至 Amego 後台查看');
+        window.open(`https://invoice.amego.tw/invoice/query?invoice_number=${o.invoiceNo}`, '_blank');
       } else {
         showToast('❌ 無法取得 PDF：' + (j.msg || j.message || JSON.stringify(j)));
       }
