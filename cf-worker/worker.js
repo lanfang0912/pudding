@@ -6,11 +6,11 @@ const TCAT = {
   token: 'jkuck204',
 };
 
-// ── 光貿電子發票（amego）── 測試帳號
+// ── 光貿電子發票（amego）──
 const AMEGO = {
   base:   'https://invoice-api.amego.tw',
-  taxId:  '12345678',
-  appKey: 'sHeq7t8G1wiQvhAuIM27',
+  taxId:  '93555969',
+  appKey: 'zvgUQb37BLj64EGCB3cA',
 };
 
 const CORS = {
