@@ -210,6 +210,23 @@ export default {
         TotalAmount:        String(totalAmount),
       };
 
+      // 打統編：品項改未稅價，拆算稅額
+      const isBusiness = buyerIdentifier && buyerIdentifier !== '0000000000';
+      if (isBusiness) {
+        dataObj.DetailVat = '0';
+        dataObj.ProductItem = items.map(i => {
+          const exclAmount = Math.round(i.amount / 1.05);
+          const exclPrice  = Math.round(i.price  / 1.05);
+          return { Description: i.name, Quantity: String(i.count), Unit: i.unit || '盒',
+                   UnitPrice: String(exclPrice), Amount: String(exclAmount), Remark: '', TaxType: '1' };
+        });
+        const salesAmount = dataObj.ProductItem.reduce((s, p) => s + Number(p.Amount), 0);
+        const taxAmount   = Math.round(salesAmount * 0.05);
+        dataObj.SalesAmount  = String(salesAmount);
+        dataObj.TaxAmount    = String(taxAmount);
+        dataObj.TotalAmount  = String(salesAmount + taxAmount);
+      }
+
       try {
         const r = await fetch(`${AMEGO.base}/json/f0401`, {
           method: 'POST',
