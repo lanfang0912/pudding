@@ -4832,38 +4832,38 @@ function showInvoiceInfo(id) {
 
 function closeInvoiceViewModal() {
   document.getElementById('invoice-view-modal-overlay').classList.remove('open');
+  document.getElementById('inv-view-detail').style.display = 'none';
   _invViewOrderId = null;
 }
 
 async function openInvoiceOnAmego() {
   const o = orders.find(x => x.id === _invViewOrderId);
   if (!o) return;
-  if (o.invoiceUrl) { window.open(o.invoiceUrl, '_blank'); return; }
   try {
     const r = await fetch(`${GUANGMAO.issueUrl.replace('issueInvoice','invoiceFile')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: o.id }),
+      body: JSON.stringify({ invoiceNo: o.invoiceNo, orderId: o.id }),
     });
-    if (r.headers.get('content-type')?.includes('pdf')) {
-      const blob = await r.blob();
-      const url  = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+    const j = await r.json();
+    const d = j.data;
+    if (j.code === 0 && d) {
+      const items = (d.product_item || []).map(p =>
+        `<tr>
+          <td style="padding:4px 0">${p.description}</td>
+          <td style="padding:4px 8px;text-align:center">${p.quantity}</td>
+          <td style="padding:4px 0;text-align:right">NT$ ${p.amount}</td>
+        </tr>`
+      ).join('');
+      document.getElementById('inv-view-items').innerHTML =
+        `<tr style="color:var(--ink-soft);font-size:12px"><td>品項</td><td style="text-align:center">數量</td><td style="text-align:right">金額</td></tr>${items}`;
+      document.getElementById('inv-view-total').textContent = d.total_amount;
+      document.getElementById('inv-view-detail').style.display = '';
     } else {
-      const j = await r.json();
-      const url = (j.data && (j.data.url || j.data.invoice_url || j.data.link)) || j.url || j.invoice_url || j.link;
-      if (url) {
-        const urlRow = document.getElementById('inv-view-url-row');
-        const urlEl  = document.getElementById('inv-view-url');
-        urlEl.href = url;
-        urlRow.style.display = '';
-        showToast('連結已顯示，請點發票資訊裡的「發票連結」');
-      }
-      // debug: 顯示完整回傳
-      showToast('API 回傳：' + JSON.stringify(j).slice(0, 200));
+      showToast('❌ 無法取得明細：' + (j.msg || JSON.stringify(j)));
     }
   } catch(e) {
-    showToast('❌ 下載失敗：' + e.message);
+    showToast('❌ 查詢失敗：' + e.message);
   }
 }
 
@@ -4924,14 +4924,18 @@ async function voidInvoice(id) {
         <tr><td style="padding:8px 0;color:var(--ink-soft);width:80px">發票號碼</td><td style="padding:8px 0;font-weight:600;letter-spacing:1px" id="inv-view-no"></td></tr>
         <tr><td style="padding:8px 0;color:var(--ink-soft)">開立日期</td><td style="padding:8px 0" id="inv-view-date"></td></tr>
         <tr><td style="padding:8px 0;color:var(--ink-soft)">載具類型</td><td style="padding:8px 0" id="inv-view-carrier"></td></tr>
-        <tr id="inv-view-url-row" style="display:none"><td style="padding:8px 0;color:var(--ink-soft)">發票連結</td><td style="padding:8px 0"><a id="inv-view-url" href="#" target="_blank" style="color:#7b5ea7;word-break:break-all;font-size:13px">開啟</a></td></tr>
       </table>
+      <div id="inv-view-detail" style="display:none;margin-top:12px;border-top:1px solid #eee;padding-top:12px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">發票明細</div>
+        <table id="inv-view-items" style="width:100%;border-collapse:collapse;font-size:13px"></table>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;font-weight:600;font-size:14px">合計：NT$ <span id="inv-view-total"></span></div>
+      </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn-cancel" style="color:#c0392b;border-color:#c0392b" onclick="confirmVoidInvoice()">作廢發票</button>
       <div style="display:flex;gap:8px">
         <button class="btn-cancel" onclick="closeInvoiceViewModal()">關閉</button>
-        <button class="btn-save" style="background:#7b5ea7" onclick="openInvoiceOnAmego()">在 Amego 查看 ↗</button>
+        <button class="btn-save" style="background:#7b5ea7" onclick="openInvoiceOnAmego()">查看明細</button>
       </div>
     </div>
   </div>
