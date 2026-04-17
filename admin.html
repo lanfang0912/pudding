@@ -3918,10 +3918,21 @@ function renderAccounting(){
     .filter(r => (r.ts||'').slice(0,7)===month && (r.cost||0)>0);
   const pkgCost = pkgEntries.reduce((a,r) => a+(r.cost||0), 0);
 
-  // ── 其他支出
+  // ── 其他支出（自動分類 category='其他' 且有關鍵字的項目）
   const expEntries = Object.entries(accExpLog)
     .map(([k,r]) => ({...r, _key:k}))
     .filter(r => (r.date||'').slice(0,7)===month);
+  const catUpdates = {};
+  expEntries.forEach(r => {
+    if((r.category && r.category!=='其他')) return;
+    const detected = autoClassifyByNote(r.note||'');
+    if(detected && detected!=='其他'){
+      r.category = detected;
+      catUpdates['settings/expenseLog/'+r._key+'/category'] = detected;
+      if(accExpLog[r._key]) accExpLog[r._key].category = detected;
+    }
+  });
+  if(Object.keys(catUpdates).length) db.ref('/').update(catUpdates);
   const shipCost  = expEntries.filter(r => r.category==='運費').reduce((a,r) => a+(r.amount||0), 0);
   const otherCost = expEntries.filter(r => r.category!=='運費').reduce((a,r) => a+(r.amount||0), 0);
   const expCost = shipCost + otherCost;
