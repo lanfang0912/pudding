@@ -4819,14 +4819,6 @@ function showInvoiceInfo(id) {
     ? o.invoiceCarrierType
     : (o.invCarrier || (o.email ? 'email' : ''));
   overlay.querySelector('#inv-view-carrier').textContent = _carrierTypeLabel(carrier);
-  const urlRow = overlay.querySelector('#inv-view-url-row');
-  const urlEl  = overlay.querySelector('#inv-view-url');
-  if (o.invoiceUrl) {
-    urlEl.href = o.invoiceUrl;
-    urlRow.style.display = '';
-  } else {
-    urlRow.style.display = 'none';
-  }
   overlay.classList.add('open');
 }
 
