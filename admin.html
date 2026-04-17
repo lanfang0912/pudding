@@ -4671,6 +4671,8 @@ function _updateInvCarrierUI(overlay) {
     (type === '3J0002' || type === 'CQ0001') ? '' : 'none';
   overlay.querySelector('#inv-npo-row').style.display =
     type === 'donation' ? '' : 'none';
+  overlay.querySelector('#inv-taxid-row').style.display =
+    type === 'taxid' ? '' : 'none';
 }
 
 function _onInvEmailInput(input) {
@@ -4703,6 +4705,7 @@ async function submitInvoice() {
   const carrierType = overlay.querySelector('#inv-carrier-type').value;
   const carrierNum  = overlay.querySelector('#inv-carrier-num').value.trim();
   const npoId       = overlay.querySelector('#inv-npo-id').value.trim();
+  const taxId       = overlay.querySelector('#inv-taxid').value.trim();
 
   // 載具格式驗證
   if (carrierType === 'email' && !buyerEmail) {
@@ -4716,6 +4719,9 @@ async function submitInvoice() {
   }
   if (carrierType === 'donation' && !/^\d{3,7}$/.test(npoId)) {
     showToast('⚠️ 愛心碼格式錯誤（3~7位數字）'); return;
+  }
+  if (carrierType === 'taxid' && !/^\d{8}$/.test(taxId)) {
+    showToast('⚠️ 統編格式錯誤（8碼數字）'); return;
   }
 
   // 組品項
@@ -4742,17 +4748,19 @@ async function submitInvoice() {
     // 捐贈：CarrierType / CarrierId 留空，NPOBAN 填愛心碼
     const realCarrierType = carrierType === 'donation' ? '' :
                             carrierType === 'email'    ? 'amego' :
+                            carrierType === 'taxid'    ? '' :
                             carrierType;
     const realCarrierNum  = carrierType === 'email'    ? buyerEmail :
                             carrierType === 'donation' ? '' :
+                            carrierType === 'taxid'    ? '' :
                             carrierNum;
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // 作廢後重開：amego 不允許相同 OrderId，改用 o.id + 時間戳後綴
         orderId: o.invoiceVoided ? `${o.id}-R${Math.floor(Date.now()/1000)}` : o.id,
         buyerName, buyerEmail, buyerPhone,
+        buyerIdentifier: carrierType === 'taxid' ? taxId : '',
         carrierType: realCarrierType,
         carrierNum: realCarrierNum,
         npoId: carrierType === 'donation' ? npoId : '',
@@ -4988,6 +4996,7 @@ async function voidInvoice(id) {
             <option value="3J0002">手機條碼</option>
             <option value="CQ0001">自然人憑證</option>
             <option value="donation">捐贈（愛心碼）</option>
+            <option value="taxid">公司統編（三聯式）</option>
           </select>
         </div>
       </div>
@@ -5001,6 +5010,12 @@ async function voidInvoice(id) {
         <div class="form-group">
           <label class="form-label">愛心碼（捐贈碼）</label>
           <input class="form-ctrl" id="inv-npo-id" placeholder="3~7 位數字">
+        </div>
+      </div>
+      <div class="form-row full" id="inv-taxid-row" style="display:none">
+        <div class="form-group">
+          <label class="form-label">公司統編（8 碼）</label>
+          <input class="form-ctrl" id="inv-taxid" placeholder="12345678" maxlength="8">
         </div>
       </div>
     </div>

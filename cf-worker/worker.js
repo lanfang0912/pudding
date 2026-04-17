@@ -177,12 +177,12 @@ export default {
     // ── 電子發票：開立 ──
     if (path === 'issueInvoice') {
       const { orderId, buyerName, buyerEmail, buyerPhone,
-              carrierType, carrierNum, npoId, items, totalAmount } = await request.json();
+              buyerIdentifier, carrierType, carrierNum, npoId, items, totalAmount } = await request.json();
 
       const isDonation = !!npoId;
       const dataObj = {
         OrderId:              orderId || `WD-${Date.now()}`,
-        BuyerIdentifier:      '0000000000',
+        BuyerIdentifier:      buyerIdentifier || '0000000000',
         BuyerName:            buyerName || '客人',
         BuyerAddress:         '',
         BuyerTelephoneNumber: buyerPhone || '',
