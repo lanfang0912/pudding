@@ -4853,7 +4853,11 @@ async function openInvoiceOnAmego() {
       const j = await r.json();
       const url = (j.data && (j.data.url || j.data.invoice_url || j.data.link)) || j.url || j.invoice_url || j.link;
       if (url) {
-        window.open(url, '_blank');
+        const urlRow = document.getElementById('inv-view-url-row');
+        const urlEl  = document.getElementById('inv-view-url');
+        urlEl.href = url;
+        urlRow.style.display = '';
+        showToast('連結已顯示，請點發票資訊裡的「發票連結」');
       } else {
         showToast('❌ 無法取得連結：' + (j.msg || j.message || JSON.stringify(j)));
       }
