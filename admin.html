@@ -4951,7 +4951,7 @@ async function voidInvoice(id) {
 
 <!-- 光貿電子發票 Modal -->
 <div id="invoice-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeInvoiceModal()">
-  <div class="modal" style="width:480px">
+  <div class="modal" style="width:min(480px,92vw)">
     <div class="modal-hdr">
       <span class="modal-title">🧾 開立電子發票</span>
       <button class="modal-close" onclick="closeInvoiceModal()">✕</button>
