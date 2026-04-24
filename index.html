@@ -1284,6 +1284,7 @@ footer {
         <button class="btn-primary" onclick="goTo(4)">下一步：確認訂單 →</button>
       </div>
     </div>
+    </div>
 
     <!-- PAGE 4 -->
     <div class="step-page" id="page-4">
@@ -1881,7 +1882,7 @@ function renderSummary(){
 
   // Shipping
   const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
-  const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
+  const ship = isPickup ? 0 : (boxes>=3 ? 0 : 160);
   if(isPickup){
     rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🤝 宜蘭面交（凱旋國小）</span></div>`;
     rows+=`<div class="summary-row"><span class="summary-row-label">運費</span><span class="summary-row-value" style="color:var(--matcha)">免運 🎉</span></div>`;
