@@ -125,8 +125,11 @@ async function debugPDF(fileNo) {
 }
 
 // ── 主路由 ──
-export default {
-  async fetch(request) {
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
@@ -280,5 +283,4 @@ export default {
     }
 
     return new Response('Not found', { status: 404, headers: CORS });
-  }
-};
+}
