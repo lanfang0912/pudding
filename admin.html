@@ -643,6 +643,19 @@ tr.done-row td{opacity:.45;}
         </div>
       </div>
 
+
+      <!-- 預訂區塊 -->
+      <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--ink-soft);text-transform:uppercase;padding:6px 10px;background:var(--paper-dark);border-radius:2px;margin-bottom:12px">預訂區塊</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px">
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">標籤文字<input type="text" id="d-order-label" value="立即預訂" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">主標題（換行用 Enter）<textarea id="d-order-title" rows="2" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">手工限量
+每日數量有限</textarea></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">說明文字（換行用 Enter）<textarea id="d-order-sub1" rows="2" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">為了不影響孩子的日常生活
+我們會視情況調整每日出貨量，售完為止</textarea></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">運送說明（換行用 Enter）<textarea id="d-order-sub2" rows="2" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">無添加 · 冷藏保存 5 天 · 3 盒以上運費 NT$100
+宜蘭可面交 · 外縣市冷藏宅配</textarea></label>
+      </div>
+
       <!-- 頁尾 -->
       <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--ink-soft);text-transform:uppercase;padding:6px 10px;background:var(--paper-dark);border-radius:2px;margin-bottom:12px">頁尾</div>
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
@@ -1381,6 +1394,12 @@ function loadDesign(){
     if(d.heroQuote)    document.getElementById('d-heroQuote').value    = d.heroQuote;
     if(d.footerBrand)  document.getElementById('d-footerBrand').value  = d.footerBrand;
     if(d.footerTagline)document.getElementById('d-footerTagline').value= d.footerTagline;
+    if(d.order){
+      const o = d.order;
+      const so = (id,val) => { if(val) document.getElementById(id).value = val; };
+      so('d-order-label', o.label); so('d-order-title', o.title);
+      so('d-order-sub1',  o.sub1);  so('d-order-sub2',  o.sub2);
+    }
     if(d.story){
       const s = d.story;
       const sv = (id,val) => { if(val) document.getElementById(id).value = val; };
@@ -1402,6 +1421,12 @@ function saveDesign(){
     heroQuote:    g('d-heroQuote'),
     footerBrand:  g('d-footerBrand'),
     footerTagline:g('d-footerTagline'),
+    order: {
+      label: g('d-order-label'),
+      title: g('d-order-title'),
+      sub1:  g('d-order-sub1'),
+      sub2:  g('d-order-sub2'),
+    },
     story: {
       s1title:g('d-s1title'), s1body:g('d-s1body'),
       s2title:g('d-s2title'), s2body:g('d-s2body'),

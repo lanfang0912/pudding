@@ -1086,14 +1086,13 @@ footer {
 <!-- ── ORDER ── -->
 <section class="order-section" id="order">
   <div class="order-header">
-    <div class="order-header-label">立即預訂</div>
-    <h2 class="order-header-title">手工限量<br><em>每日數量有限</em></h2>
+    <div class="order-header-label" id="order-label">立即預訂</div>
+    <h2 class="order-header-title" id="order-title">手工限量<br><em>每日數量有限</em></h2>
     <p class="order-header-sub" style="margin-top:8px;font-size:13px;color:var(--ink-soft)">
-      為了不影響孩子的日常生活<br>我們會視情況調整每日出貨量，售完為止
+      <span id="order-sub1">為了不影響孩子的日常生活<br>我們會視情況調整每日出貨量，售完為止</span>
     </p>
     <p class="order-header-sub">
-      無添加 · 冷藏保存 5 天 · 3 盒以上運費 NT$100<br>
-      宜蘭可面交 · 外縣市冷藏宅配
+      <span id="order-sub2">無添加 · 冷藏保存 5 天 · 3 盒以上運費 NT$100<br>宜蘭可面交 · 外縣市冷藏宅配</span>
     </p>
   </div>
 
@@ -1573,6 +1572,15 @@ try {
       applyTitle('s4-title', d.story.s4title); applyBody('s4-body', d.story.s4body);
       applyQuote('s-quote1', d.story.quote1);
       applyQuote('s-quote2', d.story.quote2);
+    }
+    // 預訂區塊
+    if(d.order){
+      const o = d.order;
+      const set = (id,val) => { const el=document.getElementById(id); if(el&&val) el.innerHTML=val.replace(/\n/g,'<br>'); };
+      set('order-label', o.label);
+      if(o.title){ const el=document.getElementById('order-title'); if(el) el.innerHTML=o.title.replace(/\n/g,'<br>'); }
+      set('order-sub1', o.sub1);
+      set('order-sub2', o.sub2);
     }
   });
 
