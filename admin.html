@@ -335,6 +335,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn" onclick="switchTab('articles',this)">✏️ 文章</button>
     <button class="tab-btn" onclick="switchTab('accounting',this)">💰 記帳</button>
     <button class="tab-btn" onclick="switchTab('survey',this)">📊 問卷</button>
+    <button class="tab-btn" onclick="switchTab('design',this)">🎨 網站設計</button>
   </div>
 
   <!-- TAB 1 訂單 -->
@@ -546,6 +547,65 @@ tr.done-row td{opacity:.45;}
       <div id="survey-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:28px"></div>
       <!-- 回應列表 -->
       <div id="survey-list"></div>
+    </div>
+  </div>
+
+
+  <!-- ── 網站設計 ── -->
+  <div class="tab-panel" id="tab-design">
+    <div style="max-width:680px;margin:0 auto;padding:28px">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px">網站設計</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:28px">儲存後立即生效，無需重新部署</div>
+
+      <div style="font-size:13px;font-weight:500;letter-spacing:1px;color:var(--ink-soft);margin-bottom:14px;text-transform:uppercase">顏色</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:32px">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">主色（焦糖）
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" id="d-caramel" value="#c4832a" style="width:36px;height:36px;border:none;padding:0;cursor:pointer;border-radius:4px">
+            <input type="text" id="d-caramel-hex" value="#c4832a" oninput="document.getElementById('d-caramel').value=this.value" style="flex:1;padding:6px 8px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper)">
+          </div>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">背景色
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" id="d-paper" value="#faf7f2" style="width:36px;height:36px;border:none;padding:0;cursor:pointer;border-radius:4px">
+            <input type="text" id="d-paper-hex" value="#faf7f2" oninput="document.getElementById('d-paper').value=this.value" style="flex:1;padding:6px 8px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper)">
+          </div>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">文字色
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" id="d-ink" value="#1a1208" style="width:36px;height:36px;border:none;padding:0;cursor:pointer;border-radius:4px">
+            <input type="text" id="d-ink-hex" value="#1a1208" oninput="document.getElementById('d-ink').value=this.value" style="flex:1;padding:6px 8px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper)">
+          </div>
+        </label>
+      </div>
+
+      <div style="font-size:13px;font-weight:500;letter-spacing:1px;color:var(--ink-soft);margin-bottom:14px;text-transform:uppercase">文案</div>
+      <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:32px">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">副標題（hero eyebrow）
+          <input type="text" id="d-eyebrow" value="一個高三生的還款計劃" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">首頁引言（換行用 
+）
+          <textarea id="d-heroQuote" rows="3" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit;resize:vertical">「你有還款計劃嗎？」
+他想了一下說：「那我來賣布丁好了。」
+然後他就去廚房了。</textarea>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">品牌名稱
+          <input type="text" id="d-footerBrand" value="初白時光" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-soft)">頁尾說明（換行用 
+）
+          <textarea id="d-footerTagline" rows="3" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit;resize:vertical">手工製作 · 無添加
+冷藏保存 5 天
+宜蘭出發，用心送達</textarea>
+        </label>
+      </div>
+
+      <div style="display:flex;gap:12px">
+        <button onclick="saveDesign()" style="padding:10px 28px;background:var(--caramel);color:white;border:none;border-radius:2px;cursor:pointer;font-size:13px;font-family:inherit;letter-spacing:1px">儲存</button>
+        <button onclick="loadDesign()" style="padding:10px 20px;border:1px solid var(--rule);background:var(--paper);border-radius:2px;cursor:pointer;font-size:13px;font-family:inherit;color:var(--ink-soft)">重設為目前值</button>
+      </div>
+      <div id="design-msg" style="margin-top:12px;font-size:12px;color:var(--caramel)"></div>
     </div>
   </div>
 
@@ -1147,6 +1207,7 @@ async function seedSettings(){
 
 // 啟動 Firebase 即時監聽
 function startFirebaseListener(){
+  loadDesign();
   db.ref('settings/maxPerDay').on('value', snap => {
     if(snap.val()) maxPerDay = snap.val();
     renderTable(); renderSchedule();
@@ -1258,6 +1319,45 @@ function initFilters(){
   ddSel.innerHTML='<option value="">全部日期</option>';
   dates.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;ddSel.appendChild(o);});
 }
+
+// ── 網站設計 ──
+function loadDesign(){
+  db.ref('settings/design').once('value').then(snap => {
+    const d = snap.val() || {};
+    if(d.caramel)      { document.getElementById('d-caramel').value = d.caramel; document.getElementById('d-caramel-hex').value = d.caramel; }
+    if(d.paper)        { document.getElementById('d-paper').value   = d.paper;   document.getElementById('d-paper-hex').value   = d.paper; }
+    if(d.ink)          { document.getElementById('d-ink').value     = d.ink;     document.getElementById('d-ink-hex').value     = d.ink; }
+    if(d.eyebrow)      document.getElementById('d-eyebrow').value      = d.eyebrow;
+    if(d.heroQuote)    document.getElementById('d-heroQuote').value    = d.heroQuote;
+    if(d.footerBrand)  document.getElementById('d-footerBrand').value  = d.footerBrand;
+    if(d.footerTagline)document.getElementById('d-footerTagline').value= d.footerTagline;
+  });
+}
+function saveDesign(){
+  const data = {
+    caramel:      document.getElementById('d-caramel').value,
+    paper:        document.getElementById('d-paper').value,
+    ink:          document.getElementById('d-ink').value,
+    eyebrow:      document.getElementById('d-eyebrow').value.trim(),
+    heroQuote:    document.getElementById('d-heroQuote').value.trim(),
+    footerBrand:  document.getElementById('d-footerBrand').value.trim(),
+    footerTagline:document.getElementById('d-footerTagline').value.trim(),
+  };
+  db.ref('settings/design').set(data).then(() => {
+    const msg = document.getElementById('design-msg');
+    msg.textContent = '✓ 已儲存，網站立即生效';
+    setTimeout(()=>msg.textContent='', 3000);
+  });
+}
+// 同步 color picker → hex input
+['caramel','paper','ink'].forEach(k => {
+  document.addEventListener('DOMContentLoaded', () => {
+    const picker = document.getElementById('d-'+k);
+    const hex    = document.getElementById('d-'+k+'-hex');
+    if(picker && hex) picker.addEventListener('input', () => hex.value = picker.value);
+  });
+});
+
 function switchTab(n,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
