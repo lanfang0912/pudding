@@ -1026,42 +1026,47 @@ footer {
   <div class="story-kicker">品牌故事</div>
 
   <div class="story-block">
-    <div class="story-block-title">兒子說他想買電腦</div>
+    <div class="story-block-title" id="s1-title">兒子說他想買電腦</div>
+    <div id="s1-body">
     <p class="story-p">前陣子我兒子跟我借錢。我問他：「你有還款計劃嗎？」</p>
     <p class="story-p">他想了一下說：「那我來賣布丁好了。」然後他就去廚房了。</p>
     <p class="story-p">我站在原地，想了三秒才懂——他不是在閃躲，他是在<strong>用行動回答我</strong>。</p>
     <p class="story-p">完整的計劃是這樣的：想買電腦 → 需要錢 → 做布丁 → 賣布丁 → 還媽媽。他高三，自學生，不考大學。</p>
+    </div>
   </div>
 
-  <div class="story-pullquote">
-    你以為他在「逃避」，他其實在「負責」。
-  </div>
+  <div class="story-pullquote" id="s-quote1">你以為他在「逃避」，他其實在「負責」。</div>
 
   <div class="story-block">
-    <div class="story-block-title">走到自學，不是因為任性</div>
+    <div class="story-block-title" id="s2-title">走到自學，不是因為任性</div>
+    <div id="s2-body">
     <p class="story-p">一開始會走到自學，是因為他有閱讀障礙，在體制內很不適應。我們不是放棄他，是<strong>終於停止逼他硬撐</strong>。</p>
     <p class="story-p">別人學得很正常的節奏，他追起來像連滾帶爬。他不是不努力，他只是一直在做「不適合他的努力」。換了方式之後，他慢慢把「做得到」找回來。</p>
+    </div>
   </div>
 
   <div class="story-block">
-    <div class="story-block-title">他試了很多次才定下來</div>
+    <div class="story-block-title" id="s3-title">他試了很多次才定下來</div>
+    <div id="s3-body">
     <p class="story-p">他做布丁不是隨便做。口味試了又試，配方調了又調。</p>
     <p class="story-p"><strong>原味</strong>——要吃得出蛋的香氣，不能太甜。<strong>抹茶</strong>——苦味要剛好，不能只是顏色好看。<strong>可可</strong>——要有濃度，要有真正的可可味。</p>
     <p class="story-p">每一種他都有自己的標準。而且他會一直試到「符合他自己的標準」才停。</p>
     <p class="story-p">我吃完只說了一句：「你認真做的東西，吃得出來。」</p>
+    </div>
   </div>
 
-  <div class="story-pullquote">
-    他不是要改變世界，他只是想買一台電腦。<br>
+  <div class="story-pullquote" id="s-quote2">他不是要改變世界，他只是想買一台電腦。<br>
     <span style="font-size:0.75em; opacity:0.7;">ASUS TUF Gaming</span>
   </div>
 
   <div class="story-block">
-    <div class="story-block-title">把自己想要的東西拆成步驟，然後開始做</div>
+    <div class="story-block-title" id="s4-title">把自己想要的東西拆成步驟，然後開始做</div>
+    <div id="s4-body">
     <p class="story-p">別人的孩子在準備學測，我兒子在研究布丁配方。</p>
     <p class="story-p">他沒有把人生丟給我處理。沒有把需求變成情緒。沒有把「我想要」變成「你要給」。</p>
     <p class="story-p">他只做一件事：<strong>把自己想要的東西，拆成可以完成的步驟，然後開始做</strong>。這一點，很多大人其實做不到。</p>
     <p class="story-p" style="color: var(--ink-soft); font-style: italic; font-size:13px; margin-top:24px;">— 媽媽，幫他寫這篇</p>
+    </div>
   </div>
 
   <!-- Progress -->
@@ -1554,6 +1559,21 @@ try {
     if (d.heroQuote)    { const el = document.getElementById('site-hero-quote');    if(el) el.innerHTML = d.heroQuote.replace(/\n/g,'<br>'); }
     if (d.footerBrand)  { const el = document.getElementById('site-footer-brand');  if(el) el.textContent = d.footerBrand; }
     if (d.footerTagline){ const el = document.getElementById('site-footer-tagline');if(el) el.innerHTML = d.footerTagline.replace(/\n/g,'<br>'); }
+    // 品牌故事
+    const applyTitle = (id, val) => { const el=document.getElementById(id); if(el&&val) el.textContent=val; };
+    const applyBody  = (id, val) => {
+      const el=document.getElementById(id);
+      if(el&&val) el.innerHTML = val.split('\n').filter(l=>l.trim()).map(l=>`<p class="story-p">${l}</p>`).join('\n    ');
+    };
+    const applyQuote = (id, val) => { const el=document.getElementById(id); if(el&&val) el.textContent=val; };
+    if(d.story){
+      applyTitle('s1-title', d.story.s1title); applyBody('s1-body', d.story.s1body);
+      applyTitle('s2-title', d.story.s2title); applyBody('s2-body', d.story.s2body);
+      applyTitle('s3-title', d.story.s3title); applyBody('s3-body', d.story.s3body);
+      applyTitle('s4-title', d.story.s4title); applyBody('s4-body', d.story.s4body);
+      applyQuote('s-quote1', d.story.quote1);
+      applyQuote('s-quote2', d.story.quote2);
+    }
   });
 
   // 讀取已發布文章
