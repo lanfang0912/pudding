@@ -31,6 +31,10 @@
         "$eventId": {
           "$regId": { ".write": "auth != null || !data.exists()" }
         }
+      },
+      "settings": {
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     }
   }
