@@ -20,6 +20,18 @@
         ".read": "auth != null",
         ".write": true
       }
+    },
+    "bakery": {
+      "events": {
+        ".read": true,
+        "$eventId": { ".write": "auth != null" }
+      },
+      "registrations": {
+        ".read": "auth != null",
+        "$eventId": {
+          "$regId": { ".write": "auth != null || !data.exists()" }
+        }
+      }
     }
   }
 }
