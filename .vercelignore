@@ -1,0 +1,13 @@
+.git
+.wrangler
+cf-worker
+functions
+database.rules.json
+storage.rules
+firebase.json
+wrangler.toml
+package.json
+package-lock.json
+README.md
+.assetsignore
+seed-march-expenses.html
