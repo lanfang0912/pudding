@@ -137,11 +137,13 @@ export default {
 
     // ── TCAT PDF ──
     if (path === 'getPDF') {
-      const { fileNo } = await request.json();
+      const fileNo = request.method === 'GET'
+        ? url.searchParams.get('fileNo')
+        : (await request.json()).fileNo;
       const result = await tryGetPDF(fileNo);
       if (result.ok) {
         const blob = await result.res.arrayBuffer();
-        return new Response(blob, { headers: { ...CORS, 'Content-Type': 'application/pdf' } });
+        return new Response(blob, { headers: { ...CORS, 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline' } });
       }
       return new Response(JSON.stringify({ error: '找不到 PDF endpoint' }), { status: 404, headers: { ...CORS, 'Content-Type': 'application/json' } });
     }
