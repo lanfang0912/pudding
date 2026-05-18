@@ -1,17 +1,5 @@
-const LINE_TOKEN = '4iZSl7FQkV1Lc3d11Q6n0e1ELWOOqjdD7fprSLuVNneJVcE1bfyCFM9wUnfcg9CNj/94AuiwpD3wVJEdOJEd8y33fmoCsm4DMJuNaMCBs/cs0IlQPBa16OqEFzs0Mf/tRMe+NtQeTbKEsedZ/sGZYgdB04t89/1O/w1cDnyilFU=';
-
-const TCAT = {
-  endpoint: 'https://api.suda.com.tw/api/Egs',
-  customerId: '935559690100',
-  token: 'jkuck204',
-};
-
-// ── 光貿電子發票（amego）──
-const AMEGO = {
-  base:   'https://invoice-api.amego.tw',
-  taxId:  '93555969',
-  appKey: 'zvgUQb37BLj64EGCB3cA',
-};
+const TCAT_ENDPOINT = 'https://api.suda.com.tw/api/Egs';
+const AMEGO_BASE = 'https://invoice-api.amego.tw';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -72,12 +60,34 @@ function md5hex(str) {
 
 // ── amego 共用：組 form-urlencoded body + sign ──
 // sign = md5(data的JSON字串 + time + appKey)
-function buildAmegoBody(dataObj) {
+function requireEnv(env, name) {
+  const value = env && env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
+}
+
+function getSecrets(env) {
+  return {
+    lineToken: requireEnv(env, 'LINE_CHANNEL_ACCESS_TOKEN'),
+    tcat: {
+      endpoint: env.TCAT_ENDPOINT || TCAT_ENDPOINT,
+      customerId: requireEnv(env, 'TCAT_CUSTOMER_ID'),
+      token: requireEnv(env, 'TCAT_CUSTOMER_TOKEN'),
+    },
+    amego: {
+      base: env.AMEGO_BASE || AMEGO_BASE,
+      taxId: requireEnv(env, 'AMEGO_TAX_ID'),
+      appKey: requireEnv(env, 'AMEGO_APP_KEY'),
+    },
+  };
+}
+
+function buildAmegoBody(dataObj, amego) {
   const time     = Math.floor(Date.now() / 1000);
   const dataJson = JSON.stringify(dataObj);
-  const sign     = md5hex(dataJson + time + AMEGO.appKey);
+  const sign     = md5hex(dataJson + time + amego.appKey);
   return new URLSearchParams({
-    invoice: AMEGO.taxId,
+    invoice: amego.taxId,
     data:    dataJson,
     time:    String(time),
     sign,
@@ -85,14 +95,14 @@ function buildAmegoBody(dataObj) {
 }
 
 // ── TCAT 工具函式 ──
-async function tryGetPDF(fileNo) {
+async function tryGetPDF(fileNo, tcat) {
   const attempts = [
-    () => fetch(`${TCAT.endpoint}/DownloadOBT`, {
+    () => fetch(`${tcat.endpoint}/DownloadOBT`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo }),
+      body: JSON.stringify({ CustomerId: tcat.customerId, CustomerToken: tcat.token, FileNo: fileNo }),
     }),
-    () => fetch(`${TCAT.endpoint}/DownloadOBT?FileNo=${encodeURIComponent(fileNo)}`, { method: 'GET' }),
+    () => fetch(`${tcat.endpoint}/DownloadOBT?FileNo=${encodeURIComponent(fileNo)}`, { method: 'GET' }),
   ];
   for (const attempt of attempts) {
     const r = await attempt();
@@ -104,15 +114,15 @@ async function tryGetPDF(fileNo) {
   return { ok: false };
 }
 
-async function debugPDF(fileNo) {
+async function debugPDF(fileNo, tcat) {
   const endpoints = ['DownloadOBT', 'GetOBTFile', 'DownloadOBTFile', 'GetFile'];
   const results = [];
   for (const ep of endpoints) {
     try {
-      const r = await fetch(`${TCAT.endpoint}/${ep}`, {
+      const r = await fetch(`${tcat.endpoint}/${ep}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ CustomerId: TCAT.customerId, CustomerToken: TCAT.token, FileNo: fileNo }),
+        body: JSON.stringify({ CustomerId: tcat.customerId, CustomerToken: tcat.token, FileNo: fileNo }),
       });
       const ct = r.headers.get('content-type') || '';
       const text = await r.text();
@@ -126,7 +136,7 @@ async function debugPDF(fileNo) {
 
 // ── 主路由 ──
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
@@ -135,12 +145,19 @@ export default {
     const path = url.pathname.replace(/^\//, '');
     const json = h => new Response(JSON.stringify(h), { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
+    let secrets;
+    try {
+      secrets = getSecrets(env);
+    } catch (e) {
+      return json({ success: false, message: e.message });
+    }
+
     // ── TCAT PDF ──
     if (path === 'getPDF') {
       const fileNo = request.method === 'GET'
         ? url.searchParams.get('fileNo')
         : (await request.json()).fileNo;
-      const result = await tryGetPDF(fileNo);
+      const result = await tryGetPDF(fileNo, secrets.tcat);
       if (result.ok) {
         const blob = await result.res.arrayBuffer();
         return new Response(blob, { headers: { ...CORS, 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline' } });
@@ -150,15 +167,15 @@ export default {
 
     if (path === 'debugPDF') {
       const { fileNo } = await request.json();
-      return json(await debugPDF(fileNo));
+      return json(await debugPDF(fileNo, secrets.tcat));
     }
 
     // ── TCAT 通用 proxy ──
     if (['PrintOBT', 'QueryOBT'].includes(path)) {
       const body = await request.json();
-      body.CustomerId = TCAT.customerId;
-      body.CustomerToken = TCAT.token;
-      const r = await fetch(`${TCAT.endpoint}/${path}`, {
+      body.CustomerId = secrets.tcat.customerId;
+      body.CustomerToken = secrets.tcat.token;
+      const r = await fetch(`${secrets.tcat.endpoint}/${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       return json(await r.json());
@@ -170,7 +187,7 @@ export default {
       if (!userId || !message) return json({ error: '缺少 userId 或 message' });
       const r = await fetch('https://api.line.me/v2/bot/message/push', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LINE_TOKEN}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secrets.lineToken}` },
         body: JSON.stringify({ to: userId, messages: [{ type: 'text', text: message }] }),
       });
       return new Response(await r.text(), { status: r.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
@@ -230,10 +247,10 @@ export default {
       }
 
       try {
-        const r = await fetch(`${AMEGO.base}/json/f0401`, {
+        const r = await fetch(`${secrets.amego.base}/json/f0401`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: buildAmegoBody(dataObj),
+          body: buildAmegoBody(dataObj, secrets.amego),
         });
         return json(await r.json());
       } catch(e) {
@@ -250,10 +267,10 @@ export default {
         Reason:              reason || '訂單取消',
       }];
       try {
-        const r = await fetch(`${AMEGO.base}/json/f0501`, {
+        const r = await fetch(`${secrets.amego.base}/json/f0501`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: buildAmegoBody(dataObj),
+          body: buildAmegoBody(dataObj, secrets.amego),
         });
         return json(await r.json());
       } catch(e) {
@@ -268,10 +285,10 @@ export default {
         ? { type: 'invoice', invoice_number: invoiceNo }
         : { type: 'order',   order_id: orderId };
       try {
-        const r = await fetch(`${AMEGO.base}/json/invoice_query`, {
+        const r = await fetch(`${secrets.amego.base}/json/invoice_query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: buildAmegoBody(dataObj),
+          body: buildAmegoBody(dataObj, secrets.amego),
         });
         return json(await r.json());
       } catch(e) {

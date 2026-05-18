@@ -1092,7 +1092,7 @@ footer {
       <span id="order-sub1">為了不影響孩子的日常生活<br>我們會視情況調整每日出貨量，售完為止</span>
     </p>
     <p class="order-header-sub">
-      <span id="order-sub2">無添加 · 冷藏保存 5 天 · 3 盒以上運費 NT$100<br>宜蘭可面交 · 外縣市冷藏宅配</span>
+      <span id="order-sub2">無添加 · 冷藏保存 5 天 · 3 盒以上運費 NT$100<br>宜蘭 / 台北可面交 · 外縣市冷藏宅配</span>
     </p>
   </div>
 
@@ -1162,6 +1162,11 @@ footer {
             <div class="delivery-opt-title">宜蘭面交</div>
             <div class="delivery-opt-sub">免運費 · 不限星期<br>📍 宜蘭凱旋國小</div>
           </div>
+          <div class="delivery-opt" id="opt-pickup-taipei" onclick="setDelivery('pickup-taipei')">
+            <div class="delivery-opt-icon">🏙️</div>
+            <div class="delivery-opt-title">台北面交</div>
+            <div class="delivery-opt-sub">免運費 · 週一、週二 14:00-21:00<br>📍 摩斯漢堡長春松江店（長春路149-1號）</div>
+          </div>
         </div>
       </div>
 
@@ -1227,8 +1232,8 @@ footer {
           <label class="form-label">聯絡電話 <span class="req">*</span></label>
           <input class="form-input" id="f-phone" type="tel" placeholder="0912-345-678">
         </div>
-        <div class="form-field full">
-          <label class="form-label">收件地址 <span class="req">*</span></label>
+        <div class="form-field full" id="f-address-row">
+          <label class="form-label" id="f-address-label">收件地址 <span class="req">*</span></label>
           <input class="form-input" id="f-address" type="text" placeholder="台北市中正區重慶南路一段122號">
         </div>
         <div class="form-field">
@@ -1542,9 +1547,6 @@ try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
 
-  // 以匿名身份登入，讓 Firebase 安全規則允許讀取庫存與寫入訂單
-  firebase.auth().signInAnonymously().catch(e => console.warn('Firebase auth:', e.message));
-
   // 讀取網站設計設定
   db.ref('settings/design').on('value', snap => {
     const d = snap.val();
@@ -1620,32 +1622,47 @@ try {
     renderCal && renderCal();
   });
 
-  // 即時監聽訂單，按製作日累計庫存
-  db.ref('orders').on('value', snap => {
-    let sold = 0;
-    const newInv = {};
-    snap.forEach(child => {
-      const o = child.val();
-      const boxes = (o.orig||0)+(o.matcha||0)+(o.cocoa||0);
-      sold += boxes;
-      if(o.date){
-        // 製作日 = 收貨日 - 1（面交）或 - 2（宅配）
-        const isPickup = o.delivery === '面交';
-        const prodDate = addDaysToDate(o.date, isPickup ? -1 : -2);
-        if(o.orig)   newInv[prodDate+'_original'] = (newInv[prodDate+'_original']||0)+o.orig;
-        if(o.matcha) newInv[prodDate+'_matcha']   = (newInv[prodDate+'_matcha']||0)+o.matcha;
-        if(o.cocoa)  newInv[prodDate+'_cocoa']    = (newInv[prodDate+'_cocoa']||0)+o.cocoa;
-      }
-    });
-    totalSold = Math.round(sold);
-    // 清空重算
-    Object.keys(inv).forEach(k => delete inv[k]);
-    Object.assign(inv, newInv);
-    animateProgress();
-    renderCal && renderCal();
-  });
+  // 訂單明細含個資，不在公開前台讀取；後台登入後才可查看。
 } catch(e) {
   console.warn('Firebase init error:', e);
+}
+
+const DELIVERY_METHODS = {
+  delivery: {
+    type: 'delivery',
+    summary: '🚚 黑貓冷藏宅配',
+    emailLabel: '黑貓冷藏宅配',
+    firebaseDelivery: '宅配',
+    address: null,
+    time: '未指定',
+    calendarHelp: '請選擇 3 天後以上的日期 · 週日、一不收送貨 · 已售完日期無法選取',
+  },
+  pickup: {
+    type: 'pickup',
+    summary: '🤝 宜蘭面交（凱旋國小）',
+    emailLabel: '宜蘭面交（凱旋國小）',
+    firebaseDelivery: '面交',
+    address: '宜蘭凱旋國小',
+    time: '未指定',
+    calendarHelp: '請選擇 3 天後以上的日期 · 面交不限星期 · 已售完日期無法選取',
+  },
+  'pickup-taipei': {
+    type: 'pickup',
+    summary: '🏙️ 台北面交（摩斯漢堡長春松江店，週一、週二 14:00-21:00）',
+    emailLabel: '台北面交（摩斯漢堡長春松江店，週一、週二 14:00-21:00）',
+    firebaseDelivery: '面交',
+    address: '摩斯漢堡長春松江店（台北市中山區長春路149-1號）',
+    time: '14:00-21:00',
+    calendarHelp: '請選擇 3 天後以上的日期 · 台北面交限週一、週二 14:00-21:00 · 已售完日期無法選取',
+  },
+};
+
+function getDeliveryMethod(){
+  return DELIVERY_METHODS[order.deliveryMode] || DELIVERY_METHODS.delivery;
+}
+
+function isPickupMode(){
+  return getDeliveryMethod().type === 'pickup';
 }
 
 const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'', insulatedBag:0 };
@@ -1711,6 +1728,25 @@ function setDelivery(mode){
   order.date = null;
   document.getElementById('opt-delivery').classList.toggle('selected', mode==='delivery');
   document.getElementById('opt-pickup').classList.toggle('selected', mode==='pickup');
+  document.getElementById('opt-pickup-taipei').classList.toggle('selected', mode==='pickup-taipei');
+  updateDeliveryForm();
+  if(order.isCombo) updateComboCard();
+}
+
+function updateDeliveryForm(){
+  const method = getDeliveryMethod();
+  const label = document.getElementById('f-address-label');
+  const input = document.getElementById('f-address');
+  if(!label || !input) return;
+  if(method.type === 'delivery'){
+    label.innerHTML = '收件地址 <span class="req">*</span>';
+    input.placeholder = '台北市中正區重慶南路一段122號';
+    input.disabled = false;
+  } else {
+    label.textContent = '面交備註';
+    input.placeholder = `${method.address}，若有方便辨識的位置可補充`;
+    input.disabled = false;
+  }
 }
 
 function isComboSelected(){
@@ -1750,8 +1786,9 @@ function updateComboCard(){
   const qty = order.comboQty;
   const price = qty * 380;
   document.getElementById('combo-qv').textContent = qty;
+  const shipText = isPickupMode() ? '面交免運' : `冷藏宅配 +NT$${qty>=3?0:160}`;
   document.getElementById('combo-info').textContent =
-    `共 ${qty*6} 杯・NT$${price.toLocaleString()}（冷藏宅配 +NT$${qty>=3?0:160}）`;
+    `共 ${qty*6} 杯・NT$${price.toLocaleString()}（${shipText}）`;
 }
 
 function toggleFlavor(id){
@@ -1792,9 +1829,8 @@ function renderCal(){
   const months=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
   document.getElementById('cal-label').textContent = `${calY} 年 ${months[calM]}`;
   const calSub = document.getElementById('cal-sub');
-  if(calSub) calSub.textContent = order.deliveryMode === 'pickup'
-    ? '請選擇 3 天後以上的日期 · 面交不限星期 · 已售完日期無法選取'
-    : '請選擇 3 天後以上的日期 · 週日不收送貨 · 已售完日期無法選取';
+  const method = getDeliveryMethod();
+  if(calSub) calSub.textContent = method.calendarHelp;
 
   const dows=['日','一','二','三','四','五','六'];
   let h = dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
@@ -1815,7 +1851,9 @@ function renderCal(){
     const dt=new Date(calY,calM,d);
     const ds=fmt(dt);
     const past=dt<minD;
-    const isBlocked = order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1);
+    const isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1);
+    const isTaipeiPickupBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay() === 1 || dt.getDay() === 2);
+    const isBlocked = isDeliveryBlocked || isTaipeiPickupBlocked;
     let canBook=!past&&!isBlocked&&sel.length>0;
     let dots=[];
 
@@ -1855,7 +1893,7 @@ function getStock(ds, fid){
 
 // 總量檢查（製作日當天所有口味合計）
 function getProdDayTotal(ds){
-  const isPickup = order.deliveryMode === 'pickup';
+  const isPickup = isPickupMode();
   const prodDate = addDaysToDate(ds, isPickup ? -1 : -2);
   const override = prodOverrides[prodDate];
   const maxTotal = override && override.total != null ? override.total : (maxPerDay.total ?? 9);
@@ -1876,11 +1914,12 @@ function goTo(n){
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
   if(n===4){
+    const method = getDeliveryMethod();
     const name=document.getElementById('f-name').value.trim();
     const phone=document.getElementById('f-phone').value.trim();
     const addr=document.getElementById('f-address').value.trim();
     const email=document.getElementById('f-email').value.trim();
-    if(!name||!phone||!addr||!email){ toast('請填寫所有必填欄位 ✏️','error'); return; }
+    if(!name||!phone||!email || (method.type === 'delivery' && !addr)){ toast('請填寫所有必填欄位 ✏️','error'); return; }
     if(!/^\S+@\S+\.\S+$/.test(email)){ toast('請輸入有效的 Email 格式','error'); return; }
     order.name=name; order.phone=phone; order.address=addr; order.email=email;
     order.phone2=document.getElementById('f-phone2').value.trim();
@@ -1907,7 +1946,8 @@ function goTo(n){
 // ─── SUMMARY ───
 function renderSummary(){
   let total=0, rows='';
-  const isPickup = order.deliveryMode === 'pickup';
+  const method = getDeliveryMethod();
+  const isPickup = method.type === 'pickup';
 
   if(order.isCombo){
     const comboPrice = order.comboQty * 380;
@@ -1930,7 +1970,7 @@ function renderSummary(){
   const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
   if(isPickup){
-    rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🤝 宜蘭面交（凱旋國小）</span></div>`;
+    rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">${method.summary}</span></div>`;
     rows+=`<div class="summary-row"><span class="summary-row-label">運費</span><span class="summary-row-value" style="color:var(--matcha)">免運 🎉</span></div>`;
   } else if(ship>0){
     rows+=`<div class="summary-row"><span class="summary-row-label">配送方式</span><span class="summary-row-value">🚚 黑貓冷藏宅配</span></div>`;
@@ -1950,7 +1990,8 @@ function renderSummary(){
   rows+=`<div class="summary-row"><span class="summary-row-label">📅 收貨日期</span><span class="summary-row-value">${fmtDisplay(order.date)}</span></div>`;
   rows+=`<div class="summary-row"><span class="summary-row-label">👤 收件人</span><span class="summary-row-value">${order.name}</span></div>`;
   rows+=`<div class="summary-row"><span class="summary-row-label">📞 電話</span><span class="summary-row-value">${order.phone}</span></div>`;
-  rows+=`<div class="summary-row"><span class="summary-row-label">📍 地址</span><span class="summary-row-value" style="max-width:55%;text-align:right">${order.address}</span></div>`;
+  rows+=`<div class="summary-row"><span class="summary-row-label">📍 ${isPickup ? '面交地點' : '地址'}</span><span class="summary-row-value" style="max-width:55%;text-align:right">${isPickup ? method.address : order.address}</span></div>`;
+  if(isPickup && order.address) rows+=`<div class="summary-row"><span class="summary-row-label">📝 面交備註</span><span class="summary-row-value" style="max-width:55%;text-align:right">${order.address}</span></div>`;
   rows+=`<div class="summary-row"><span class="summary-row-label">📧 Email</span><span class="summary-row-value">${order.email}</span></div>`;
   if(order.note) rows+=`<div class="summary-row"><span class="summary-row-label">📝 備註</span><span class="summary-row-value" style="max-width:55%;text-align:right">${order.note}</span></div>`;
 
@@ -2013,7 +2054,8 @@ function submitOrder(){
   order.transferCode = transferCode;
 
   // 計算總金額
-  const isPickup = order.deliveryMode === 'pickup';
+  const method = getDeliveryMethod();
+  const isPickup = method.type === 'pickup';
   let total = 0;
   let flavorLines;
   if(order.isCombo){
@@ -2044,8 +2086,8 @@ function submitOrder(){
     customer_email: order.email,
     customer_phone: order.phone,
     delivery_date:  fmtDisplay(order.date),
-    delivery_mode:  isPickup ? '宜蘭面交（凱旋國小）' : '黑貓冷藏宅配',
-    address:        isPickup ? '宜蘭凱旋國小' : order.address,
+    delivery_mode:  method.emailLabel,
+    address:        isPickup ? method.address : order.address,
     flavor_lines:   flavorLines,
     shipping_fee:   ship > 0 ? `NT$${ship}` : '免運',
     total_amount:   `NT$${total}`,
@@ -2067,14 +2109,14 @@ function submitOrder(){
     phone: order.phone,
     email: order.email || '',
     date: order.date,
-    time: '未指定',
+    time: method.time,
     orig:   order.isCombo ? +(2/6).toFixed(4) : (order.flavors['original'] || 0),
     matcha: order.isCombo ? +(2/6).toFixed(4) : (order.flavors['matcha']   || 0),
     cocoa:  order.isCombo ? +(2/6).toFixed(4) : (order.flavors['cocoa']    || 0),
-    delivery: order.deliveryMode === 'pickup' ? '面交' : '宅配',
-    address: order.deliveryMode === 'pickup' ? '宜蘭凱旋國小' : order.address,
+    delivery: method.firebaseDelivery,
+    address: isPickup ? method.address : order.address,
     code: transferCode,
-    note: order.note || '',
+    note: [order.note || '', isPickup && order.address ? `面交備註：${order.address}` : ''].filter(Boolean).join('\n'),
     total: total,
     status: 'pending',
     lineId: lineUserId || '',
@@ -2104,7 +2146,7 @@ function submitOrder(){
 
   // LINE 訂購確認通知
   if(lineUserId){
-    const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${isPickup?'宜蘭面交':'黑貓冷藏宅配'}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
+    const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${method.emailLabel}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
     fetch('https://tcat-proxy.lanfang-hsu.workers.dev/sendLine', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
@@ -2138,6 +2180,8 @@ function resetOrder(){
   lineUserId = ''; lineDisplayName = ''; updateLineLoginUI();
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
+  document.getElementById('opt-pickup-taipei').classList.remove('selected');
+  updateDeliveryForm();
   document.getElementById('success-page').style.display='none';
   ['f-name','f-phone','f-address','f-email','f-phone2','f-note','f-transfer-date','f-transfer-code'].forEach(id=>{ document.getElementById(id).value=''; });
   document.getElementById('bag-qty').textContent = '0';

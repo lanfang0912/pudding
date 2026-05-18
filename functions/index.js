@@ -3,16 +3,31 @@ const fetch = require('node-fetch');
 const crypto = require('crypto');
 
 const TCAT_ENDPOINT = 'https://api.suda.com.tw/api/Egs';
-const CUSTOMER_ID = '9355596901';
-const CUSTOMER_TOKEN = 'jkuck204';
-
-// ── 光貿電子發票（amego 平台）──
-// API 文件：https://invoice.amego.tw/
-// 測試憑證：統編 12345678 / App Key sHeq7t8G1wiQvhAuIM27
-// 正式上線後請換為貴公司統編與 App Key（向 amego 客服取得）
 const AMEGO_BASE     = 'https://invoice-api.amego.tw';
-const AMEGO_TAX_ID   = '12345678';              // 測試統編，正式上線換成公司統編
-const AMEGO_APP_KEY  = 'sHeq7t8G1wiQvhAuIM27'; // 測試 App Key，正式上線向 amego 客服取得
+
+function requiredConfig(path) {
+  const parts = path.split('.');
+  let cur = functions.config();
+  for (const part of parts) cur = cur && cur[part];
+  if (!cur) throw new Error(`Missing Firebase Functions config: ${path}`);
+  return cur;
+}
+
+function getTcatConfig() {
+  return {
+    endpoint: functions.config().tcat?.endpoint || TCAT_ENDPOINT,
+    customerId: requiredConfig('tcat.customer_id'),
+    customerToken: requiredConfig('tcat.customer_token'),
+  };
+}
+
+function getAmegoConfig() {
+  return {
+    base: functions.config().amego?.base || AMEGO_BASE,
+    taxId: requiredConfig('amego.tax_id'),
+    appKey: requiredConfig('amego.app_key'),
+  };
+}
 
 // Proxy: 建立托運單
 exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req, res) => {
@@ -22,8 +37,9 @@ exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
 
   try {
-    const body = { ...req.body, CustomerId: CUSTOMER_ID, CustomerToken: CUSTOMER_TOKEN };
-    const r = await fetch(`${TCAT_ENDPOINT}/PrintOBT`, {
+    const tcat = getTcatConfig();
+    const body = { ...req.body, CustomerId: tcat.customerId, CustomerToken: tcat.customerToken };
+    const r = await fetch(`${tcat.endpoint}/PrintOBT`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
@@ -42,13 +58,14 @@ exports.tcatGetPDF = functions.region('asia-east1').https.onRequest(async (req, 
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
 
   const { fileNo } = req.body;
+  const tcat = getTcatConfig();
   const endpoints = ['GetOBTFile', 'DownloadOBTFile', 'GetFile', 'PrintOBTFile'];
 
   for (const ep of endpoints) {
     try {
-      const r = await fetch(`${TCAT_ENDPOINT}/${ep}`, {
+      const r = await fetch(`${tcat.endpoint}/${ep}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ CustomerId: CUSTOMER_ID, CustomerToken: CUSTOMER_TOKEN, FileNo: fileNo })
+        body: JSON.stringify({ CustomerId: tcat.customerId, CustomerToken: tcat.customerToken, FileNo: fileNo })
       });
       const ct = r.headers.get('content-type') || '';
       if (r.ok && ct.includes('pdf')) {
@@ -70,14 +87,15 @@ exports.tcatGetPDF = functions.region('asia-east1').https.onRequest(async (req, 
 // 欄位：invoice（統編）、data（url-encoded JSON）、time（timestamp）、sign（md5）
 // 簽名：md5(data的JSON字串 + time + APP_KEY)
 function buildAmegoBody(dataObj) {
+  const amego = getAmegoConfig();
   const time     = Math.floor(Date.now() / 1000);
   const dataJson = JSON.stringify(dataObj);
   const sign     = crypto.createHash('md5')
-    .update(dataJson + time + AMEGO_APP_KEY)
+    .update(dataJson + time + amego.appKey)
     .digest('hex');
 
   return new URLSearchParams({
-    invoice: AMEGO_TAX_ID,
+    invoice: amego.taxId,
     data:    dataJson,
     time:    String(time),
     sign,
@@ -133,7 +151,8 @@ exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req
       TotalAmount:        totalAmount, // Number
     };
 
-    const r = await fetch(`${AMEGO_BASE}/json/f0401`, {
+    const amego = getAmegoConfig();
+    const r = await fetch(`${amego.base}/json/f0401`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: buildAmegoBody(dataObj),
@@ -161,7 +180,8 @@ exports.voidInvoice = functions.region('asia-east1').https.onRequest(async (req,
       reason:       reason || '訂單取消',
     };
 
-    const r = await fetch(`${AMEGO_BASE}/json/f0501`, {
+    const amego = getAmegoConfig();
+    const r = await fetch(`${amego.base}/json/f0501`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: buildAmegoBody(dataObj),

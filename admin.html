@@ -311,7 +311,7 @@ tr.done-row td{opacity:.45;}
     <div class="login-title">初白時光</div>
     <div class="login-sub">後台管理系統</div>
     <form onsubmit="doLogin();return false;" autocomplete="on">
-      <input class="login-input" id="un-input" type="text" name="username" placeholder="帳號" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      <input class="login-input" id="un-input" type="email" name="username" placeholder="Email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
       <input class="login-input" id="pw-input" type="password" name="password" placeholder="密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="login-btn" type="submit">進入後台</button>
     </form>
@@ -653,7 +653,7 @@ tr.done-row td{opacity:.45;}
         <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">說明文字（換行用 Enter）<textarea id="d-order-sub1" rows="2" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">為了不影響孩子的日常生活
 我們會視情況調整每日出貨量，售完為止</textarea></label>
         <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">運送說明（換行用 Enter）<textarea id="d-order-sub2" rows="2" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">無添加 · 冷藏保存 5 天 · 3 盒以上運費 NT$100
-宜蘭可面交 · 外縣市冷藏宅配</textarea></label>
+宜蘭 / 台北可面交 · 外縣市冷藏宅配</textarea></label>
       </div>
 
       <!-- 頁尾 -->
@@ -975,7 +975,6 @@ tr.done-row td{opacity:.45;}
 <div class="toast" id="toast"></div>
 
 <script>
-const PW='pudding2026';
 
 let orders=[];
 let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
@@ -1064,8 +1063,6 @@ const GUANGMAO = {
 // ── 黑貓 API ──
 const TCAT = {
   endpoint: 'https://tcat-proxy.lanfang-hsu.workers.dev', // Cloudflare proxy
-  customerId: '935559690100',
-  token: 'jkuck204',
   sender: { name:'White Dessert', tel:'0926582178', mobile:'0926582178', zip:'260', address:'宜蘭市縣政五街102巷50號' }
 };
 
@@ -1143,7 +1140,6 @@ async function batchPrintOBT(date) {
   try {
     const res = await fetch(TCAT.endpoint + '/PrintOBT', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
-        CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
         PrintType: '01', PrintOBTType: '01', Orders: orderItems
       })
     });
@@ -1182,7 +1178,6 @@ async function printOBT(orderId) {
   const deliveryDate = o.date ? new Date(o.date) : (() => { const d = new Date(today); d.setDate(d.getDate()+1); return d; })();
 
   const payload = {
-    CustomerId: TCAT.customerId, CustomerToken: TCAT.token,
     PrintType: '01', PrintOBTType: '01',
     Orders: [{ OrderId: o.id, OBTNumber: '',
       SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
@@ -1328,16 +1323,13 @@ function startFirebaseListener(){
   });
 }
 
-const UN='admin';
 // ── login ──
 async function doLogin(){
-  const un=document.getElementById('un-input').value;
+  const email=document.getElementById('un-input').value.trim();
   const pw=document.getElementById('pw-input').value;
-  if(un===UN && pw===PW){
-    // 取得 Firebase 匿名 auth token（讓安全規則能識別管理員）
-    if(auth){
-      try{ await auth.signInAnonymously(); }catch(e){ console.warn('Firebase auth:', e.message); }
-    }
+  try{
+    if(!auth) throw new Error('Firebase Auth 尚未初始化');
+    await auth.signInWithEmailAndPassword(email, pw);
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-screen').style.display='block';
     initFilters();
@@ -1352,7 +1344,10 @@ async function doLogin(){
       showToast('⚠️ 離線模式：無法連線 Firebase，顯示本地資料');
     }
     renderSchedule();
-  }else{document.getElementById('login-err').textContent='帳號或密碼錯誤';}
+  }catch(e){
+    console.warn('Login failed:', e);
+    document.getElementById('login-err').textContent='帳號或密碼錯誤';
+  }
 }
 function logout(){
   if(auth) auth.signOut().catch(()=>{});

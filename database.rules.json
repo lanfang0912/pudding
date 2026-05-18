@@ -1,40 +1,45 @@
 {
   "rules": {
     "orders": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
       "$orderId": {
-        ".write": "auth != null || !data.exists()"
+        ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (!data.exists() && newData.child('id').val() == $orderId && newData.hasChildren(['id','ts','name','phone','email','date','delivery','address','total','status']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('phone').isString() && newData.child('phone').val().length <= 30 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('date').isString() && newData.child('delivery').val().matches(/^(宅配|面交)$/) && newData.child('address').isString() && newData.child('address').val().length <= 200 && newData.child('total').isNumber() && newData.child('total').val() >= 0 && newData.child('total').val() <= 20000 && newData.child('status').val() == 'pending')"
       }
     },
     "settings": {
-      "maxPerDay":     { ".read": "auth != null", ".write": "auth != null" },
-      "prodOverrides": { ".read": "auth != null", ".write": "auth != null" },
-      "$other":        { ".read": "auth != null", ".write": "auth != null" }
+      "design":        { ".read": true, ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" },
+      "maxPerDay":     { ".read": true, ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" },
+      "prodOverrides": { ".read": true, ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" },
+      "$other":        { ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'", ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" }
     },
     "articles": {
       ".read": true,
-      "$articleId": { ".write": "auth != null" }
+      "$articleId": { ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" }
     },
     "surveys": {
       "responses": {
-        ".read": "auth != null",
-        ".write": true
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+        "$responseId": {
+          ".write": "(!data.exists() && newData.exists()) || (auth != null && auth.token.firebase.sign_in_provider == 'password')"
+        }
       }
     },
     "bakery": {
       "events": {
         ".read": true,
-        "$eventId": { ".write": "auth != null" }
+        "$eventId": { ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" }
       },
       "registrations": {
-        ".read": "auth != null",
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
         "$eventId": {
-          "$regId": { ".write": "auth != null || !data.exists()" }
+          "$regId": {
+            ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || !data.exists()"
+          }
         }
       },
       "settings": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
       }
     }
   }
