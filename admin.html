@@ -1382,14 +1382,14 @@ function logout(){
 function renderStats(){
   const t=orders.length,p=orders.filter(o=>o.status==='pending').length,pd=orders.filter(o=>o.status==='paid').length,sh=orders.filter(o=>o.status==='shipped').length;
   const rev=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
-  const boxes=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.orig+o.matcha+o.cocoa,0);
+  const boxes=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+orderBoxCount(o),0);
   document.getElementById('stats-bar').innerHTML=`
     <div class="stat-item"><div class="stat-value">${t}</div><div class="stat-label">總訂單</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--red)">${p}</div><div class="stat-label">待確認匯款</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--matcha)">${pd}</div><div class="stat-label">已確認匯款</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--blue)">${sh}</div><div class="stat-label">已出貨</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--caramel)">NT$${rev.toLocaleString()}</div><div class="stat-label">已確認金額</div></div>
-    <div class="stat-item"><div class="stat-value">${boxes}</div><div class="stat-label">確認盒數</div></div>`;
+    <div class="stat-item"><div class="stat-value">${Math.round(boxes)}</div><div class="stat-label">確認盒數</div></div>`;
 }
 
 function initFilters(){
@@ -2101,7 +2101,7 @@ function renderIngAlerts(){
         <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px">⚠️ 未來7天食材不足，請盡快補貨</div>
         ${alerts.filter(a=>a.shortages.length>0).map(a=>`
           <div style="margin-bottom:10px">
-            <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${a.totalBoxes}盒）</div>
+            <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${a.dateLabel} 製作（共${fmtBoxes(a.totalBoxes)}）</div>
             ${a.shortages.map(s=>`
               <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 10px;background:rgba(224,112,112,0.08);border-radius:4px;margin-bottom:2px">
                 <span>${s.name}</span>
@@ -2756,6 +2756,17 @@ function saveInvCell(input){
 // ── helpers ──
 function isMobile(){ return window.innerWidth <= 768; }
 function isComboOrder(o){ return !!o.comboItems; }
+function comboBoxCount(o){
+  const ci = o.comboItems || {};
+  const cups = (ci.origCup || 0) + (ci.matchaCup || 0) + (ci.cocoaCup || 0);
+  return cups ? Math.round(cups / 6) : 0;
+}
+function orderBoxCount(o){
+  return isComboOrder(o) ? comboBoxCount(o) : (o.orig || 0) + (o.matcha || 0) + (o.cocoa || 0);
+}
+function fmtWholeBoxes(q){
+  return `${Math.round(q)}盒`;
+}
 function fhtml(o){
   if(o.comboItems){
     const ci = o.comboItems;
@@ -2765,14 +2776,14 @@ function fhtml(o){
       ci.cocoaCup  ? `<span class="flavor-tag tag-cocoa">可可×${ci.cocoaCup}杯</span>` : '',
     ].filter(Boolean).join('');
     const lsTag = o.comboLowSugar ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';
-    return tags + ' <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼</span>' + lsTag;
+    return tags + ` <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼×${comboBoxCount(o)}盒</span>` + lsTag;
   }
   const ls = o.lowSugar || {};
   const lsTag = (key) => ls[key] ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';
   const tags = [
-    o.orig   ? `<span class="flavor-tag tag-original">原味×${o.orig}</span>${lsTag('orig')}`   : '',
-    o.matcha ? `<span class="flavor-tag tag-matcha">抹茶×${o.matcha}</span>${lsTag('matcha')}` : '',
-    o.cocoa  ? `<span class="flavor-tag tag-cocoa">可可×${o.cocoa}</span>${lsTag('cocoa')}`    : '',
+    o.orig   ? `<span class="flavor-tag tag-original">原味×${fmtWholeBoxes(o.orig)}</span>${lsTag('orig')}`   : '',
+    o.matcha ? `<span class="flavor-tag tag-matcha">抹茶×${fmtWholeBoxes(o.matcha)}</span>${lsTag('matcha')}` : '',
+    o.cocoa  ? `<span class="flavor-tag tag-cocoa">可可×${fmtWholeBoxes(o.cocoa)}</span>${lsTag('cocoa')}`    : '',
     o.insulatedBag ? `<span class="flavor-tag" style="background:#e8f4fc;border:1px solid #7bb8d4;color:#2e7da0;font-size:10px">🧊 保冷袋×${o.insulatedBag}</span>` : '',
   ].filter(Boolean).join('');
   return tags;
@@ -2800,9 +2811,9 @@ function fmtOrderItemsShort(o){
     ].filter(Boolean).join(' ');
   }
   return [
-    o.orig   ? `原×${o.orig}盒`   : '',
-    o.matcha ? `抹×${o.matcha}盒` : '',
-    o.cocoa  ? `可×${o.cocoa}盒`  : '',
+    o.orig   ? `原×${fmtWholeBoxes(o.orig)}`   : '',
+    o.matcha ? `抹×${fmtWholeBoxes(o.matcha)}` : '',
+    o.cocoa  ? `可×${fmtWholeBoxes(o.cocoa)}`  : '',
   ].filter(Boolean).join(' ');
 }
 
@@ -2817,9 +2828,9 @@ function fmtOrderItemsFull(o){
     ].filter(Boolean).join('、') + '（三拼）';
   }
   return [
-    o.orig   ? `原味×${o.orig}盒`   : '',
-    o.matcha ? `抹茶×${o.matcha}盒` : '',
-    o.cocoa  ? `可可×${o.cocoa}盒`  : '',
+    o.orig   ? `原味×${fmtWholeBoxes(o.orig)}`   : '',
+    o.matcha ? `抹茶×${fmtWholeBoxes(o.matcha)}` : '',
+    o.cocoa  ? `可可×${fmtWholeBoxes(o.cocoa)}`  : '',
   ].filter(Boolean).join('、');
 }
 
@@ -3059,7 +3070,7 @@ async function sendLineNotify(id) {
   const o = orders.find(x => x.id === id);
   if (!o || !o.lineId) return;
   const ws = ['日','一','二','三','四','五','六'];
-  const items = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+  const items = fmtOrderItemsFull(o);
   const dateDisp = o.date ? (() => { const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '近日';
   let message;
   if (o.delivery === '宅配') {
@@ -3089,7 +3100,7 @@ function sendShipNotify(id){
     showToast('⚠️ 此訂單沒有 email，無法寄信');
     return;
   }
-  const items = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+  const items = fmtOrderItemsFull(o);
   const ws = ['日','一','二','三','四','五','六'];
   const dateDisplay = o.date ? (() => { const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '明日';
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SHIP, {
@@ -3140,7 +3151,7 @@ function sendMeetNotify(id){
   if(o.phone && o.phone !== '未填'){
     const ws = ['日','一','二','三','四','五','六'];
     const dateDisp = o.date ? (()=>{ const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '待確認';
-    const items = [o.orig?`原味×${o.orig}盒`:'', o.matcha?`抹茶×${o.matcha}盒`:'', o.cocoa?`可可×${o.cocoa}盒`:''].filter(Boolean).join('、');
+    const items = fmtOrderItemsFull(o);
     const timeStr = o.time && o.time !== '未指定' ? o.time : '時間待確認';
     const smsText = `${o.name} 您好，小白布丁面交提醒🍮\n品項：${items}\n面交日期：${dateDisp}\n時間：${timeStr}\n地點：${o.address}\n如有問題請與我們聯繫，謝謝！`;
     const a = document.createElement('a');
@@ -3916,9 +3927,9 @@ function _buildGCalEventBody(date){
   let desc = '';
   if(make){
     const items = [];
-    if(make.orig)   items.push(`原味 ${make.orig} 盒`);
-    if(make.matcha) items.push(`抹茶 ${make.matcha} 盒`);
-    if(make.cocoa)  items.push(`可可 ${make.cocoa} 盒`);
+    if(make.orig)   items.push(`原味 ${fmtBoxes(make.orig)}`);
+    if(make.matcha) items.push(`抹茶 ${fmtBoxes(make.matcha)}`);
+    if(make.cocoa)  items.push(`可可 ${fmtBoxes(make.cocoa)}`);
     desc += `【製作】${items.join('、')}\n`;
   }
   if(ships.length){
