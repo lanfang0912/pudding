@@ -1327,6 +1327,12 @@ function startFirebaseListener(){
 async function doLogin(){
   const email=document.getElementById('un-input').value.trim();
   const pw=document.getElementById('pw-input').value;
+  const errEl = document.getElementById('login-err');
+  if(errEl) errEl.textContent = '';
+  if(!email || !pw){
+    if(errEl) errEl.textContent = '請輸入 Firebase 後台 Email 和密碼';
+    return;
+  }
   try{
     if(!auth) throw new Error('Firebase Auth 尚未初始化');
     await auth.signInWithEmailAndPassword(email, pw);
@@ -1346,7 +1352,16 @@ async function doLogin(){
     renderSchedule();
   }catch(e){
     console.warn('Login failed:', e);
-    document.getElementById('login-err').textContent='帳號或密碼錯誤';
+    const messages = {
+      'auth/invalid-email': 'Email 格式不正確，請輸入完整 Email',
+      'auth/user-not-found': '找不到這個 Firebase 使用者，請先到 Firebase Authentication 新增後台帳號',
+      'auth/wrong-password': '密碼錯誤，請到 Firebase Authentication 重設密碼',
+      'auth/invalid-credential': '帳號或密碼錯誤，請確認是 Firebase Authentication 裡的 Email/Password 使用者',
+      'auth/operation-not-allowed': 'Firebase 尚未開啟 Email/Password 登入方式',
+      'auth/too-many-requests': '嘗試次數太多，請稍後再試或到 Firebase 重設密碼',
+      'auth/network-request-failed': '網路連線失敗，請稍後再試',
+    };
+    if(errEl) errEl.textContent = messages[e.code] || `登入失敗：${e.code || e.message || '未知錯誤'}`;
   }
 }
 function logout(){
