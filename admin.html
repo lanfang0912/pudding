@@ -819,7 +819,7 @@ tr.done-row td{opacity:.45;}
           <div class="form-group">
             <div style="display:flex;gap:6px;margin-bottom:10px">
               <div id="n-mode-box" onclick="setPuddingMode('box')" style="flex:1;padding:6px;border:2px solid var(--caramel);border-radius:4px;text-align:center;cursor:pointer;background:rgba(196,131,42,0.08);font-size:11px;font-weight:600;color:var(--caramel)">盒裝</div>
-              <div id="n-mode-combo" onclick="setPuddingMode('combo')" style="flex:1;padding:6px;border:2px solid var(--rule);border-radius:4px;text-align:center;cursor:pointer;font-size:11px;font-weight:600;color:var(--ink-soft)">🎁 三拼單杯</div>
+              <div id="n-mode-combo" onclick="setPuddingMode('combo')" style="flex:1;padding:6px;border:2px solid var(--rule);border-radius:4px;text-align:center;cursor:pointer;font-size:11px;font-weight:600;color:var(--ink-soft)">🎁 三拼 / 客製</div>
             </div>
             <input type="hidden" id="n-pudding-mode" value="box">
           </div>
@@ -836,7 +836,11 @@ tr.done-row td{opacity:.45;}
         </div>
         <div class="form-row full" id="n-combo-section" style="display:none">
           <div class="form-group">
-            <label class="form-label">三拼單杯數量</label>
+            <label class="form-label">三拼 / 客製單杯數量</label>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <label style="font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:5px"><input type="checkbox" id="n-standard-combo" onchange="applyStandardCombo('n');nrecalc()"> 標準三拼（每盒 2 / 2 / 2）</label>
+              <input class="form-ctrl" id="n-combo-boxes" type="number" min="0" value="0" placeholder="盒數" oninput="applyStandardCombo('n');nrecalc()" style="width:90px">
+            </div>
             <div class="flavor-inputs">
               <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $60</label><input class="form-ctrl" id="n-combo-orig" type="number" min="0" value="0" oninput="nrecalc()"></div>
               <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $65</label><input class="form-ctrl" id="n-combo-matcha" type="number" min="0" value="0" oninput="nrecalc()"></div>
@@ -925,7 +929,11 @@ tr.done-row td{opacity:.45;}
       </div>
       <div class="form-row full" id="e-combo-section" style="display:none">
         <div class="form-group">
-          <label class="form-label">三拼單杯數量</label>
+          <label class="form-label">三拼 / 客製單杯數量</label>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <label style="font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:5px"><input type="checkbox" id="e-standard-combo" onchange="applyStandardCombo('e');recalc()"> 標準三拼（每盒 2 / 2 / 2）</label>
+            <input class="form-ctrl" id="e-combo-boxes" type="number" min="0" value="0" placeholder="盒數" oninput="applyStandardCombo('e');recalc()" style="width:90px">
+          </div>
           <div class="flavor-inputs">
             <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $60</label><input class="form-ctrl" id="e-combo-orig" type="number" min="0" value="0" oninput="recalc()"></div>
             <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $65</label><input class="form-ctrl" id="e-combo-matcha" type="number" min="0" value="0" oninput="recalc()"></div>
@@ -3195,6 +3203,15 @@ function setPuddingMode(mode){
   nrecalc();
 }
 
+function applyStandardCombo(prefix){
+  const standard = document.getElementById(`${prefix}-standard-combo`);
+  if(!standard || !standard.checked) return;
+  const boxes = +document.getElementById(`${prefix}-combo-boxes`).value || 0;
+  document.getElementById(`${prefix}-combo-orig`).value = boxes * 2;
+  document.getElementById(`${prefix}-combo-matcha`).value = boxes * 2;
+  document.getElementById(`${prefix}-combo-cocoa`).value = boxes * 2;
+}
+
 function setOrderSource(src){
   document.getElementById('n-source').value = src;
   const isPudding = src === 'pudding';
@@ -3225,8 +3242,9 @@ function openNew(){
   document.getElementById('n-matcha').value=0;
   document.getElementById('n-cocoa').value=0;
   ['n-yi-orig-cup','n-yi-cocoa-cup','n-yi-matcha-cup','n-yi-orig-card','n-yi-cocoa-card','n-yi-matcha-card','n-yi-mix-card',
-   'n-combo-orig','n-combo-matcha','n-combo-cocoa']
+   'n-combo-boxes','n-combo-orig','n-combo-matcha','n-combo-cocoa']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=0; });
+  document.getElementById('n-standard-combo').checked = false;
   document.getElementById('n-delivery').value='面交';
   document.getElementById('n-addr').value='';
   document.getElementById('n-code').value='';
@@ -3285,13 +3303,14 @@ function saveNew(){
   if(src === 'pudding'){
     const mode = document.getElementById('n-pudding-mode').value;
     if(mode === 'combo'){
+      applyStandardCombo('n');
       const origCup   = +document.getElementById('n-combo-orig').value||0;
       const matchaCup = +document.getElementById('n-combo-matcha').value||0;
       const cocoaCup  = +document.getElementById('n-combo-cocoa').value||0;
       const totalCombo = origCup + matchaCup + cocoaCup;
       if(totalCombo === 0){ alert('請填寫品項數量'); return; }
       if(totalCombo % 6 !== 0){
-        alert('三拼模式以一盒六杯為基礎，總杯數請填入 6 的倍數（如 6、12、18…）');
+        alert('三拼 / 客製模式以一盒六杯為基礎，總杯數請填入 6 的倍數（如 6、12、18…）');
         return;
       }
       comboItems = { origCup, matchaCup, cocoaCup };
@@ -3367,6 +3386,14 @@ function openEdit(id){
     document.getElementById('e-combo-orig').value   = o.comboItems.origCup  || 0;
     document.getElementById('e-combo-matcha').value = o.comboItems.matchaCup || 0;
     document.getElementById('e-combo-cocoa').value  = o.comboItems.cocoaCup  || 0;
+    const isStandard = (o.comboItems.origCup || 0) === (o.comboItems.matchaCup || 0)
+      && (o.comboItems.matchaCup || 0) === (o.comboItems.cocoaCup || 0)
+      && (o.comboItems.origCup || 0) % 2 === 0;
+    document.getElementById('e-standard-combo').checked = isStandard;
+    document.getElementById('e-combo-boxes').value = isStandard ? (o.comboItems.origCup || 0) / 2 : '';
+  } else {
+    document.getElementById('e-standard-combo').checked = false;
+    document.getElementById('e-combo-boxes').value = 0;
   }
   recalc();
   document.getElementById('edit-modal').classList.add('open');
@@ -3378,6 +3405,7 @@ function recalc(){
   const insulatedBag = +document.getElementById('e-insulated-bag').value||0;
   let total, ship;
   if(isCombo){
+    applyStandardCombo('e');
     const origCup   = +document.getElementById('e-combo-orig').value||0;
     const matchaCup = +document.getElementById('e-combo-matcha').value||0;
     const cocoaCup  = +document.getElementById('e-combo-cocoa').value||0;
@@ -3400,12 +3428,13 @@ function saveEdit(){
   const isCombo = document.getElementById('e-is-combo').value === '1';
   let orig, matcha, cocoa, comboItems;
   if(isCombo){
+    applyStandardCombo('e');
     const origCup   = +document.getElementById('e-combo-orig').value||0;
     const matchaCup = +document.getElementById('e-combo-matcha').value||0;
     const cocoaCup  = +document.getElementById('e-combo-cocoa').value||0;
     const totalCombo = origCup + matchaCup + cocoaCup;
     if(totalCombo === 0){ alert('請填寫品項數量'); return; }
-    if(totalCombo % 6 !== 0){ alert('三拼模式總杯數請填入 6 的倍數'); return; }
+    if(totalCombo % 6 !== 0){ alert('三拼 / 客製模式總杯數請填入 6 的倍數'); return; }
     comboItems = { origCup, matchaCup, cocoaCup };
     orig = origCup / 6; matcha = matchaCup / 6; cocoa = cocoaCup / 6;
   } else {
