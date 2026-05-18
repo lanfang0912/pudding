@@ -311,7 +311,7 @@ tr.done-row td{opacity:.45;}
     <div class="login-title">初白時光</div>
     <div class="login-sub">後台管理系統</div>
     <form onsubmit="doLogin();return false;" autocomplete="on">
-      <input class="login-input" id="un-input" type="email" name="username" placeholder="Email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      <input class="login-input" id="un-input" type="email" name="username" value="admin@wd.tw" placeholder="Email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
       <input class="login-input" id="pw-input" type="password" name="password" placeholder="密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       <button class="login-btn" type="submit">進入後台</button>
     </form>
@@ -979,6 +979,7 @@ tr.done-row td{opacity:.45;}
 let orders=[];
 let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
 let prodOverrides = {};
+const ADMIN_EMAIL = 'admin@wd.tw';
 let _schedMakeMap = {}, _schedShipMap = {}, _schedMeetMap = {};
 
 const SEED_ORDERS=[
@@ -1335,7 +1336,11 @@ async function doLogin(){
   }
   try{
     if(!auth) throw new Error('Firebase Auth 尚未初始化');
-    await auth.signInWithEmailAndPassword(email, pw);
+    const cred = await auth.signInWithEmailAndPassword(email, pw);
+    if((cred.user?.email || '').toLowerCase() !== ADMIN_EMAIL){
+      await auth.signOut().catch(()=>{});
+      throw { code: 'auth/not-admin-email' };
+    }
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-screen').style.display='block';
     initFilters();
@@ -1360,6 +1365,7 @@ async function doLogin(){
       'auth/operation-not-allowed': 'Firebase 尚未開啟 Email/Password 登入方式',
       'auth/too-many-requests': '嘗試次數太多，請稍後再試或到 Firebase 重設密碼',
       'auth/network-request-failed': '網路連線失敗，請稍後再試',
+      'auth/not-admin-email': `這個帳號不是後台管理帳號，請使用 ${ADMIN_EMAIL}`,
     };
     if(errEl) errEl.textContent = messages[e.code] || `登入失敗：${e.code || e.message || '未知錯誤'}`;
   }

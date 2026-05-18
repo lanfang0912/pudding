@@ -1,45 +1,45 @@
 {
   "rules": {
     "orders": {
-      ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+      ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
       "$orderId": {
-        ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || (!data.exists() && newData.child('id').val() == $orderId && newData.hasChildren(['id','ts','name','phone','email','date','delivery','address','total','status']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('phone').isString() && newData.child('phone').val().length <= 30 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('date').isString() && newData.child('delivery').val().matches(/^(宅配|面交)$/) && newData.child('address').isString() && newData.child('address').val().length <= 200 && newData.child('total').isNumber() && newData.child('total').val() >= 0 && newData.child('total').val() <= 20000 && newData.child('status').val() == 'pending')"
+        ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || (!data.exists() && newData.child('id').val() == $orderId && newData.hasChildren(['id','ts','name','phone','email','date','delivery','address','total','status']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('phone').isString() && newData.child('phone').val().length <= 30 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('date').isString() && newData.child('delivery').val().matches(/^(宅配|面交)$/) && newData.child('address').isString() && newData.child('address').val().length <= 200 && newData.child('total').isNumber() && newData.child('total').val() >= 0 && newData.child('total').val() <= 20000 && newData.child('status').val() == 'pending')"
       }
     },
     "settings": {
-      "design":        { ".read": true, ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" },
-      "maxPerDay":     { ".read": true, ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" },
-      "prodOverrides": { ".read": true, ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" },
-      "$other":        { ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'", ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" }
+      "design":        { ".read": true, ".write": "auth != null && auth.token.email == 'admin@wd.tw'" },
+      "maxPerDay":     { ".read": true, ".write": "auth != null && auth.token.email == 'admin@wd.tw'" },
+      "prodOverrides": { ".read": true, ".write": "auth != null && auth.token.email == 'admin@wd.tw'" },
+      "$other":        { ".read": "auth != null && auth.token.email == 'admin@wd.tw'", ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
     },
     "articles": {
       ".read": true,
-      "$articleId": { ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" }
+      "$articleId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
     },
     "surveys": {
       "responses": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+        ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
         "$responseId": {
-          ".write": "(!data.exists() && newData.exists()) || (auth != null && auth.token.firebase.sign_in_provider == 'password')"
+          ".write": "(!data.exists() && newData.exists()) || (auth != null && auth.token.email == 'admin@wd.tw')"
         }
       }
     },
     "bakery": {
       "events": {
         ".read": true,
-        "$eventId": { ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'" }
+        "$eventId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
       },
       "registrations": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
+        ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
         "$eventId": {
           "$regId": {
-            ".write": "(auth != null && auth.token.firebase.sign_in_provider == 'password') || !data.exists()"
+            ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !data.exists()"
           }
         }
       },
       "settings": {
-        ".read": "auth != null && auth.token.firebase.sign_in_provider == 'password'",
-        ".write": "auth != null && auth.token.firebase.sign_in_provider == 'password'"
+        ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
+        ".write": "auth != null && auth.token.email == 'admin@wd.tw'"
       }
     }
   }
