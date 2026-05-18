@@ -1,1 +1,12 @@
 _worker.js
+.git
+.git/**
+.wrangler
+.wrangler/**
+cf-worker
+cf-worker/**
+functions
+functions/**
+node_modules
+node_modules/**
+firebase-debug.log
