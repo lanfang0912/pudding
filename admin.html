@@ -3334,13 +3334,65 @@ function renderTable(){
 }
 
 function setS(id,status){
+  const o = orders.find(x => x.id === id);
+  const prevStatus = o ? o.status : null;
   db.ref('orders/'+id).update({status});
   showToast({paid:'✓ 已確認匯款',shipped:'📦 已出貨',pending:'↩ 重置'}[status]);
-  if (status === 'shipped') {
-    const o = orders.find(x => x.id === id);
-    if (o) {
-      if (o.email && o.email.includes('@')) sendShipNotify(id);
-      if (!o.invoiceNo) setTimeout(() => openInvoiceModal(id), 400);
+
+  if(o){
+    const wasShipped = prevStatus === 'shipped';
+    const nowShipped = status === 'shipped';
+
+    if(nowShipped !== wasShipped){
+      const dbUpdates = {};
+      const changes = [];
+
+      // ── 出貨包材（湯匙、紙箱、手提袋、保冷袋）──
+      const shippingPkg = calcShippingPkg(o);
+      Object.entries(shippingPkg).forEach(([key, qty]) => {
+        if(!pkgData[key] || !qty) return;
+        const cur = pkgData[key].stock || 0;
+        const next = Math.max(0, Math.round(nowShipped ? cur - qty : cur + qty));
+        pkgData[key].stock = next;
+        dbUpdates['settings/packaging/'+key+'/stock'] = next;
+        changes.push(`${pkgData[key].name}${nowShipped?'-':'+'}${qty}${pkgData[key].unit||'個'}`);
+      });
+
+      // ── 若未按「製作完成」，出貨時一併扣食材 + 布丁杯/杯蓋 ──
+      if(nowShipped && !o.made){
+        const ingUse = calcOrderIngredients(o);
+        Object.entries(ingUse).forEach(([key, use]) => {
+          if(!ingData[key]) return;
+          const cur = ingData[key].stock || 0;
+          const next = Math.max(0, Math.round((cur - use) * 10) / 10);
+          ingData[key].stock = next;
+          dbUpdates['settings/ingredients/'+key+'/stock'] = next;
+          changes.push(`${ingData[key].name}-${Math.round(use)}g`);
+        });
+        const prodPkg = calcProductionPkg(o);
+        Object.entries(prodPkg).forEach(([key, qty]) => {
+          if(!pkgData[key] || !qty) return;
+          const cur = pkgData[key].stock || 0;
+          const next = Math.max(0, Math.round(cur - qty));
+          pkgData[key].stock = next;
+          dbUpdates['settings/packaging/'+key+'/stock'] = next;
+          changes.push(`${pkgData[key].name}-${qty}${pkgData[key].unit||'個'}`);
+        });
+      }
+
+      if(Object.keys(dbUpdates).length){
+        db.ref().update(dbUpdates).then(()=>{
+          showToast(nowShipped
+            ? `📦 已扣庫存：${changes.join('・')}`
+            : `↩ 庫存已歸還`);
+          renderIngAll(); renderPkgAll();
+        });
+      }
+    }
+
+    if(status === 'shipped'){
+      if(o.email && o.email.includes('@')) sendShipNotify(id);
+      if(!o.invoiceNo) setTimeout(() => openInvoiceModal(id), 400);
     }
   }
 }
@@ -3385,6 +3437,7 @@ function calcShippingPkg(o){
     pkg.box_muffin = boxes;
     pkg.bag_kraft = 1;
   }
+  if(o.insulatedBag) pkg.bag_insulated = o.insulatedBag;
   return pkg;
 }
 

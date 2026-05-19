@@ -1105,19 +1105,6 @@ footer {
     </p>
   </div>
 
-  <!-- LINE 綁定（Steps 之前）-->
-  <div style="padding:14px 24px;border-bottom:1px solid var(--rule);background:var(--paper-warm);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <div style="font-size:12px;color:var(--ink-mid);line-height:1.6">為了後續聯絡方便，建議先綁定 LINE 接收出貨通知 👇</div>
-    <div id="line-login-btn" onclick="lineLogin()" style="display:inline-flex;align-items:center;gap:8px;padding:7px 14px;background:#06C755;color:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;user-select:none">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.070 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
-      綁定 LINE 接收出貨通知
-    </div>
-    <div id="line-logged-info" style="display:none;align-items:center;gap:8px">
-      <span style="font-size:12px;color:#1a7a40">✓ 已綁定：<strong id="line-display-name"></strong></span>
-      <span onclick="lineLogout()" style="font-size:11px;color:var(--ink-soft);cursor:pointer;text-decoration:underline">取消</span>
-    </div>
-  </div>
-
   <!-- Steps nav -->
   <div class="steps-nav">
     <div class="step-tab active" id="tab-1">① 口味</div>
@@ -1302,7 +1289,7 @@ footer {
 
       <div class="btn-row">
         <button class="btn-ghost" onclick="goTo(2)">← 返回</button>
-        <button class="btn-primary" onclick="goTo(4)">下一步：確認訂單 →</button>
+        <button class="btn-primary" onclick="requireLineOrGoTo4()">下一步：確認訂單 →</button>
       </div>
     </div>
     </div>
@@ -1421,6 +1408,30 @@ footer {
           lineUserId = profile.userId;
           lineDisplayName = profile.displayName;
           updateLineLoginUI();
+          // 若是從 LINE 登入 redirect 回來，還原表單狀態並前往步驟 4
+          if(sessionStorage.getItem('linePromptPending')){
+            sessionStorage.removeItem('linePromptPending');
+            const savedOrder = JSON.parse(sessionStorage.getItem('lineSavedOrder') || 'null');
+            const savedForm  = JSON.parse(sessionStorage.getItem('lineSavedForm')  || 'null');
+            sessionStorage.removeItem('lineSavedOrder');
+            sessionStorage.removeItem('lineSavedForm');
+            if(savedOrder){
+              // 還原口味、日期、配送等狀態
+              Object.assign(order, savedOrder);
+            }
+            if(savedForm){
+              // 還原表單欄位
+              ['name','phone','address','email','phone2','note'].forEach(k=>{
+                const el = document.getElementById('f-'+k);
+                if(el && savedForm[k] != null) el.value = savedForm[k];
+              });
+              ['inv-carrier','inv-num','inv-npo','inv-taxid','inv-taxname'].forEach(k=>{
+                const el = document.getElementById('f-'+k);
+                if(el && savedForm[k] != null) el.value = savedForm[k];
+              });
+            }
+            goTo(4);
+          }
         });
       }
     })
@@ -1428,6 +1439,13 @@ footer {
 
   function lineLogin() {
     if (!liff.isLoggedIn()) {
+      // 儲存目前狀態，LINE login 後 redirect 回來可還原
+      sessionStorage.setItem('linePromptPending', '1');
+      sessionStorage.setItem('lineSavedOrder', JSON.stringify(order));
+      const formIds = ['name','phone','address','email','phone2','note','inv-carrier','inv-num','inv-npo','inv-taxid','inv-taxname'];
+      const formState = {};
+      formIds.forEach(k=>{ const el=document.getElementById('f-'+k); if(el) formState[k]=el.value; });
+      sessionStorage.setItem('lineSavedForm', JSON.stringify(formState));
       liff.login({ redirectUri: window.location.href });
     }
   }
@@ -1454,6 +1472,20 @@ footer {
   }
 </script>
 <div class="toast" id="toast"></div>
+
+<!-- LINE 綁定提示 Modal -->
+<div id="line-prompt-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;padding:32px 28px;max-width:340px;width:100%;text-align:center">
+    <div style="font-size:36px;margin-bottom:12px">💬</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:8px">綁定 LINE 接收通知</div>
+    <div style="font-size:13px;color:#666;line-height:1.7;margin-bottom:24px">綁定後，出貨時我們會直接傳 LINE 通知給您，不會漏掉！</div>
+    <button onclick="lineLogin()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:#06C755;color:#fff;border:none;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;margin-bottom:10px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
+      使用 LINE 登入綁定
+    </button>
+    <button onclick="dismissLinePrompt()" style="width:100%;padding:10px;background:transparent;border:1px solid #ddd;border-radius:8px;font-size:13px;color:#999;font-family:inherit;cursor:pointer">略過，繼續下一步</button>
+  </div>
+</div>
 
 <!-- ── 文章區塊 ── -->
 <section id="articles-section" style="background:var(--paper-warm);padding:60px 0;display:none">
@@ -2250,6 +2282,17 @@ function submitOrder(){
     console.warn('error:', err);
     showSuccess(num);
   });
+}
+
+function requireLineOrGoTo4(){
+  if(lineUserId){ goTo(4); return; }
+  const overlay = document.getElementById('line-prompt-overlay');
+  overlay.style.display = 'flex';
+}
+
+function dismissLinePrompt(){
+  document.getElementById('line-prompt-overlay').style.display = 'none';
+  goTo(4);
 }
 
 function showSuccess(num){
