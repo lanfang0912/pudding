@@ -1554,8 +1554,6 @@ function applyStoreProducts(rawProducts){
   if(!MIX_PRODUCT) MIX_PRODUCT = ProductModel.activeProducts(null).find(p => p.type === 'pudding_mix');
   renderFlavors();
 }
-applyStoreProducts(null);
-
 // ── 工具：日期加減 ──
 function addDaysToDate(dateStr, n){
   const d = new Date(dateStr);
@@ -1658,6 +1656,10 @@ try {
     renderCal && renderCal();
   });
 
+  db.ref('stats/totalBoxes').on('value', snap => {
+    if(snap.val() != null){ totalSold = snap.val(); animateProgress(); }
+  });
+
   // 訂單明細含個資，不在公開前台讀取；後台登入後才可查看。
 } catch(e) {
   console.warn('Firebase init error:', e);
@@ -1709,7 +1711,7 @@ let calY, calM;
 (function init(){
   const n = new Date();
   calY = n.getFullYear(); calM = n.getMonth();
-  renderFlavors();
+  applyStoreProducts(null);
   animateProgress();
 })();
 

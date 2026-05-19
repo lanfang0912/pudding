@@ -14,10 +14,16 @@
     },
     "articles": {
       ".read": true,
+      ".indexOn": ["status"],
       "$articleId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
+    },
+    "stats": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'admin@wd.tw'"
     },
     "products": {
       ".read": true,
+      ".write": "auth != null && auth.token.email == 'admin@wd.tw'",
       "$productId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
     },
     "surveys": {

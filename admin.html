@@ -1188,7 +1188,7 @@ const GUANGMAO = {
 // ── 黑貓 API ──
 const TCAT = {
   endpoint: 'https://tcat-proxy.lanfang-hsu.workers.dev', // Cloudflare proxy
-  sender: { name:'White Dessert', tel:'0926582178', mobile:'0926582178', zip:'260', address:'宜蘭市縣政五街102巷50號' }
+  sender: { name:'初白時光', tel:'0919058683', mobile:'0919058683', zip:'260', address:'宜蘭市縣政五街102巷50號' }
 };
 
 // 台灣郵遞區號對照（縣市+區鄉鎮 → 3碼，API需6碼補000）
@@ -1262,6 +1262,7 @@ async function batchPrintOBT(date) {
     });
   }
   showToast(`⏳ 批量建立 ${targets.length} 筆托運單...`);
+  const pdfWin = window.open('', '_blank');
   try {
     const res = await fetch(TCAT.endpoint + '/PrintOBT', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
@@ -1269,7 +1270,7 @@ async function batchPrintOBT(date) {
       })
     });
     const json = await res.json();
-    if (json.IsOK !== 'Y') { alert('建立失敗：' + json.Message); return; }
+    if (json.IsOK !== 'Y') { pdfWin && pdfWin.close(); alert('建立失敗：' + json.Message); return; }
     const fileNo = json.Data.FileNo;
     if (db) {
       for (const row of json.Data.Orders) {
@@ -1278,9 +1279,10 @@ async function batchPrintOBT(date) {
     }
     showToast(`✅ 已建立 ${json.Data.Orders.length} 筆托運單`);
     renderDaily();
-    if (fileNo) window.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo);
-    else alert('托運單已建立，請至黑貓後台列印');
-  } catch(e) { alert('API 連線錯誤：' + e.message); }
+    if (fileNo) {
+      pdfWin ? pdfWin.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo) : window.open('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo), '_blank');
+    } else { pdfWin && pdfWin.close(); alert('托運單已建立，請至黑貓後台列印'); }
+  } catch(e) { pdfWin && pdfWin.close(); alert('API 連線錯誤：' + e.message); }
 }
 
 async function printOBT(orderId) {
@@ -1319,22 +1321,22 @@ async function printOBT(orderId) {
 
   console.log('黑貓 payload:', JSON.stringify(payload, null, 2));
   showToast('⏳ 建立托運單中...');
+  const pdfWin = window.open('', '_blank');
   try {
     const res = await fetch(TCAT.endpoint + '/PrintOBT', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const json = await res.json();
-    if (json.IsOK !== 'Y') { alert('建立失敗：' + json.Message); return; }
+    if (json.IsOK !== 'Y') { pdfWin && pdfWin.close(); alert('建立失敗：' + json.Message); return; }
     const row = json.Data.Orders[0];
     const obt = row.OBTNumber;
     const fileNo = json.Data.FileNo;
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
-    showToast('✅ 托運單 ' + obt);
     if (fileNo) {
-      window.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo);
-    } else alert('托運單號：' + obt + '\n（請至黑貓後台列印）');
-  } catch(e) { alert('API 連線錯誤：' + e.message); }
+      pdfWin ? pdfWin.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo) : window.open('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo), '_blank');
+    } else { pdfWin && pdfWin.close(); alert('托運單號：' + obt + '\n（請至黑貓後台列印）'); }
+  } catch(e) { pdfWin && pdfWin.close(); alert('API 連線錯誤：' + e.message); }
 }
 
 async function queryOBT(obt) {
@@ -1406,7 +1408,7 @@ function startFirebaseListener(){
     productsRaw = snap.val() || {};
     products = ProductModel.normalizeProducts(productsRaw);
     renderProducts();
-  });
+  }, e => console.warn('products listener:', e));
   db.ref('settings/maxPerDay').on('value', snap => {
     if(snap.val()) maxPerDay = snap.val();
     renderTable(); renderSchedule();
@@ -1421,6 +1423,10 @@ function startFirebaseListener(){
     orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
     renderStats(); renderTable(); renderDaily(); renderSchedule(); renderIngAll();
     autoSyncToGCal();
+    const totalBoxes = orders
+      .filter(o => o.source !== 'yixin' && o.status !== 'pending')
+      .reduce((a, o) => a + orderBoxCount(o), 0);
+    db.ref('stats/totalBoxes').set(totalBoxes);
   });
   db.ref('settings/packaging').on('value', snap => {
     if(snap.val()){ pkgData = snap.val(); renderPkgAll(); }
@@ -1486,7 +1492,7 @@ async function doLogin(){
     initFilters();
     document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('zh-TW');
     if(db){
-      Promise.all([seedIfEmpty(), seedSettings(), seedProducts()]).then(()=> startFirebaseListener());
+      Promise.all([seedIfEmpty(), seedSettings(), seedProducts().catch(e => console.warn('seedProducts:', e))]).then(()=> startFirebaseListener());
     } else {
       // Firebase 無法連線，使用本地 SEED 資料
       orders = JSON.parse(JSON.stringify(SEED_ORDERS));
@@ -3280,6 +3286,7 @@ function renderTable(){
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
           <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
+          ${o.delivery==='宅配' && o.status!=='pending' ? (o.obtNumber ? `<button class="act-btn" style="font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="printOBT('${o.id}')" title="重印托運單">🖨️ 重印</button>` : `<button class="act-btn ship" onclick="printOBT('${o.id}')" title="建立托運單">🖨️ 托運單</button>`) : ''}
           ${o.invoiceNo
             ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
             : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button><button class="act-btn" onclick="fillInvoiceNo('${o.id}')" title="補填已在 amego 開立的發票號碼" style="font-size:11px;border-color:#aaa;color:#aaa">補填</button>` : '')}
@@ -3315,6 +3322,7 @@ function renderTable(){
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
           <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
+          ${o.delivery==='宅配' && o.status!=='pending' ? (o.obtNumber ? `<button class="act-btn" style="font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="printOBT('${o.id}')" title="重印托運單">🖨️ 重印</button>` : `<button class="act-btn ship" onclick="printOBT('${o.id}')" title="建立托運單">🖨️ 托運單</button>`) : ''}
           ${o.invoiceNo
             ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
             : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button>` : '')}
@@ -3898,12 +3906,16 @@ function makeOrderCard(o, date){
       ${o.status==='pending'?`<button class="act-btn paid" style="flex:1" onclick="setS('${o.id}','paid')">✓ 確認款</button>`:''}
       ${done?`<button class="ship-btn done">✓ 已出貨</button>`:`<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
     </div>
-    ${o.delivery==='宅配'?`<div style="display:flex;gap:6px;margin-top:6px">
-      ${o.obtNumber
+    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+      ${o.invoiceNo
+        ? `<button class="act-btn inv" style="flex:1;font-size:10px" onclick="showInvoiceInfo('${o.id}')">🧾 ${o.invoiceNo}</button>`
+        : (o.status!=='pending' ? `<button class="act-btn inv" style="flex:1;font-size:10px" onclick="openInvoiceModal('${o.id}')">🧾 開發票</button>` : '')}
+      ${o.delivery==='宅配' ? (o.obtNumber
         ?`<button class="act-btn" style="flex:1;font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="queryOBT('${o.obtNumber}')">📦 追蹤 ${o.obtNumber}</button>
           <button class="act-btn" style="font-size:10px" onclick="printOBT('${o.id}')">🖨️ 重印</button>`
-        :`<button class="act-btn ship" style="flex:1;font-size:10px" onclick="printOBT('${o.id}')">🖨️ 建立托運單</button>`}
-    </div>`:''}
+        :`<button class="act-btn ship" style="flex:1;font-size:10px" onclick="printOBT('${o.id}')">🖨️ 建立托運單</button>`)
+      : ''}
+    </div>
   </div>`;
 }
 

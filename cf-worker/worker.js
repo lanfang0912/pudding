@@ -66,19 +66,21 @@ function requireEnv(env, name) {
   return value;
 }
 
-function getSecrets(env) {
+function getTcatSecrets(env) {
   return {
-    lineToken: requireEnv(env, 'LINE_CHANNEL_ACCESS_TOKEN'),
-    tcat: {
-      endpoint: env.TCAT_ENDPOINT || TCAT_ENDPOINT,
-      customerId: requireEnv(env, 'TCAT_CUSTOMER_ID'),
-      token: requireEnv(env, 'TCAT_CUSTOMER_TOKEN'),
-    },
-    amego: {
-      base: env.AMEGO_BASE || AMEGO_BASE,
-      taxId: requireEnv(env, 'AMEGO_TAX_ID'),
-      appKey: requireEnv(env, 'AMEGO_APP_KEY'),
-    },
+    endpoint: env.TCAT_ENDPOINT || TCAT_ENDPOINT,
+    customerId: requireEnv(env, 'TCAT_CUSTOMER_ID'),
+    token: requireEnv(env, 'TCAT_CUSTOMER_TOKEN'),
+  };
+}
+function getLineToken(env) {
+  return requireEnv(env, 'LINE_CHANNEL_ACCESS_TOKEN');
+}
+function getAmegoSecrets(env) {
+  return {
+    base: env.AMEGO_BASE || AMEGO_BASE,
+    taxId: requireEnv(env, 'AMEGO_TAX_ID'),
+    appKey: requireEnv(env, 'AMEGO_APP_KEY'),
   };
 }
 
@@ -145,19 +147,13 @@ export default {
     const path = url.pathname.replace(/^\//, '');
     const json = h => new Response(JSON.stringify(h), { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-    let secrets;
-    try {
-      secrets = getSecrets(env);
-    } catch (e) {
-      return json({ success: false, message: e.message });
-    }
-
     // ── TCAT PDF ──
     if (path === 'getPDF') {
+      let tcat; try { tcat = getTcatSecrets(env); } catch(e) { return json({ success: false, message: e.message }); }
       const fileNo = request.method === 'GET'
         ? url.searchParams.get('fileNo')
         : (await request.json()).fileNo;
-      const result = await tryGetPDF(fileNo, secrets.tcat);
+      const result = await tryGetPDF(fileNo, tcat);
       if (result.ok) {
         const blob = await result.res.arrayBuffer();
         return new Response(blob, { headers: { ...CORS, 'Content-Type': 'application/pdf', 'Content-Disposition': 'inline' } });
@@ -166,16 +162,18 @@ export default {
     }
 
     if (path === 'debugPDF') {
+      let tcat; try { tcat = getTcatSecrets(env); } catch(e) { return json({ success: false, message: e.message }); }
       const { fileNo } = await request.json();
-      return json(await debugPDF(fileNo, secrets.tcat));
+      return json(await debugPDF(fileNo, tcat));
     }
 
     // ── TCAT 通用 proxy ──
     if (['PrintOBT', 'QueryOBT'].includes(path)) {
+      let tcat; try { tcat = getTcatSecrets(env); } catch(e) { return json({ success: false, message: e.message }); }
       const body = await request.json();
-      body.CustomerId = secrets.tcat.customerId;
-      body.CustomerToken = secrets.tcat.token;
-      const r = await fetch(`${secrets.tcat.endpoint}/${path}`, {
+      body.CustomerId = tcat.customerId;
+      body.CustomerToken = tcat.token;
+      const r = await fetch(`${tcat.endpoint}/${path}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       return json(await r.json());
@@ -183,17 +181,21 @@ export default {
 
     // ── LINE 推播 ──
     if (path === 'sendLine') {
+      let lineToken; try { lineToken = getLineToken(env); } catch(e) { return json({ success: false, message: e.message }); }
       const { userId, message } = await request.json();
       if (!userId || !message) return json({ error: '缺少 userId 或 message' });
       const r = await fetch('https://api.line.me/v2/bot/message/push', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${secrets.lineToken}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${lineToken}` },
         body: JSON.stringify({ to: userId, messages: [{ type: 'text', text: message }] }),
       });
       return new Response(await r.text(), { status: r.status, headers: { ...CORS, 'Content-Type': 'application/json' } });
     }
 
     // ── 電子發票：開立 ──
+    let secrets;
+    try { secrets = { amego: getAmegoSecrets(env) }; } catch(e) { return json({ success: false, message: e.message }); }
+
     if (path === 'issueInvoice') {
       const { orderId, buyerName, buyerEmail, buyerPhone,
               buyerIdentifier, carrierType, carrierNum, npoId, items, totalAmount } = await request.json();
