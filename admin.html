@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="product-model.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <script>
@@ -234,6 +235,9 @@ tr.done-row td{opacity:.45;}
   #tab-inventory div[style*="grid-template-columns:1fr 1fr 1fr 1fr"] {
     grid-template-columns: 1fr 1fr !important;
   }
+  #tab-products div[style*="grid-template-columns:minmax"] {
+    grid-template-columns: 1fr !important;
+  }
   /* 行事曆：JS 渲染卡片，不需要捲動 */
   #inv-calendar { overflow: visible; }
 
@@ -329,6 +333,7 @@ tr.done-row td{opacity:.45;}
     <button class="tab-btn active" onclick="switchTab('orders',this)">📋 訂單總覽</button>
     <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
     <button class="tab-btn" onclick="switchTab('schedule',this)">🏭 生產排程</button>
+    <button class="tab-btn" onclick="switchTab('products',this)">🛒 商品管理</button>
     <button class="tab-btn" onclick="switchTab('inventory',this)">⚙️ 庫存設定</button>
     <button class="tab-btn" onclick="switchTab('ingredients',this)">🥛 食材庫存</button>
     <button class="tab-btn" onclick="switchTab('packaging',this)">📦 包材庫存</button>
@@ -405,6 +410,93 @@ tr.done-row td{opacity:.45;}
       </button>
     </div>
     <div class="schedule-wrap" id="sch-content"></div>
+  </div>
+
+  <div class="tab-panel" id="tab-products">
+    <div style="max-width:980px;margin:0 auto;padding:24px 28px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:20px;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:4px">商品管理</div>
+          <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">上架商品會顯示在前台。布丁盒裝與三拼會保留排程、配方、庫存擴充欄位。</div>
+        </div>
+        <button class="btn-save" onclick="newProductForm()">＋ 新增商品</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:18px;align-items:start">
+        <div style="border:1px solid var(--rule);border-radius:4px;background:var(--paper);padding:18px">
+          <input type="hidden" id="prod-id">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px" id="prod-form-title">新增商品</div>
+          <div class="form-row full">
+            <div class="form-group"><label class="form-label">商品 ID</label><input class="form-ctrl" id="prod-id-input" placeholder="例：caramel"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">名稱</label><input class="form-ctrl" id="prod-name" placeholder="焦糖布丁"></div>
+            <div class="form-group"><label class="form-label">Emoji</label><input class="form-ctrl" id="prod-emoji" placeholder="🍮"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">類型</label>
+              <select class="form-ctrl" id="prod-type" onchange="updateProductFormMode()">
+                <option value="pudding_box">pudding_box 單口味布丁</option>
+                <option value="pudding_mix">pudding_mix 三拼/綜合</option>
+                <option value="addon">addon 加購品</option>
+                <option value="other">other 其他</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">狀態</label>
+              <select class="form-ctrl" id="prod-status">
+                <option value="active">上架</option>
+                <option value="draft">草稿 / 下架</option>
+                <option value="archived">封存</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">價格</label><input class="form-ctrl" id="prod-price" type="number" min="0" value="0"></div>
+            <div class="form-group"><label class="form-label">單位</label><input class="form-ctrl" id="prod-unit" value="盒"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">排序</label><input class="form-ctrl" id="prod-sort" type="number" value="50"></div>
+            <div class="form-group"><label class="form-label">生產模式</label>
+              <select class="form-ctrl" id="prod-production">
+                <option value="scheduled">scheduled 進排程</option>
+                <option value="none">none 不進排程</option>
+              </select>
+            </div>
+          </div>
+          <div id="prod-box-fields">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">stockKey</label><input class="form-ctrl" id="prod-stock" placeholder="例：caramel"></div>
+              <div class="form-group"><label class="form-label">recipeKey</label><input class="form-ctrl" id="prod-recipe" placeholder="例：caramel"></div>
+            </div>
+          </div>
+          <div id="prod-mix-fields" style="display:none">
+            <div class="form-row full">
+              <div class="form-group">
+                <label class="form-label">三拼組成（每組杯數）</label>
+                <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:6px">
+                  <input class="form-ctrl" id="prod-comp-1-key" placeholder="stockKey，如 original"><input class="form-ctrl" id="prod-comp-1-cups" type="number" min="0" placeholder="杯">
+                  <input class="form-ctrl" id="prod-comp-2-key" placeholder="stockKey，如 matcha"><input class="form-ctrl" id="prod-comp-2-cups" type="number" min="0" placeholder="杯">
+                  <input class="form-ctrl" id="prod-comp-3-key" placeholder="stockKey，如 cocoa"><input class="form-ctrl" id="prod-comp-3-cups" type="number" min="0" placeholder="杯">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-row full">
+            <div class="form-group"><label class="form-label">描述</label><textarea class="form-ctrl" id="prod-desc" rows="3" style="resize:vertical" placeholder="前台商品卡說明"></textarea></div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn-cancel" onclick="newProductForm()">清空</button>
+            <button class="btn-save" onclick="saveProduct()">儲存商品</button>
+          </div>
+        </div>
+
+        <div>
+          <div id="products-list" style="display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:12px;color:var(--ink-soft)">載入中…</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="tab-panel" id="tab-inventory">
@@ -985,6 +1077,8 @@ tr.done-row td{opacity:.45;}
 <script>
 
 let orders=[];
+let products = ProductModel.normalizeProducts(null);
+let productsRaw = {};
 let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
 let prodOverrides = {};
 const ADMIN_EMAIL = 'admin@wd.tw';
@@ -1272,9 +1366,25 @@ async function seedSettings(){
   }
 }
 
+async function seedProducts(){
+  const snap = await db.ref('products').once('value');
+  if(snap.exists()) return;
+  const defaults = {};
+  ProductModel.DEFAULT_PRODUCTS.forEach(p => {
+    const {id, ...data} = p;
+    defaults[id] = data;
+  });
+  await db.ref('products').set(defaults);
+}
+
 // 啟動 Firebase 即時監聽
 function startFirebaseListener(){
   loadDesign();
+  db.ref('products').on('value', snap => {
+    productsRaw = snap.val() || {};
+    products = ProductModel.normalizeProducts(productsRaw);
+    renderProducts();
+  });
   db.ref('settings/maxPerDay').on('value', snap => {
     if(snap.val()) maxPerDay = snap.val();
     renderTable(); renderSchedule();
@@ -1354,8 +1464,7 @@ async function doLogin(){
     initFilters();
     document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('zh-TW');
     if(db){
-      seedIfEmpty().then(()=> startFirebaseListener());
-      seedSettings();
+      Promise.all([seedIfEmpty(), seedSettings(), seedProducts()]).then(()=> startFirebaseListener());
     } else {
       // Firebase 無法連線，使用本地 SEED 資料
       orders = JSON.parse(JSON.stringify(SEED_ORDERS));
@@ -1479,11 +1588,169 @@ function switchTab(n,btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('tab-'+n).classList.add('active');
   if(n==='inventory') loadInvSettings();
+  if(n==='products') renderProducts();
   if(n==='ingredients') loadIngredients();
   if(n==='packaging') loadPackaging();
   if(n==='articles' && !articlesLoaded) loadArticles();
   if(n==='accounting') loadAccounting();
   if(n==='survey') loadSurvey();
+}
+
+function h(s){
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function productStatusLabel(status){
+  return {active:'上架', draft:'下架/草稿', archived:'封存'}[status] || status;
+}
+
+function renderProducts(){
+  const el = document.getElementById('products-list');
+  if(!el) return;
+  const list = products.length ? products : ProductModel.normalizeProducts(null);
+  if(!list.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚無商品</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const statusColor = p.status === 'active' ? 'var(--matcha)' : p.status === 'archived' ? 'var(--red)' : 'var(--ink-soft)';
+    const prodMode = p.productionMode === 'scheduled' ? '進排程' : '不進排程';
+    const comp = p.components?.length
+      ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">組成：${p.components.map(c=>`${h(c.stockKey)} ${c.cups}杯`).join('、')}</div>`
+      : '';
+    return `<div style="border:1px solid var(--rule);border-radius:4px;background:var(--paper);padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+      <div style="min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:18px">${h(p.emoji)}</span>
+          <strong style="font-size:14px">${h(p.name)}</strong>
+          <span style="font-size:10px;color:${statusColor};border:1px solid ${statusColor};border-radius:2px;padding:1px 6px">${productStatusLabel(p.status)}</span>
+          <span style="font-size:10px;color:var(--ink-soft);background:var(--paper-dark);border-radius:2px;padding:2px 6px">${h(p.type)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink-mid);margin-top:6px">NT$${Number(p.price||0).toLocaleString()} / ${h(p.unit)} · ${prodMode} · sort ${p.sort}</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">${h(p.description || '—')}</div>
+        ${p.stockKey ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">stockKey：${h(p.stockKey)} · recipeKey：${h(p.recipeKey || p.stockKey)}</div>` : ''}
+        ${comp}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="act-btn edit" onclick="editProduct('${h(p.id)}')">編輯</button>
+        ${p.status === 'active'
+          ? `<button class="act-btn reset" onclick="setProductStatus('${h(p.id)}','draft')">下架</button>`
+          : `<button class="act-btn paid" onclick="setProductStatus('${h(p.id)}','active')">上架</button>`}
+        <button class="act-btn del" onclick="archiveProduct('${h(p.id)}')">封存</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateProductFormMode(){
+  const type = document.getElementById('prod-type').value;
+  document.getElementById('prod-box-fields').style.display = type === 'pudding_box' ? '' : 'none';
+  document.getElementById('prod-mix-fields').style.display = type === 'pudding_mix' ? '' : 'none';
+  if(type === 'addon') document.getElementById('prod-production').value = 'none';
+  if(type === 'pudding_box' || type === 'pudding_mix') document.getElementById('prod-production').value = 'scheduled';
+}
+
+function newProductForm(){
+  ['prod-id','prod-id-input','prod-name','prod-emoji','prod-price','prod-unit','prod-sort','prod-stock','prod-recipe','prod-desc',
+   'prod-comp-1-key','prod-comp-1-cups','prod-comp-2-key','prod-comp-2-cups','prod-comp-3-key','prod-comp-3-cups'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('prod-form-title').textContent = '新增商品';
+  document.getElementById('prod-id-input').disabled = false;
+  document.getElementById('prod-type').value = 'pudding_box';
+  document.getElementById('prod-status').value = 'active';
+  document.getElementById('prod-unit').value = '盒';
+  document.getElementById('prod-sort').value = '50';
+  document.getElementById('prod-production').value = 'scheduled';
+  updateProductFormMode();
+}
+
+function editProduct(id){
+  const p = products.find(x => x.id === id);
+  if(!p) return;
+  document.getElementById('prod-form-title').textContent = '編輯商品';
+  document.getElementById('prod-id').value = p.id;
+  document.getElementById('prod-id-input').value = p.id;
+  document.getElementById('prod-id-input').disabled = true;
+  document.getElementById('prod-name').value = p.name || '';
+  document.getElementById('prod-emoji').value = p.emoji || '';
+  document.getElementById('prod-type').value = p.type || 'other';
+  document.getElementById('prod-status').value = p.status || 'draft';
+  document.getElementById('prod-price').value = p.price || 0;
+  document.getElementById('prod-unit').value = p.unit || '個';
+  document.getElementById('prod-sort').value = p.sort || 50;
+  document.getElementById('prod-production').value = p.productionMode || 'scheduled';
+  document.getElementById('prod-stock').value = p.stockKey || '';
+  document.getElementById('prod-recipe').value = p.recipeKey || p.stockKey || '';
+  document.getElementById('prod-desc').value = p.description || '';
+  [0,1,2].forEach(i => {
+    const c = (p.components || [])[i] || {};
+    document.getElementById(`prod-comp-${i+1}-key`).value = c.stockKey || '';
+    document.getElementById(`prod-comp-${i+1}-cups`).value = c.cups || '';
+  });
+  updateProductFormMode();
+  document.getElementById('prod-name').focus();
+}
+
+function productFormData(){
+  const existingId = document.getElementById('prod-id').value.trim();
+  const id = existingId || document.getElementById('prod-id-input').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'_');
+  const type = document.getElementById('prod-type').value;
+  const data = {
+    name: document.getElementById('prod-name').value.trim(),
+    type,
+    status: document.getElementById('prod-status').value,
+    price: +document.getElementById('prod-price').value || 0,
+    unit: document.getElementById('prod-unit').value.trim() || '個',
+    emoji: document.getElementById('prod-emoji').value.trim(),
+    description: document.getElementById('prod-desc').value.trim(),
+    sort: +document.getElementById('prod-sort').value || 999,
+    productionMode: document.getElementById('prod-production').value,
+    updatedAt: new Date().toISOString(),
+  };
+  if(type === 'pudding_box'){
+    data.stockKey = document.getElementById('prod-stock').value.trim();
+    data.recipeKey = document.getElementById('prod-recipe').value.trim() || data.stockKey;
+    data.unitCups = 6;
+    data.capacityGroup = 'pudding';
+    data.leadDays = {delivery:2, pickup:1};
+  }
+  if(type === 'pudding_mix'){
+    data.unitCups = 6;
+    data.capacityGroup = 'pudding';
+    data.leadDays = {delivery:2, pickup:1};
+    data.components = [1,2,3].map(i => ({
+      stockKey: document.getElementById(`prod-comp-${i}-key`).value.trim(),
+      cups: +document.getElementById(`prod-comp-${i}-cups`).value || 0,
+    })).filter(c => c.stockKey && c.cups > 0);
+  }
+  return {id, data};
+}
+
+function saveProduct(){
+  const {id, data} = productFormData();
+  if(!id){ showToast('請填寫商品 ID'); return; }
+  if(!data.name){ showToast('請填寫商品名稱'); return; }
+  if(data.type === 'pudding_box' && !data.stockKey){ showToast('布丁盒裝請填 stockKey'); return; }
+  if(data.type === 'pudding_mix' && !data.components?.length){ showToast('三拼請填組成'); return; }
+  const ref = db.ref('products/'+id);
+  data.createdAt = productsRaw[id]?.createdAt || new Date().toISOString();
+  ref.set(data).then(() => {
+    showToast('✅ 商品已儲存');
+    editProduct(id);
+  });
+}
+
+function setProductStatus(id, status){
+  db.ref('products/'+id).update({status, updatedAt:new Date().toISOString()}).then(()=>{
+    showToast(status === 'active' ? '✅ 商品已上架' : '商品已下架');
+  });
+}
+
+function archiveProduct(id){
+  if(!confirm('封存後前台不會顯示，確定封存此商品？')) return;
+  setProductStatus(id, 'archived');
 }
 
 function loadInvSettings(){

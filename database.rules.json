@@ -16,6 +16,10 @@
       ".read": true,
       "$articleId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
     },
+    "products": {
+      ".read": true,
+      "$productId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
+    },
     "surveys": {
       "responses": {
         ".read": "auth != null && auth.token.email == 'admin@wd.tw'",

@@ -1129,10 +1129,10 @@ footer {
         <div style="flex-shrink:0;font-size:28px;line-height:1">🎁</div>
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-            <span style="font-family:'DM Serif Display',serif;font-size:17px">綜合三拼</span>
+            <span id="combo-title" style="font-family:'DM Serif Display',serif;font-size:17px">綜合三拼</span>
             <span style="font-size:10px;background:var(--caramel);color:white;padding:1px 8px;border-radius:10px;letter-spacing:.5px">推薦</span>
           </div>
-          <div style="font-size:12px;color:var(--ink-soft)">🍮 原味×2 ・ 🍵 抹茶×2 ・ 🍫 可可×2（每組 6 杯）</div>
+          <div id="combo-desc" style="font-size:12px;color:var(--ink-soft)">🍮 原味×2 ・ 🍵 抹茶×2 ・ 🍫 可可×2（每組 6 杯）</div>
           <div id="combo-info" style="font-size:11px;color:var(--caramel);margin-top:3px">共 6 杯・NT$380（宅配 +NT$160）</div>
           <div id="combo-qty-row" style="display:none;margin-top:8px;display:none;align-items:center;gap:10px" onclick="event.stopPropagation()">
             <span style="font-size:12px;color:var(--ink-soft)">組數：</span>
@@ -1513,16 +1513,38 @@ footer {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="product-model.js"></script>
 <script>
 // ─── CONFIG ───
 const MAX = 20; // UI 按鈕上限，實際可訂量由後台每日設定控制
 let maxPerDay = { orig: 3, matcha: 3, cocoa: 3, total: 9 };
 let prodOverrides = {}; // 製作日單獨設定
-const FLAVORS = [
-  { id:'original', zh:'原味', en:'Original', icon:'🍮', price:360, cls:'original' },
-  { id:'matcha',   zh:'抹茶', en:'Matcha',   icon:'🍵', price:390, cls:'matcha' },
-  { id:'cocoa',    zh:'可可', en:'Cocoa',    icon:'🍫', price:390, cls:'cocoa' },
-];
+let storeProducts = ProductModel.activeProducts(null);
+let FLAVORS = [];
+let MIX_PRODUCT = null;
+
+function productToFlavor(p){
+  const stockClass = {original:'original', matcha:'matcha', cocoa:'cocoa'}[p.stockKey] || 'original';
+  return {
+    id: p.id,
+    zh: p.name,
+    en: p.description || p.type,
+    icon: p.emoji || '🍮',
+    price: p.price,
+    cls: stockClass,
+    product: p,
+  };
+}
+
+function applyStoreProducts(rawProducts){
+  storeProducts = ProductModel.activeProducts(rawProducts || null);
+  FLAVORS = storeProducts.filter(p => p.type === 'pudding_box').map(productToFlavor);
+  MIX_PRODUCT = storeProducts.find(p => p.type === 'pudding_mix') || null;
+  if(!FLAVORS.length) FLAVORS = ProductModel.activeProducts(null).filter(p => p.type === 'pudding_box').map(productToFlavor);
+  if(!MIX_PRODUCT) MIX_PRODUCT = ProductModel.activeProducts(null).find(p => p.type === 'pudding_mix');
+  renderFlavors();
+}
+applyStoreProducts(null);
 
 // ── 工具：日期加減 ──
 function addDaysToDate(dateStr, n){
@@ -1546,6 +1568,10 @@ let db = null;
 try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
+
+  db.ref('products').on('value', snap => {
+    applyStoreProducts(snap.val());
+  });
 
   // 讀取網站設計設定
   db.ref('settings/design').on('value', snap => {
@@ -1688,6 +1714,17 @@ function animateProgress(){
 
 // ─── FLAVORS ───
 function renderFlavors(){
+  const comboCard = document.getElementById('combo-card');
+  if(comboCard) comboCard.style.display = MIX_PRODUCT ? 'flex' : 'none';
+  const comboTitle = document.getElementById('combo-title');
+  if(comboTitle && MIX_PRODUCT) comboTitle.textContent = MIX_PRODUCT.name;
+  const comboDesc = document.getElementById('combo-desc');
+  if(comboDesc && MIX_PRODUCT){
+    const parts = (MIX_PRODUCT.components || [])
+      .map(c => `${ProductModel.stockLabel(c.stockKey)}×${c.cups}杯`)
+      .join(' ・ ');
+    comboDesc.textContent = `${MIX_PRODUCT.emoji || '🎁'} ${parts || MIX_PRODUCT.description}（每${MIX_PRODUCT.unit || '組'} ${MIX_PRODUCT.unitCups || 6} 杯）`;
+  }
   document.getElementById('flavor-grid').innerHTML = FLAVORS.map(f=>{
     const sel = !order.isCombo && !!order.flavors[f.id];
     const q = order.flavors[f.id] || 1;
@@ -1784,11 +1821,12 @@ function comboChg(d){
 
 function updateComboCard(){
   const qty = order.comboQty;
-  const price = qty * 380;
+  const price = qty * (MIX_PRODUCT?.price || 380);
+  const unitCups = MIX_PRODUCT?.unitCups || 6;
   document.getElementById('combo-qv').textContent = qty;
   const shipText = isPickupMode() ? '面交免運' : `冷藏宅配 +NT$${qty>=3?0:160}`;
   document.getElementById('combo-info').textContent =
-    `共 ${qty*6} 杯・NT$${price.toLocaleString()}（${shipText}）`;
+    `共 ${qty*unitCups} 杯・NT$${price.toLocaleString()}（${shipText}）`;
 }
 
 function toggleFlavor(id){
@@ -1842,8 +1880,10 @@ function renderCal(){
 
   for(let i=0;i<first;i++) h+=`<div class="cal-day empty"></div>`;
 
-  const comboBoxPerFlavor = order.comboQty * 2/6;
-  const COMBO_QTYS = { original: comboBoxPerFlavor, matcha: comboBoxPerFlavor, cocoa: comboBoxPerFlavor };
+  const COMBO_QTYS = {};
+  (MIX_PRODUCT?.components || []).forEach(c => {
+    COMBO_QTYS[c.stockKey] = (COMBO_QTYS[c.stockKey] || 0) + (Number(c.cups || 0) * order.comboQty / 6);
+  });
   const sel = order.isCombo ? Object.keys(COMBO_QTYS) : Object.keys(order.flavors);
   const activeQtys = order.isCombo ? COMBO_QTYS : order.flavors;
 
@@ -1944,20 +1984,39 @@ function goTo(n){
 }
 
 // ─── SUMMARY ───
+function currentOrderItems(){
+  if(order.isCombo){
+    return ProductModel.buildOrderItemsFromSelection({
+      products: storeProducts,
+      mixProductId: MIX_PRODUCT?.id || 'pudding_mix',
+      mixQty: order.comboQty,
+      mixLowSugar: order.comboLowSugar,
+    });
+  }
+  return ProductModel.buildOrderItemsFromSelection({
+    products: storeProducts,
+    quantities: order.flavors,
+    lowSugar: order.lowSugar,
+  });
+}
+
 function renderSummary(){
   let total=0, rows='';
   const method = getDeliveryMethod();
   const isPickup = method.type === 'pickup';
 
   if(order.isCombo){
-    const comboPrice = order.comboQty * 380;
+    const comboPrice = order.comboQty * (MIX_PRODUCT?.price || 380);
     total = comboPrice;
-    const cups = order.comboQty * 2;
+    const compText = (MIX_PRODUCT?.components || [])
+      .map(c => `${ProductModel.stockLabel(c.stockKey)}×${Number(c.cups || 0) * order.comboQty}杯`)
+      .join('・');
     const comboLsTag = order.comboLowSugar ? ' <span style="font-size:11px;color:var(--caramel);font-weight:600">（減糖）</span>' : '';
-    rows += `<div class="summary-row"><span class="summary-row-label">🎁 三拼 ×${order.comboQty} 組（原味×${cups}杯・抹茶×${cups}杯・可可×${cups}杯）${comboLsTag}</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
+    rows += `<div class="summary-row"><span class="summary-row-label">${MIX_PRODUCT?.emoji || '🎁'} ${MIX_PRODUCT?.name || '三拼'} ×${order.comboQty} ${MIX_PRODUCT?.unit || '組'}${compText ? `（${compText}）` : ''}${comboLsTag}</span><span class="summary-row-value">NT$ ${comboPrice.toLocaleString()}</span></div>`;
   } else {
     for(const fid of Object.keys(order.flavors)){
       const f=FLAVORS.find(x=>x.id===fid);
+      if(!f) continue;
       const q=order.flavors[fid];
       const sub=q*f.price;
       total+=sub;
@@ -2037,13 +2096,17 @@ function submitOrder(){
     toast('請填寫正確的帳號末五碼（5位數字）','error'); return;
   }
 
+  const orderItems = currentOrderItems();
+  const legacyCounts = ProductModel.legacyCountsFromItems(orderItems);
+
   // Reserve stock
   if(order.isCombo){
-    ['original','matcha','cocoa'].forEach(fid => reserve(order.date, fid, order.comboQty * 2/6));
+    (MIX_PRODUCT?.components || []).forEach(c => reserve(order.date, c.stockKey, Number(c.cups || 0) * order.comboQty / 6));
     totalSold += order.comboQty;
   } else {
     for(const fid of Object.keys(order.flavors)){
-      reserve(order.date, fid, order.flavors[fid]);
+      const f = FLAVORS.find(x => x.id === fid);
+      reserve(order.date, f?.product?.stockKey || fid, order.flavors[fid]);
       totalSold += order.flavors[fid];
     }
   }
@@ -2059,16 +2122,19 @@ function submitOrder(){
   let total = 0;
   let flavorLines;
   if(order.isCombo){
-    total = order.comboQty * 380;
-    const cups = order.comboQty * 2;
-    flavorLines = `🎁 三拼 ×${order.comboQty} 組 原味×${cups}杯・抹茶×${cups}杯・可可×${cups}杯 = NT$${total}`;
+    total = order.comboQty * (MIX_PRODUCT?.price || 380);
+    const compText = (MIX_PRODUCT?.components || [])
+      .map(c => `${ProductModel.stockLabel(c.stockKey)}×${Number(c.cups || 0) * order.comboQty}杯`)
+      .join('・');
+    flavorLines = `${MIX_PRODUCT?.emoji || '🎁'} ${MIX_PRODUCT?.name || '三拼'} ×${order.comboQty} ${MIX_PRODUCT?.unit || '組'} ${compText} = NT$${total}`;
   } else {
     flavorLines = Object.keys(order.flavors).map(fid => {
       const f = FLAVORS.find(x=>x.id===fid);
+      if(!f) return '';
       const sub = order.flavors[fid] * f.price;
       total += sub;
       return `${f.zh} × ${order.flavors[fid]} 盒 = NT$${sub}`;
-    }).join('\n');
+    }).filter(Boolean).join('\n');
   }
   const boxes = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
   const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
@@ -2110,9 +2176,10 @@ function submitOrder(){
     email: order.email || '',
     date: order.date,
     time: method.time,
-    orig:   order.isCombo ? +(order.comboQty * 2/6).toFixed(4) : (order.flavors['original'] || 0),
-    matcha: order.isCombo ? +(order.comboQty * 2/6).toFixed(4) : (order.flavors['matcha']   || 0),
-    cocoa:  order.isCombo ? +(order.comboQty * 2/6).toFixed(4) : (order.flavors['cocoa']    || 0),
+    items: orderItems,
+    orig:   +(legacyCounts.orig || 0).toFixed(4),
+    matcha: +(legacyCounts.matcha || 0).toFixed(4),
+    cocoa:  +(legacyCounts.cocoa || 0).toFixed(4),
     delivery: method.firebaseDelivery,
     address: isPickup ? method.address : order.address,
     code: transferCode,
@@ -2131,7 +2198,13 @@ function submitOrder(){
     invTaxName:  order.invTaxName  || '',
   };
   if(order.isCombo){
-    firebaseOrder.comboItems = { origCup: order.comboQty*2, matchaCup: order.comboQty*2, cocoaCup: order.comboQty*2 };
+    const comboLegacy = { origCup:0, matchaCup:0, cocoaCup:0 };
+    (orderItems[0]?.components || []).forEach(c => {
+      if(c.legacyField === 'orig') comboLegacy.origCup += c.cups;
+      if(c.legacyField === 'matcha') comboLegacy.matchaCup += c.cups;
+      if(c.legacyField === 'cocoa') comboLegacy.cocoaCup += c.cups;
+    });
+    firebaseOrder.comboItems = comboLegacy;
     if(order.comboLowSugar) firebaseOrder.comboLowSugar = true;
   }
 
@@ -2176,7 +2249,7 @@ function showSuccess(num){
 }
 
 function resetOrder(){
-  Object.assign(order,{flavors:{},date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0});
+  Object.assign(order,{flavors:{},lowSugar:{},isCombo:false,comboQty:1,comboLowSugar:false,date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0});
   lineUserId = ''; lineDisplayName = ''; updateLineLoginUI();
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
