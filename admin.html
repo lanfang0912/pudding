@@ -422,10 +422,15 @@ tr.done-row td{opacity:.45;}
         <button class="btn-save" onclick="newProductForm()">＋ 新增商品</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:18px;align-items:start">
-        <div style="border:1px solid var(--rule);border-radius:4px;background:var(--paper);padding:18px">
+      <div>
+        <div class="modal-overlay" id="product-form-overlay" onclick="if(event.target===this)closeProductForm()">
+          <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-hdr">
+              <div class="modal-title" id="prod-form-title">新增商品</div>
+              <button class="modal-close" onclick="closeProductForm()">✕</button>
+            </div>
+            <div class="modal-body">
           <input type="hidden" id="prod-id">
-          <div style="font-size:13px;font-weight:600;margin-bottom:14px" id="prod-form-title">新增商品</div>
           <div class="form-row full">
             <div class="form-group"><label class="form-label">商品 ID</label><input class="form-ctrl" id="prod-id-input" placeholder="例：caramel"></div>
           </div>
@@ -469,6 +474,21 @@ tr.done-row td{opacity:.45;}
               <div class="form-group"><label class="form-label">recipeKey</label><input class="form-ctrl" id="prod-recipe" placeholder="例：caramel"></div>
             </div>
           </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label class="form-label">商品照片</label>
+              <div id="prod-image-preview" style="display:none;width:120px;height:90px;border:1px solid var(--rule);border-radius:4px;overflow:hidden;background:var(--paper-dark);margin-bottom:8px"></div>
+              <input class="form-ctrl" id="prod-image" placeholder="圖片 URL">
+              <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+                <label class="btn-cancel" style="cursor:pointer;display:inline-block;margin:0">
+                  上傳照片
+                  <input type="file" accept="image/*" style="display:none" onchange="uploadProductImage(this.files)">
+                </label>
+                <button type="button" class="btn-cancel" onclick="clearProductImage()">清除照片</button>
+                <span id="prod-image-status" style="font-size:11px;color:var(--ink-soft)"></span>
+              </div>
+            </div>
+          </div>
           <div id="prod-mix-fields" style="display:none">
             <div class="form-row full">
               <div class="form-group">
@@ -488,10 +508,12 @@ tr.done-row td{opacity:.45;}
             <button class="btn-cancel" onclick="newProductForm()">清空</button>
             <button class="btn-save" onclick="saveProduct()">儲存商品</button>
           </div>
+            </div>
+          </div>
         </div>
 
         <div>
-          <div id="products-list" style="display:flex;flex-direction:column;gap:10px">
+          <div id="products-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
             <div style="font-size:12px;color:var(--ink-soft)">載入中…</div>
           </div>
         </div>
@@ -1615,10 +1637,14 @@ function renderProducts(){
   el.innerHTML = list.map(p => {
     const statusColor = p.status === 'active' ? 'var(--matcha)' : p.status === 'archived' ? 'var(--red)' : 'var(--ink-soft)';
     const prodMode = p.productionMode === 'scheduled' ? '進排程' : '不進排程';
+    const media = p.imageUrl
+      ? `<img src="${h(p.imageUrl)}" alt="${h(p.name)}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;border:1px solid var(--rule);margin-bottom:10px;background:var(--paper-dark)">`
+      : `<div style="width:100%;aspect-ratio:4/3;border:1px solid var(--rule);border-radius:4px;background:var(--paper-dark);display:flex;align-items:center;justify-content:center;font-size:34px;margin-bottom:10px">${h(p.emoji || '🍮')}</div>`;
     const comp = p.components?.length
       ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">組成：${p.components.map(c=>`${h(c.stockKey)} ${c.cups}杯`).join('、')}</div>`
       : '';
-    return `<div style="border:1px solid var(--rule);border-radius:4px;background:var(--paper);padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+    return `<div style="border:1px solid var(--rule);border-radius:4px;background:var(--paper);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+      ${media}
       <div style="min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:18px">${h(p.emoji)}</span>
@@ -1631,7 +1657,7 @@ function renderProducts(){
         ${p.stockKey ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:4px">stockKey：${h(p.stockKey)} · recipeKey：${h(p.recipeKey || p.stockKey)}</div>` : ''}
         ${comp}
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:auto">
         <button class="act-btn edit" onclick="editProduct('${h(p.id)}')">編輯</button>
         ${p.status === 'active'
           ? `<button class="act-btn reset" onclick="setProductStatus('${h(p.id)}','draft')">下架</button>`
@@ -1651,7 +1677,7 @@ function updateProductFormMode(){
 }
 
 function newProductForm(){
-  ['prod-id','prod-id-input','prod-name','prod-emoji','prod-price','prod-unit','prod-sort','prod-stock','prod-recipe','prod-desc',
+  ['prod-id','prod-id-input','prod-name','prod-emoji','prod-price','prod-unit','prod-sort','prod-stock','prod-recipe','prod-desc','prod-image',
    'prod-comp-1-key','prod-comp-1-cups','prod-comp-2-key','prod-comp-2-cups','prod-comp-3-key','prod-comp-3-cups'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = '';
@@ -1663,7 +1689,10 @@ function newProductForm(){
   document.getElementById('prod-unit').value = '盒';
   document.getElementById('prod-sort').value = '50';
   document.getElementById('prod-production').value = 'scheduled';
+  document.getElementById('prod-image-status').textContent = '';
+  renderProductImagePreview();
   updateProductFormMode();
+  openProductForm();
 }
 
 function editProduct(id){
@@ -1684,12 +1713,15 @@ function editProduct(id){
   document.getElementById('prod-stock').value = p.stockKey || '';
   document.getElementById('prod-recipe').value = p.recipeKey || p.stockKey || '';
   document.getElementById('prod-desc').value = p.description || '';
+  document.getElementById('prod-image').value = p.imageUrl || '';
   [0,1,2].forEach(i => {
     const c = (p.components || [])[i] || {};
     document.getElementById(`prod-comp-${i+1}-key`).value = c.stockKey || '';
     document.getElementById(`prod-comp-${i+1}-cups`).value = c.cups || '';
   });
+  renderProductImagePreview();
   updateProductFormMode();
+  openProductForm();
   document.getElementById('prod-name').focus();
 }
 
@@ -1704,6 +1736,7 @@ function productFormData(){
     price: +document.getElementById('prod-price').value || 0,
     unit: document.getElementById('prod-unit').value.trim() || '個',
     emoji: document.getElementById('prod-emoji').value.trim(),
+    imageUrl: document.getElementById('prod-image').value.trim(),
     description: document.getElementById('prod-desc').value.trim(),
     sort: +document.getElementById('prod-sort').value || 999,
     productionMode: document.getElementById('prod-production').value,
@@ -1738,8 +1771,65 @@ function saveProduct(){
   data.createdAt = productsRaw[id]?.createdAt || new Date().toISOString();
   ref.set(data).then(() => {
     showToast('✅ 商品已儲存');
-    editProduct(id);
+    closeProductForm();
   });
+}
+
+function openProductForm(){
+  document.getElementById('product-form-overlay').classList.add('open');
+}
+
+function closeProductForm(){
+  document.getElementById('product-form-overlay').classList.remove('open');
+}
+
+function renderProductImagePreview(){
+  const url = document.getElementById('prod-image')?.value.trim();
+  const prev = document.getElementById('prod-image-preview');
+  if(!prev) return;
+  if(!url){
+    prev.style.display = 'none';
+    prev.innerHTML = '';
+    return;
+  }
+  prev.style.display = 'block';
+  prev.innerHTML = `<img src="${h(url)}" alt="商品照片預覽" style="width:100%;height:100%;object-fit:cover;display:block">`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const img = document.getElementById('prod-image');
+  if(img) img.addEventListener('input', renderProductImagePreview);
+});
+
+async function uploadProductImage(files){
+  const file = files && files[0];
+  if(!file) return;
+  const status = document.getElementById('prod-image-status');
+  if(file.size > 5 * 1024 * 1024){
+    status.textContent = '圖片請小於 5MB';
+    return;
+  }
+  status.textContent = '上傳中…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_PRESET);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {method:'POST', body:fd});
+    if(!res.ok) throw new Error('Cloudinary 上傳失敗');
+    const json = await res.json();
+    document.getElementById('prod-image').value = json.secure_url;
+    renderProductImagePreview();
+    status.textContent = '已上傳';
+  } catch(e) {
+    status.textContent = '上傳失敗，請改貼圖片 URL';
+    console.warn(e);
+  }
+}
+
+function clearProductImage(){
+  document.getElementById('prod-image').value = '';
+  document.getElementById('prod-image-status').textContent = '';
+  renderProductImagePreview();
 }
 
 function setProductStatus(id, status){

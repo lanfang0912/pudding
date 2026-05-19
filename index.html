@@ -385,6 +385,15 @@ body::before {
 .flavor-card.selected.cocoa .flavor-check { background: var(--cocoa); opacity: 1; }
 
 .flavor-icon { font-size: 36px; display: block; margin-bottom: 10px; }
+.flavor-photo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+  margin: 0 auto 12px;
+  border: 1px solid var(--rule);
+}
 .flavor-name-zh {
   font-family: 'DM Serif Display', serif;
   font-size: 22px;
@@ -1530,6 +1539,7 @@ function productToFlavor(p){
     zh: p.name,
     en: p.description || p.type,
     icon: p.emoji || '🍮',
+    imageUrl: p.imageUrl || '',
     price: p.price,
     cls: stockClass,
     product: p,
@@ -1731,11 +1741,11 @@ function renderFlavors(){
     return `
     <div class="flavor-card ${f.cls}${sel?' selected':''}" id="card-${f.id}" onclick="toggleFlavor('${f.id}')">
       <div class="flavor-check">✓</div>
-      <span class="flavor-icon">${f.icon}</span>
+      ${f.imageUrl ? `<img src="${escHtml(f.imageUrl)}" alt="${escHtml(f.zh)}" class="flavor-photo" loading="lazy">` : `<span class="flavor-icon">${f.icon}</span>`}
       <div class="flavor-name-zh">${f.zh}</div>
       <div class="flavor-name-en">${f.en}</div>
       <div class="flavor-price">NT$ ${f.price.toLocaleString()}</div>
-      <div class="flavor-price-sub">6杯 / 盒</div>
+      <div class="flavor-price-sub">${f.product?.unitCups || 6}杯 / ${f.product?.unit || '盒'}</div>
       <div class="qty-row">
         <button class="qty-btn" onclick="event.stopPropagation();chg('${f.id}',-1)">−</button>
         <div class="qty-display" id="qv-${f.id}">${q}</div>

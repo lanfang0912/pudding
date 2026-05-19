@@ -25,7 +25,9 @@ test('normalizes seeded products in active sort order', () => {
 });
 
 test('builds order item snapshots for box selections', () => {
-  const activeProducts = normalizeProducts(DEFAULT_PRODUCTS);
+  const activeProducts = normalizeProducts(DEFAULT_PRODUCTS).map(p =>
+    p.id === 'original' ? {...p, imageUrl: 'https://example.com/original.jpg'} : p
+  );
   const items = buildOrderItemsFromSelection({
     products: activeProducts,
     quantities: { original: 2, cocoa: 1 },
@@ -34,6 +36,7 @@ test('builds order item snapshots for box selections', () => {
 
   assert.deepStrictEqual(items.map(i => i.productId), ['original', 'cocoa']);
   assert.strictEqual(items[0].amount, 720);
+  assert.strictEqual(items[0].imageUrl, 'https://example.com/original.jpg');
   assert.strictEqual(items[1].options.lowSugar, true);
 });
 

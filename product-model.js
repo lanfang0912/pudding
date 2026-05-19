@@ -111,6 +111,7 @@
     p.unit = p.unit || '個';
     p.unitCups = Number(p.unitCups || 0);
     p.emoji = p.emoji || '';
+    p.imageUrl = p.imageUrl || '';
     p.description = p.description || '';
     p.sort = Number(p.sort || 999);
     p.productionMode = p.productionMode || (p.type === 'addon' ? 'none' : 'scheduled');
@@ -157,6 +158,7 @@
       qty,
       unit: product.unit,
       unitCups: product.unitCups || 0,
+      imageUrl: product.imageUrl || '',
       amount,
       stockKey: product.stockKey || '',
       legacyField: product.legacyField || '',
@@ -176,6 +178,7 @@
       qty,
       unit: product.unit,
       unitCups: product.unitCups || 0,
+      imageUrl: product.imageUrl || '',
       amount: Math.round(product.price * qty),
       productionMode: product.productionMode,
       capacityGroup: product.capacityGroup || '',
