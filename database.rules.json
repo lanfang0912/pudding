@@ -37,10 +37,12 @@
     "bakery": {
       "events": {
         ".read": true,
+        ".write": "auth != null && auth.token.email == 'admin@wd.tw'",
         "$eventId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
       },
       "registrations": {
         ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
+        ".write": "auth != null && auth.token.email == 'admin@wd.tw'",
         "$eventId": {
           "$regId": {
             ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !data.exists()"
