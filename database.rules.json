@@ -37,21 +37,21 @@
     "bakery": {
       "events": {
         ".read": true,
-        ".write": "auth != null && auth.token.email == 'admin@wd.tw'",
-        "$eventId": { ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
+        ".write": "auth != null && auth.token.email == 'bakery@wd.tw'",
+        "$eventId": { ".write": "auth != null && auth.token.email == 'bakery@wd.tw'" }
       },
       "registrations": {
-        ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
-        ".write": "auth != null && auth.token.email == 'admin@wd.tw'",
+        ".read": "auth != null && auth.token.email == 'bakery@wd.tw'",
+        ".write": "auth != null && auth.token.email == 'bakery@wd.tw'",
         "$eventId": {
           "$regId": {
-            ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !data.exists()"
+            ".write": "(auth != null && auth.token.email == 'bakery@wd.tw') || !data.exists()"
           }
         }
       },
       "settings": {
-        ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
-        ".write": "auth != null && auth.token.email == 'admin@wd.tw'"
+        ".read": "auth != null && auth.token.email == 'bakery@wd.tw'",
+        ".write": "auth != null && auth.token.email == 'bakery@wd.tw'"
       }
     }
   }
