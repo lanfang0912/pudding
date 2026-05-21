@@ -1076,6 +1076,13 @@ tr.done-row td{opacity:.45;}
         <div class="form-group"><label class="form-label">保冷袋（個）</label><input class="form-ctrl" id="e-insulated-bag" type="number" min="0" value="0" oninput="recalc()"></div>
         <div class="form-group"></div>
       </div>
+      <div class="form-row">
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+          <input type="checkbox" id="e-source-yixin" style="width:16px;height:16px;cursor:pointer;accent-color:#7b5ea7">
+          <label for="e-source-yixin" style="font-family:'Noto Serif TC',serif;font-size:13px;cursor:pointer;color:#7b5ea7">🏫 一心專區（行銷預算）</label>
+        </div>
+        <div class="form-group"></div>
+      </div>
       <div class="form-row full">
         <div class="form-group"><label class="form-label">備註</label><textarea class="form-ctrl" id="e-note" rows="2" style="resize:vertical"></textarea></div>
       </div>
@@ -3223,8 +3230,11 @@ function renderTable(){
     return true;
   });
 
-  // 排序
+  // 排序：pending(0) → paid(1) → shipped(2)，再依選擇的次排序
+  const statusPri = {pending:0, paid:1, shipped:2};
   list = [...list].sort((a,b)=>{
+    const sp = (statusPri[a.status]??9) - (statusPri[b.status]??9);
+    if(sp !== 0) return sp;
     if(fsort==='ts-asc')   return (a.ts||'').localeCompare(b.ts||'');
     if(fsort==='ts-desc')  return (b.ts||'').localeCompare(a.ts||'');
     if(fsort==='date-asc') return (a.date||'9').localeCompare(b.date||'9');
@@ -3257,10 +3267,11 @@ function renderTable(){
       const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
       const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:11px;margin-left:3px">⚠️</span>':'';
       const overWarn=isOver?'<div style="font-size:10px;color:var(--red);font-weight:600;margin-top:2px">⚠️ 超過當日上限</div>':'';
+      const yixinBadge=o.source==='yixin'?'<span style="display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.12);color:#7b5ea7;margin-left:4px;letter-spacing:.5px">🏫 一心</span>':'';
       return`<div class="order-card${o.status==='shipped'?' done-row':''}${isOver?' oc-overlimit':''}">
         <div class="oc-top">
           <div style="flex:1;min-width:0">
-            <div class="oc-name"><strong>${o.name}</strong>${warn}</div>
+            <div class="oc-name"><strong>${o.name}</strong>${warn}${yixinBadge}</div>
             ${overWarn}
             <div class="oc-sub">${o.id} · ${o.phone}</div>
           </div>
@@ -3295,9 +3306,10 @@ function renderTable(){
       const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
       const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
       const overWarn=isOver?'<div style="font-size:10px;color:var(--red);font-weight:600">⚠️ 超過當日上限</div>':'';
+      const yixinBadge=o.source==='yixin'?'<span style="display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.12);color:#7b5ea7;margin-left:4px;letter-spacing:.5px">🏫 一心</span>':'';
       return`<tr class="${o.status==='shipped'?'done-row':''}${isOver?' style="background:rgba(180,60,60,.06)"':''}">
         <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
-        <td><strong>${o.name}</strong>${warn}${overWarn}</td>
+        <td><strong>${o.name}</strong>${warn}${yixinBadge}${overWarn}</td>
         <td>${o.phone}</td>
         <td style="font-size:10px;color:var(--ink-soft)">${o.email||'<span style="color:var(--red)">未填</span>'}<br>${o.lineId?'<span style="color:#06c755;font-size:10px">💬 LINE</span>':''}</td>
         <td style="white-space:nowrap">${o.date||'<span style="color:var(--red);font-size:10px">未填</span>'}<br><span style="font-size:10px;color:var(--ink-soft)">${o.time}</span></td>
@@ -3815,6 +3827,7 @@ function openEdit(id){
   document.getElementById('e-email').value=o.email||'';
   document.getElementById('e-lineid').value=o.lineId||'';
   document.getElementById('e-insulated-bag').value=o.insulatedBag||0;
+  document.getElementById('e-source-yixin').checked=o.source==='yixin';
   const isCombo = !!o.comboItems;
   document.getElementById('e-is-combo').value = isCombo ? '1' : '0';
   document.getElementById('e-box-section').style.display   = isCombo ? 'none' : '';
@@ -3893,6 +3906,7 @@ function saveEdit(){
     email:    document.getElementById('e-email').value,
     lineId:   document.getElementById('e-lineid').value.trim(),
     insulatedBag: +document.getElementById('e-insulated-bag').value||0,
+    source:   document.getElementById('e-source-yixin').checked ? 'yixin' : null,
     total:    recalc(),
   };
   if(comboItems) updates.comboItems = comboItems;
