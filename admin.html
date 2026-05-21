@@ -3284,7 +3284,7 @@ function renderTable(){
           ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
           ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
-          <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
+          <button class="act-btn" onclick="sendShipmentNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           ${o.delivery==='宅配' && o.status!=='pending' ? (o.obtNumber ? `<button class="act-btn" style="font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="printOBT('${o.id}')" title="重印托運單">🖨️ 重印</button>` : `<button class="act-btn ship" onclick="printOBT('${o.id}')" title="建立托運單">🖨️ 托運單</button>`) : ''}
           ${o.invoiceNo
@@ -3320,7 +3320,7 @@ function renderTable(){
           ${o.status==='pending'?`<button class="act-btn paid" onclick="setS('${o.id}','paid')">✓ 確認</button>`:''}
           ${o.status==='paid'?`<button class="act-btn ship" onclick="setS('${o.id}','shipped')">📦 出貨</button>`:''}
           ${o.status!=='pending'?`<button class="act-btn reset" onclick="setS('${o.id}','pending')">↩</button>`:''}
-          <button class="act-btn" onclick="sendShipNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
+          <button class="act-btn" onclick="sendShipmentNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           ${o.delivery==='宅配' && o.status!=='pending' ? (o.obtNumber ? `<button class="act-btn" style="font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="printOBT('${o.id}')" title="重印托運單">🖨️ 重印</button>` : `<button class="act-btn ship" onclick="printOBT('${o.id}')" title="建立托運單">🖨️ 托運單</button>`) : ''}
           ${o.invoiceNo
@@ -3391,7 +3391,7 @@ function setS(id,status){
     }
 
     if(status === 'shipped'){
-      if(o.email && o.email.includes('@')) sendShipNotify(id);
+      sendShipmentNotify(id);
       if(!o.invoiceNo) setTimeout(() => openInvoiceModal(id), 400);
     }
   }
@@ -3548,6 +3548,17 @@ function sendShipNotify(id){
   });
 }
 
+function sendShipmentNotify(id){
+  const o = orders.find(x => x.id === id);
+  if(!o){ showToast('找不到訂單'); return; }
+  const hasEmail = o.email && o.email !== '未填' && o.email.includes('@');
+  const hasLine = !!o.lineId;
+
+  if(hasEmail) sendShipNotify(id);
+  if(hasLine) sendLineNotify(id);
+  if(!hasEmail && !hasLine) showToast('⚠️ 此訂單沒有 email 或 LINE，無法發出貨通知');
+}
+
 function togglePacked(id, currentPacked){
   const o = orders.find(x => x.id === id);
   if(!o) return;
@@ -3562,7 +3573,7 @@ function togglePacked(id, currentPacked){
     dbUpdates['settings/packaging/'+key+'/stock'] = next;
   });
   db.ref().update(dbUpdates).then(() => {
-    if(newPacked){ sendShipNotify(id); sendLineNotify(id); }
+    if(newPacked){ sendShipmentNotify(id); }
     else showToast('↩ 取消打包・包材已歸還');
   });
 }
@@ -3938,7 +3949,7 @@ function makeOrderCard(o, date){
     </div>
     ${!isYixin ? `<div style="margin-top:6px;display:flex;align-items:center;gap:6px">
       <span style="font-size:10px;color:var(--ink-soft)">${o.email && o.email.includes('@') ? `✉️ ${o.email}` : '<span style="color:var(--red)">⚠️ 未填 Email</span>'}</span>
-      ${o.email && o.email.includes('@') ? `<button onclick="sendShipNotify('${o.id}')" style="padding:2px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit;">寄出貨通知</button>` : ''}
+      ${(o.email && o.email.includes('@')) || o.lineId ? `<button onclick="sendShipmentNotify('${o.id}')" style="padding:2px 8px;background:var(--blue);color:#fff;border:none;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit;">寄出貨通知</button>` : ''}
     </div>` : ''}
     <div style="margin-top:10px;background:#F5F9FC;border-radius:8px;padding:10px 12px;border:1px solid #DDE8EF;">
       <div style="font-size:10px;color:var(--ink-soft);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap">
