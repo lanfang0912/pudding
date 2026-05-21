@@ -42,3 +42,14 @@ firebase functions:config:set \
 ```
 
 Any token that was previously committed should be rotated in the provider dashboard.
+
+### Vercel email environment variables
+
+Order confirmation and shipment emails are sent by the Vercel function at `/api/send-email` using Resend. Configure these production environment variables in Vercel:
+
+```sh
+RESEND_API_KEY="re_..."
+RESEND_FROM_EMAIL="white dessert <notice@your-verified-domain.example>"
+```
+
+`RESEND_FROM_EMAIL` must use a domain verified in Resend. The frontend and admin pages should not use EmailJS keys or templates.
