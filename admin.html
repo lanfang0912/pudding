@@ -1532,7 +1532,7 @@ function logout(){
 function renderStats(){
   const t=orders.length,p=orders.filter(o=>o.status==='pending').length,pd=orders.filter(o=>o.status==='paid').length,sh=orders.filter(o=>o.status==='shipped').length;
   const rev=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
-  const boxes=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+orderBoxCount(o),0);
+  const boxes=orders.filter(o=>o.status!=='pending'&&o.source!=='yixin').reduce((a,o)=>a+orderBoxCount(o),0);
   const yixin=orders.filter(o=>o.source==='yixin');
   const yixinRev=yixin.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
   document.getElementById('stats-bar').innerHTML=`
