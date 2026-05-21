@@ -353,7 +353,7 @@ tr.done-row td{opacity:.45;}
       </select>
       <select class="filter-select" id="f-source" onchange="renderTable()">
         <option value="">全部來源</option>
-        <option value="yixin">🏫 一心專區</option>
+        <option value="yixin">📣 行銷專區</option>
         <option value="general">一般訂單</option>
       </select>
       <input class="filter-input" id="f-date" type="date" onchange="renderTable()" title="指定收貨日" style="width:140px;">
@@ -907,7 +907,7 @@ tr.done-row td{opacity:.45;}
             </div>
             <div id="src-yixin" onclick="setOrderSource('yixin')"
               style="flex:1;padding:8px;border:2px solid var(--rule);border-radius:6px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-soft)">
-              🏫 一心專區
+              📣 行銷專區
             </div>
           </div>
         </div>
@@ -1084,7 +1084,7 @@ tr.done-row td{opacity:.45;}
       <div class="form-row">
         <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:20px">
           <input type="checkbox" id="e-source-yixin" style="width:16px;height:16px;cursor:pointer;accent-color:#7b5ea7">
-          <label for="e-source-yixin" style="font-family:'Noto Serif TC',serif;font-size:13px;cursor:pointer;color:#7b5ea7">🏫 一心專區（行銷預算）</label>
+          <label for="e-source-yixin" style="font-family:'Noto Serif TC',serif;font-size:13px;cursor:pointer;color:#7b5ea7">📣 行銷專區</label>
         </div>
         <div class="form-group"></div>
       </div>
@@ -1542,8 +1542,8 @@ function renderStats(){
     <div class="stat-item"><div class="stat-value" style="color:var(--blue)">${sh}</div><div class="stat-label">已出貨</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--caramel)">NT$${rev.toLocaleString()}</div><div class="stat-label">已確認金額</div></div>
     <div class="stat-item"><div class="stat-value">${Math.round(boxes)}</div><div class="stat-label">確認盒數</div></div>
-    <div class="stat-item" style="border-left:2px solid #7b5ea7;padding-left:14px"><div class="stat-value" style="color:#7b5ea7">${yixin.length}</div><div class="stat-label">🏫 一心筆數</div></div>
-    <div class="stat-item"><div class="stat-value" style="color:#7b5ea7">NT$${yixinRev.toLocaleString()}</div><div class="stat-label">🏫 一心金額</div></div>`;
+    <div class="stat-item" style="border-left:2px solid #7b5ea7;padding-left:14px"><div class="stat-value" style="color:#7b5ea7">${yixin.length}</div><div class="stat-label">📣 行銷筆數</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:#7b5ea7">NT$${yixinRev.toLocaleString()}</div><div class="stat-label">📣 行銷金額</div></div>`;
 }
 
 function initFilters(){
@@ -3279,7 +3279,7 @@ function renderTable(){
       const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
       const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:11px;margin-left:3px">⚠️</span>':'';
       const overWarn=isOver?'<div style="font-size:10px;color:var(--red);font-weight:600;margin-top:2px">⚠️ 超過當日上限</div>':'';
-      const yixinBadge=o.source==='yixin'?'<span style="display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.12);color:#7b5ea7;margin-left:4px;letter-spacing:.5px">🏫 一心</span>':'';
+      const yixinBadge=o.source==='yixin'?'<span style="display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.12);color:#7b5ea7;margin-left:4px;letter-spacing:.5px">📣 行銷</span>':'';
       return`<div class="order-card${o.status==='shipped'?' done-row':''}${isOver?' oc-overlimit':''}">
         <div class="oc-top">
           <div style="flex:1;min-width:0">
@@ -3318,7 +3318,7 @@ function renderTable(){
       const dbadge=o.delivery==='面交'?'<span class="badge badge-pickup">🤝面交</span>':'<span class="badge badge-delivery">🚚宅配</span>';
       const warn=o.note&&o.note.startsWith('⚠️')?'<span style="color:var(--red);font-size:10px;margin-left:3px">⚠️</span>':'';
       const overWarn=isOver?'<div style="font-size:10px;color:var(--red);font-weight:600">⚠️ 超過當日上限</div>':'';
-      const yixinBadge=o.source==='yixin'?'<span style="display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.12);color:#7b5ea7;margin-left:4px;letter-spacing:.5px">🏫 一心</span>':'';
+      const yixinBadge=o.source==='yixin'?'<span style="display:inline-block;padding:1px 6px;border-radius:2px;font-size:10px;background:rgba(123,94,167,.12);color:#7b5ea7;margin-left:4px;letter-spacing:.5px">📣 行銷</span>':'';
       return`<tr class="${o.status==='shipped'?'done-row':''}${isOver?' style="background:rgba(180,60,60,.06)"':''}">
         <td style="font-size:10px;color:var(--ink-soft)">${o.id}</td>
         <td><strong>${o.name}</strong>${warn}${yixinBadge}${overWarn}</td>
@@ -4049,7 +4049,7 @@ function renderDaily(){
       <div class="shipping-cards">${pudding.map(o=>makeOrderCard(o,date)).join('')}</div>` : '';
 
     const yixinSection = yixin.length ? `
-      <div style="font-size:11px;font-weight:600;color:var(--blue);margin:10px 0 6px;letter-spacing:1px">🏫 一心專區（NT$${yixinTotal.toLocaleString()}）</div>
+      <div style="font-size:11px;font-weight:600;color:var(--blue);margin:10px 0 6px;letter-spacing:1px">📣 行銷專區（NT$${yixinTotal.toLocaleString()}）</div>
       <div class="shipping-cards">${yixin.map(o=>makeOrderCard(o,date)).join('')}</div>` : '';
 
     const unprinted = list.filter(o => o.delivery === '宅配' && !o.obtNumber);
