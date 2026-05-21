@@ -3344,9 +3344,9 @@ function renderTable(){
           <button class="act-btn" onclick="sendShipmentNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           ${o.delivery==='宅配' && o.status!=='pending' ? (o.obtNumber ? `<button class="act-btn" style="font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="printOBT('${o.id}')" title="重印托運單">🖨️ 重印</button>` : `<button class="act-btn ship" onclick="printOBT('${o.id}')" title="建立托運單">🖨️ 托運單</button>`) : ''}
-          ${o.invoiceNo
+          ${o.source!=='yixin' ? (o.invoiceNo
             ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
-            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button><button class="act-btn" onclick="fillInvoiceNo('${o.id}')" title="補填已在 amego 開立的發票號碼" style="font-size:11px;border-color:#aaa;color:#aaa">補填</button>` : '')}
+            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button><button class="act-btn" onclick="fillInvoiceNo('${o.id}')" title="補填已在 amego 開立的發票號碼" style="font-size:11px;border-color:#aaa;color:#aaa">補填</button>` : '')) : ''}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div>
       </div>`;
@@ -3381,9 +3381,9 @@ function renderTable(){
           <button class="act-btn" onclick="sendShipmentNotify('${o.id}')" style="border-color:var(--blue);color:var(--blue)" title="發出貨通知">✉️</button>
           ${o.lineId?`<button class="act-btn" onclick="openLineMsg('${o.id}')" style="border-color:#06C755;color:#06C755" title="傳 LINE 訊息">💬</button>`:''}
           ${o.delivery==='宅配' && o.status!=='pending' ? (o.obtNumber ? `<button class="act-btn" style="font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="printOBT('${o.id}')" title="重印托運單">🖨️ 重印</button>` : `<button class="act-btn ship" onclick="printOBT('${o.id}')" title="建立托運單">🖨️ 托運單</button>`) : ''}
-          ${o.invoiceNo
+          ${o.source!=='yixin' ? (o.invoiceNo
             ? `<span class="inv-issued" onclick="showInvoiceInfo('${o.id}')" title="查看發票">🧾 ${o.invoiceNo}</span>`
-            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button>` : '')}
+            : (o.status!=='pending' ? `<button class="act-btn inv" onclick="openInvoiceModal('${o.id}')" title="開立電子發票">🧾 開發票</button>` : '')) : ''}
           <button class="act-btn del" onclick="delOrder('${o.id}','${o.name}')">🗑</button>
         </div></td>
       </tr>`;
@@ -4085,9 +4085,9 @@ function makeOrderCard(o, date){
       ${done?`<button class="ship-btn done">✓ 已出貨</button>`:`<button class="ship-btn" onclick="setS('${o.id}','shipped')">標記出貨</button>`}
     </div>
     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-      ${o.invoiceNo
+      ${o.source!=='yixin' ? (o.invoiceNo
         ? `<button class="act-btn inv" style="flex:1;font-size:10px" onclick="showInvoiceInfo('${o.id}')">🧾 ${o.invoiceNo}</button>`
-        : (o.status!=='pending' ? `<button class="act-btn inv" style="flex:1;font-size:10px" onclick="openInvoiceModal('${o.id}')">🧾 開發票</button>` : '')}
+        : (o.status!=='pending' ? `<button class="act-btn inv" style="flex:1;font-size:10px" onclick="openInvoiceModal('${o.id}')">🧾 開發票</button>` : '')) : ''}
       ${o.delivery==='宅配' ? (o.obtNumber
         ?`<button class="act-btn" style="flex:1;font-size:10px;border-color:var(--blue);color:var(--blue)" onclick="queryOBT('${o.obtNumber}')">📦 追蹤 ${o.obtNumber}</button>
           <button class="act-btn" style="font-size:10px" onclick="printOBT('${o.id}')">🖨️ 重印</button>`
