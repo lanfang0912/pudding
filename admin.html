@@ -1029,31 +1029,60 @@ tr.done-row td{opacity:.45;}
         <div class="form-group"><label class="form-label">收貨日期</label><input class="form-ctrl" id="e-date" type="date"></div>
         <div class="form-group"><label class="form-label">時間</label><input class="form-ctrl" id="e-time" placeholder="如 14:00 或 未指定"></div>
       </div>
-      <div class="form-row full" id="e-box-section">
-        <div class="form-group">
-          <label class="form-label">品項數量（盒）</label>
-          <div class="flavor-inputs">
-            <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味</label><input class="form-ctrl" id="e-orig" type="number" min="0" oninput="recalc()"></div>
-            <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶</label><input class="form-ctrl" id="e-matcha" type="number" min="0" oninput="recalc()"></div>
-            <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可</label><input class="form-ctrl" id="e-cocoa" type="number" min="0" oninput="recalc()"></div>
+      <!-- 布丁品項 -->
+      <div id="e-pudding-items">
+        <div class="form-row full" id="e-box-section">
+          <div class="form-group">
+            <label class="form-label">品項數量（盒）</label>
+            <div class="flavor-inputs">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味</label><input class="form-ctrl" id="e-orig" type="number" min="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶</label><input class="form-ctrl" id="e-matcha" type="number" min="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可</label><input class="form-ctrl" id="e-cocoa" type="number" min="0" oninput="recalc()"></div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="form-row full" id="e-combo-section" style="display:none">
-        <div class="form-group">
-          <label class="form-label">三拼 / 客製單杯數量</label>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-            <label style="font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:5px"><input type="checkbox" id="e-standard-combo" onchange="applyStandardCombo('e');recalc()"> 標準三拼（每盒 2 / 2 / 2）</label>
-            <input class="form-ctrl" id="e-combo-boxes" type="number" min="0" value="0" placeholder="盒數" oninput="applyStandardCombo('e');recalc()" style="width:90px">
-          </div>
-          <div class="flavor-inputs">
-            <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $60</label><input class="form-ctrl" id="e-combo-orig" type="number" min="0" value="0" oninput="recalc()"></div>
-            <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $65</label><input class="form-ctrl" id="e-combo-matcha" type="number" min="0" value="0" oninput="recalc()"></div>
-            <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可 $65</label><input class="form-ctrl" id="e-combo-cocoa" type="number" min="0" value="0" oninput="recalc()"></div>
+        <div class="form-row full" id="e-combo-section" style="display:none">
+          <div class="form-group">
+            <label class="form-label">三拼 / 客製單杯數量</label>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <label style="font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:5px"><input type="checkbox" id="e-standard-combo" onchange="applyStandardCombo('e');recalc()"> 標準三拼（每盒 2 / 2 / 2）</label>
+              <input class="form-ctrl" id="e-combo-boxes" type="number" min="0" value="0" placeholder="盒數" oninput="applyStandardCombo('e');recalc()" style="width:90px">
+            </div>
+            <div class="flavor-inputs">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $60</label><input class="form-ctrl" id="e-combo-orig" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $65</label><input class="form-ctrl" id="e-combo-matcha" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可 $65</label><input class="form-ctrl" id="e-combo-cocoa" type="number" min="0" value="0" oninput="recalc()"></div>
+            </div>
           </div>
         </div>
       </div>
       <input type="hidden" id="e-is-combo" value="0">
+
+      <!-- 行銷專區品項 -->
+      <div id="e-yixin-items" style="display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;letter-spacing:1px">單杯</div>
+        <div class="form-row full" style="margin-bottom:12px">
+          <div class="form-group">
+            <div class="flavor-inputs">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $25</label><input class="form-ctrl" id="e-yi-orig-cup" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可 $30</label><input class="form-ctrl" id="e-yi-cocoa-cup" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $35</label><input class="form-ctrl" id="e-yi-matcha-cup" type="number" min="0" value="0" oninput="recalc()"></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;letter-spacing:1px">十杯卡</div>
+        <div class="form-row full">
+          <div class="form-group">
+            <div class="flavor-inputs" style="flex-wrap:wrap">
+              <div class="fi-group"><label class="form-label" style="color:var(--caramel)">原味 $230</label><input class="form-ctrl" id="e-yi-orig-card" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--cocoa)">可可 $250</label><input class="form-ctrl" id="e-yi-cocoa-card" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--matcha)">抹茶 $300</label><input class="form-ctrl" id="e-yi-matcha-card" type="number" min="0" value="0" oninput="recalc()"></div>
+              <div class="fi-group"><label class="form-label" style="color:var(--blue)">綜合 $230</label><input class="form-ctrl" id="e-yi-mix-card" type="number" min="0" value="0" oninput="recalc()"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group"><label class="form-label">配送方式</label>
           <select class="form-ctrl" id="e-delivery" onchange="recalc()"><option value="宅配">宅配</option><option value="面交">面交</option></select>
@@ -1083,7 +1112,7 @@ tr.done-row td{opacity:.45;}
       </div>
       <div class="form-row">
         <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:20px">
-          <input type="checkbox" id="e-source-yixin" style="width:16px;height:16px;cursor:pointer;accent-color:#7b5ea7">
+          <input type="checkbox" id="e-source-yixin" style="width:16px;height:16px;cursor:pointer;accent-color:#7b5ea7" onchange="toggleEditSource()">
           <label for="e-source-yixin" style="font-family:'Noto Serif TC',serif;font-size:13px;cursor:pointer;color:#7b5ea7">📣 行銷專區</label>
         </div>
         <div class="form-group"></div>
@@ -3840,6 +3869,17 @@ function openEdit(id){
   document.getElementById('e-lineid').value=o.lineId||'';
   document.getElementById('e-insulated-bag').value=o.insulatedBag||0;
   document.getElementById('e-source-yixin').checked=o.source==='yixin';
+  // 行銷專區品項
+  const yi = o.yixinItems||{};
+  document.getElementById('e-yi-orig-cup').value   = yi.origCup   ||0;
+  document.getElementById('e-yi-cocoa-cup').value  = yi.cocoaCup  ||0;
+  document.getElementById('e-yi-matcha-cup').value = yi.matchaCup ||0;
+  document.getElementById('e-yi-orig-card').value  = yi.origCard  ||0;
+  document.getElementById('e-yi-cocoa-card').value = yi.cocoaCard ||0;
+  document.getElementById('e-yi-matcha-card').value= yi.matchaCard||0;
+  document.getElementById('e-yi-mix-card').value   = yi.mixCard   ||0;
+  document.getElementById('e-pudding-items').style.display = o.source==='yixin' ? 'none' : '';
+  document.getElementById('e-yixin-items').style.display   = o.source==='yixin' ? '' : 'none';
   const isCombo = !!o.comboItems;
   document.getElementById('e-is-combo').value = isCombo ? '1' : '0';
   document.getElementById('e-box-section').style.display   = isCombo ? 'none' : '';
@@ -3861,12 +3901,27 @@ function openEdit(id){
   document.getElementById('edit-modal').classList.add('open');
 }
 function closeModal(){document.getElementById('edit-modal').classList.remove('open');}
+function toggleEditSource(){
+  const isYixin = document.getElementById('e-source-yixin').checked;
+  document.getElementById('e-pudding-items').style.display = isYixin ? 'none' : '';
+  document.getElementById('e-yixin-items').style.display   = isYixin ? '' : 'none';
+  if(isYixin){
+    document.getElementById('e-delivery').value = '面交';
+  }
+  recalc();
+}
+
 function recalc(){
-  const isCombo = document.getElementById('e-is-combo').value === '1';
-  const deliv   = document.getElementById('e-delivery').value;
+  const isYixin  = document.getElementById('e-source-yixin').checked;
+  const isCombo  = document.getElementById('e-is-combo').value === '1';
+  const deliv    = document.getElementById('e-delivery').value;
   const insulatedBag = +document.getElementById('e-insulated-bag').value||0;
-  let total, ship;
-  if(isCombo){
+  let total = 0, ship = 0;
+  if(isYixin){
+    const g = id => +document.getElementById(id)?.value||0;
+    total = g('e-yi-orig-cup')*25 + g('e-yi-cocoa-cup')*30 + g('e-yi-matcha-cup')*35
+          + g('e-yi-orig-card')*230 + g('e-yi-cocoa-card')*250 + g('e-yi-matcha-card')*300 + g('e-yi-mix-card')*230;
+  } else if(isCombo){
     applyStandardCombo('e');
     const origCup   = +document.getElementById('e-combo-orig').value||0;
     const matchaCup = +document.getElementById('e-combo-matcha').value||0;
@@ -3887,9 +3942,19 @@ function recalc(){
   return total;
 }
 function saveEdit(){
+  const isYixin = document.getElementById('e-source-yixin').checked;
   const isCombo = document.getElementById('e-is-combo').value === '1';
-  let orig, matcha, cocoa, comboItems;
-  if(isCombo){
+  let orig, matcha, cocoa, comboItems, yixinItems;
+  if(isYixin){
+    const g = id => +document.getElementById(id)?.value||0;
+    yixinItems = {
+      origCup: g('e-yi-orig-cup'), cocoaCup: g('e-yi-cocoa-cup'), matchaCup: g('e-yi-matcha-cup'),
+      origCard: g('e-yi-orig-card'), cocoaCard: g('e-yi-cocoa-card'), matchaCard: g('e-yi-matcha-card'), mixCard: g('e-yi-mix-card'),
+    };
+    orig   = Math.round((yixinItems.origCup + yixinItems.origCard*10) / 6 * 10) / 10;
+    matcha = Math.round((yixinItems.matchaCup + yixinItems.matchaCard*10) / 6 * 10) / 10;
+    cocoa  = Math.round((yixinItems.cocoaCup + yixinItems.cocoaCard*10) / 6 * 10) / 10;
+  } else if(isCombo){
     applyStandardCombo('e');
     const origCup   = +document.getElementById('e-combo-orig').value||0;
     const matchaCup = +document.getElementById('e-combo-matcha').value||0;
@@ -3918,10 +3983,11 @@ function saveEdit(){
     email:    document.getElementById('e-email').value,
     lineId:   document.getElementById('e-lineid').value.trim(),
     insulatedBag: +document.getElementById('e-insulated-bag').value||0,
-    source:   document.getElementById('e-source-yixin').checked ? 'yixin' : null,
+    source:   isYixin ? 'yixin' : null,
     total:    recalc(),
   };
   if(comboItems) updates.comboItems = comboItems;
+  if(yixinItems) updates.yixinItems = yixinItems;
   db.ref('orders/'+eid).update(updates);
   closeModal();
   showToast('✓ 訂單已儲存');
