@@ -351,6 +351,11 @@ tr.done-row td{opacity:.45;}
         <option value="宅配">宅配</option>
         <option value="面交">面交</option>
       </select>
+      <select class="filter-select" id="f-source" onchange="renderTable()">
+        <option value="">全部來源</option>
+        <option value="yixin">🏫 一心專區</option>
+        <option value="general">一般訂單</option>
+      </select>
       <input class="filter-input" id="f-date" type="date" onchange="renderTable()" title="指定收貨日" style="width:140px;">
       <button class="filter-select" onclick="document.getElementById('f-date').value='';renderTable();" style="cursor:pointer;padding:7px 10px;" title="清除日期">✕</button>
       <input class="filter-input" id="f-search" placeholder="搜尋姓名 / 電話 / 末五碼" oninput="renderTable()" style="min-width:190px;">
@@ -1528,13 +1533,17 @@ function renderStats(){
   const t=orders.length,p=orders.filter(o=>o.status==='pending').length,pd=orders.filter(o=>o.status==='paid').length,sh=orders.filter(o=>o.status==='shipped').length;
   const rev=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
   const boxes=orders.filter(o=>o.status!=='pending').reduce((a,o)=>a+orderBoxCount(o),0);
+  const yixin=orders.filter(o=>o.source==='yixin');
+  const yixinRev=yixin.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
   document.getElementById('stats-bar').innerHTML=`
     <div class="stat-item"><div class="stat-value">${t}</div><div class="stat-label">總訂單</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--red)">${p}</div><div class="stat-label">待確認匯款</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--matcha)">${pd}</div><div class="stat-label">已確認匯款</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--blue)">${sh}</div><div class="stat-label">已出貨</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--caramel)">NT$${rev.toLocaleString()}</div><div class="stat-label">已確認金額</div></div>
-    <div class="stat-item"><div class="stat-value">${Math.round(boxes)}</div><div class="stat-label">確認盒數</div></div>`;
+    <div class="stat-item"><div class="stat-value">${Math.round(boxes)}</div><div class="stat-label">確認盒數</div></div>
+    <div class="stat-item" style="border-left:2px solid #7b5ea7;padding-left:14px"><div class="stat-value" style="color:#7b5ea7">${yixin.length}</div><div class="stat-label">🏫 一心筆數</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:#7b5ea7">NT$${yixinRev.toLocaleString()}</div><div class="stat-label">🏫 一心金額</div></div>`;
 }
 
 function initFilters(){
@@ -3222,11 +3231,14 @@ function renderTable(){
   const fs=document.getElementById('f-status').value,fd=document.getElementById('f-delivery').value,
         fdt=document.getElementById('f-date').value,fq=document.getElementById('f-search').value.toLowerCase();
   const fsort=(document.getElementById('f-sort')||{}).value||'ts-desc';
+  const fsrc=(document.getElementById('f-source')||{}).value||'';
   let list=orders.filter(o=>{
     if(fs&&o.status!==fs)return false;
     if(fd&&o.delivery!==fd)return false;
     if(fdt&&o.date!==fdt)return false;
     if(fq&&![o.name,o.phone,o.code].some(v=>v&&v.toLowerCase().includes(fq)))return false;
+    if(fsrc==='yixin'&&o.source!=='yixin')return false;
+    if(fsrc==='general'&&o.source==='yixin')return false;
     return true;
   });
 
