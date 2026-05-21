@@ -6,9 +6,12 @@
   "database": {
     "rules": "database.rules.json"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "site": "whitedessert",
     "public": ".",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "functions/**", "cf-worker/**", "storage.rules", "database.rules.json", "wrangler.jsonc", "README.md"]
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "functions/**", "cf-worker/**", "firebase-backups/**", "tests/**", "storage.rules", "database.rules.json", "wrangler.jsonc", "README.md", "package.json"]
   }
 }

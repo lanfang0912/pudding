@@ -2,7 +2,7 @@
   "name": "pudding",
   "private": true,
   "scripts": {
-    "test": "node tests/product-model.test.js"
+    "test": "node tests/product-model.test.js && node tests/security-static.test.js"
   },
   "devDependencies": {
     "wrangler": "^3"

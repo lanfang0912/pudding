@@ -1,9 +1,13 @@
 const functions = require('firebase-functions');
+const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 
 const TCAT_ENDPOINT = 'https://api.suda.com.tw/api/Egs';
 const AMEGO_BASE     = 'https://invoice-api.amego.tw';
+const ADMIN_EMAIL    = 'admin@wd.tw';
+
+admin.initializeApp();
 
 function requiredConfig(path) {
   const parts = path.split('.');
@@ -21,6 +25,16 @@ function getTcatConfig() {
   };
 }
 
+function getSenderConfig() {
+  return {
+    name: requiredConfig('sender.name'),
+    tel: requiredConfig('sender.tel'),
+    mobile: requiredConfig('sender.mobile'),
+    zip: requiredConfig('sender.zip'),
+    address: requiredConfig('sender.address'),
+  };
+}
+
 function getAmegoConfig() {
   return {
     base: functions.config().amego?.base || AMEGO_BASE,
@@ -29,16 +43,61 @@ function getAmegoConfig() {
   };
 }
 
-// Proxy: 建立托運單
-exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req, res) => {
+function setCors(res) {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+async function requireAdmin(req, res) {
+  const auth = req.get('Authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    res.status(401).json({ success: false, message: 'Unauthorized' });
+    return null;
+  }
+  try {
+    const decoded = await admin.auth().verifyIdToken(match[1]);
+    const allowed = (functions.config().admin?.emails || ADMIN_EMAIL)
+      .split(',')
+      .map(email => email.trim().toLowerCase())
+      .filter(Boolean);
+    if (!allowed.includes(String(decoded.email || '').toLowerCase())) {
+      res.status(403).json({ success: false, message: 'Forbidden' });
+      return null;
+    }
+    return decoded;
+  } catch (e) {
+    res.status(403).json({ success: false, message: 'Forbidden' });
+    return null;
+  }
+}
+
+function withTcatCredentials(body, tcat, sender) {
+  const next = { ...body, CustomerId: tcat.customerId, CustomerToken: tcat.customerToken };
+  if (sender && Array.isArray(next.Orders)) {
+    next.Orders = next.Orders.map(order => ({
+      ...order,
+      SenderName: sender.name,
+      SenderTel: sender.tel,
+      SenderMobile: sender.mobile,
+      SenderZipCode: sender.zip.padEnd(6, '0'),
+      SenderAddress: sender.address,
+    }));
+  }
+  return next;
+}
+
+// Proxy: 建立托運單
+exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req, res) => {
+  setCors(res);
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  if (!await requireAdmin(req, res)) return;
 
   try {
     const tcat = getTcatConfig();
-    const body = { ...req.body, CustomerId: tcat.customerId, CustomerToken: tcat.customerToken };
+    const sender = getSenderConfig();
+    const body = withTcatCredentials(req.body, tcat, sender);
     const r = await fetch(`${tcat.endpoint}/PrintOBT`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -52,10 +111,9 @@ exports.tcatPrintOBT = functions.region('asia-east1').https.onRequest(async (req
 
 // Proxy: 下載 PDF
 exports.tcatGetPDF = functions.region('asia-east1').https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(res);
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  if (!await requireAdmin(req, res)) return;
 
   const { fileNo } = req.body;
   const tcat = getTcatConfig();
@@ -104,10 +162,9 @@ function buildAmegoBody(dataObj) {
 
 // Proxy: amego 電子發票 — 開立發票
 exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(res);
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  if (!await requireAdmin(req, res)) return;
 
   try {
     const {
@@ -166,10 +223,9 @@ exports.issueInvoice = functions.region('asia-east1').https.onRequest(async (req
 
 // Proxy: amego 電子發票 — 作廢發票
 exports.voidInvoice = functions.region('asia-east1').https.onRequest(async (req, res) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  setCors(res);
   if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+  if (!await requireAdmin(req, res)) return;
 
   try {
     const { invoiceNo, invoiceDate, reason } = req.body;

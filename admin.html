@@ -314,9 +314,9 @@ tr.done-row td{opacity:.45;}
   <div class="login-box">
     <div class="login-title">初白時光</div>
     <div class="login-sub">後台管理系統</div>
-    <form onsubmit="doLogin();return false;" autocomplete="on">
-      <input class="login-input" id="un-input" type="email" name="username" value="admin@wd.tw" placeholder="Email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
-      <input class="login-input" id="pw-input" type="password" name="password" placeholder="密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <form id="login-form" method="post" action="javascript:void(0)" autocomplete="on" onsubmit="event.preventDefault(); doLogin(); return false;">
+      <input class="login-input" id="un-input" type="email" name="username" value="admin@wd.tw" placeholder="Email" autocomplete="username">
+      <input class="login-input" id="pw-input" type="password" name="password" placeholder="密碼" autocomplete="current-password">
       <button class="login-btn" type="submit">進入後台</button>
     </form>
     <div class="login-err" id="login-err"></div>
@@ -329,6 +329,11 @@ tr.done-row td{opacity:.45;}
     <div class="topbar-right"><span id="topbar-date"></span><button class="act-btn" onclick="openNew()" style="border-color:var(--caramel);color:var(--caramel);padding:6px 14px;font-size:11px;">＋ 新增訂單</button><button class="logout-btn" onclick="logout()">登出</button></div>
   </div>
   <div class="stats-bar" id="stats-bar"></div>
+  <div id="restore-panel" style="display:none;padding:14px 28px;background:#fff7e8;border-bottom:1px solid #e8d6b7;color:#5b3a16;font-size:13px;line-height:1.7">
+    <strong>目前 Firebase 沒有訂單。</strong>
+    <span id="restore-panel-msg">如果你要恢復舊訂單，請按右側按鈕。</span>
+    <button class="act-btn" onclick="restoreLegacyOrders()" style="margin-left:12px;border-color:#9b6a2f;color:#9b6a2f;padding:7px 14px;font-size:12px;">恢復舊訂單</button>
+  </div>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('orders',this)">📋 訂單總覽</button>
     <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
@@ -1097,6 +1102,11 @@ tr.done-row td{opacity:.45;}
 <div class="toast" id="toast"></div>
 
 <script>
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:') {
+  document.write('<script src=".private-seed-orders.js" onerror="globalThis.LOCAL_SEED_ORDERS_LOAD_ERROR=true"><\\/script>');
+}
+</script>
+<script>
 
 let orders=[];
 let products = ProductModel.normalizeProducts(null);
@@ -1106,75 +1116,7 @@ let prodOverrides = {};
 const ADMIN_EMAIL = 'admin@wd.tw';
 let _schedMakeMap = {}, _schedShipMap = {}, _schedMeetMap = {};
 
-const SEED_ORDERS=[
-  {id:'WD-OLD-001',ts:'2026-03-05 23:01',name:'謝強民',phone:'0922753230',date:'2026-03-14',time:'10:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'74505',total:360,status:'paid'},
-  {id:'WD-OLD-002',ts:'2026-03-05 23:24',name:'Irene Chen怡如',phone:'0983542685',date:'2026-03-13',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台北市文山區羅斯福路六段142巷9號14樓之2',note:'',code:'53685',total:1140,status:'paid'},
-  {id:'WD-OLD-003',ts:'2026-03-05 23:30',name:'陳彥潔',phone:'0939164957',date:'2026-03-13',time:'未指定',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'105台北市松山區八德路三段158巷20弄25號3樓',note:'',code:'41082',total:1110,status:'paid'},
-  // WD-OLD-004 林嘉涵 已取消
-  {id:'WD-OLD-005',ts:'2026-03-06 08:38',name:'方虹云',phone:'0963250867',date:'2026-03-29',time:'15:00',orig:1,cocoa:1,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'⚠️ 需附餐具（4歲+5歲男孩慶生）',code:'53584',total:1140,status:'paid'},
-  {id:'WD-OLD-006',ts:'2026-03-06 08:53',name:'陳展儀',phone:'0963575592',date:'2026-03-11',time:'10:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'新北市新店區永業路81巷60號5樓',note:'',code:'19188',total:1080,status:'paid'},
-  {id:'WD-OLD-007',ts:'2026-03-06 08:59',name:'潘雨柔',phone:'0972871230',date:'2026-03-11',time:'09:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'桃園市大園區環區西路567號11-1',note:'',code:'49165',total:1080,status:'paid'},
-  {id:'WD-OLD-008',ts:'2026-03-06 09:01',name:'文北辰',phone:'0910420205',date:'',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台南市永康區中山南路296號3樓',note:'',code:'27916',total:1140,status:'paid'},
-  {id:'WD-OLD-009',ts:'2026-03-06 13:36',name:'游玉萍',phone:'0911895597',date:'2026-03-14',time:'15:00',orig:1,cocoa:0,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'⚠️ 抹茶可可各半→整為1盒混裝（共2盒）',code:'02885',total:750,status:'pending'},
-  {id:'WD-OLD-010',ts:'2026-03-06 13:51',name:'王信欽',phone:'0932715154',date:'2026-03-13',time:'14:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'台中市西區英才路530號15F-6',note:'',code:'67810',total:1080,status:'paid'},
-  {id:'WD-OLD-011',ts:'2026-03-06 13:56',name:'游唯溱',phone:'0981333711',date:'2026-03-14',time:'11:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'52608',total:360,status:'paid'},
-  {id:'WD-OLD-012',ts:'2026-03-06 14:04',name:'李靜緹',phone:'0930825665',date:'2026-03-11',time:'未指定',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'新北市土城區亞洲路11巷1弄32號',note:'',code:'60045',total:1080,status:'paid'},
-  {id:'WD-OLD-013',ts:'2026-03-06 14:41',name:'邱書庭',phone:'0912523011',date:'2026-03-12',time:'12:00',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'97049花蓮市節約街2號',note:'日期已修正：5/12→3/12',code:'06261',total:1140,status:'paid'},
-  {id:'WD-OLD-014',ts:'2026-03-06 14:53',name:'葉怡孜',phone:'0988143807',date:'2026-03-17',time:'10:00',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'台中市南屯區五權西路二段8號六樓之16',note:'',code:'50592',total:1080,status:'paid'},
-  {id:'WD-OLD-015',ts:'2026-03-06 19:02',name:'林佳慧',phone:'0922307301',date:'2026-03-13',time:'18:00',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'新北市新店區二十張路28巷2號1樓',note:'',code:'04428',total:1110,status:'paid'},
-  {id:'WD-OLD-016',ts:'2026-03-06 21:21',name:'潘倩玉',phone:'0920271116',date:'2026-03-29',time:'未指定',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'3/29或3/31皆可',code:'39901',total:360,status:'paid'},
-  {id:'WD-OLD-017',ts:'2026-03-06 23:27',name:'李佳珊',phone:'0986211698',date:'2026-03-10',time:'10:00',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'新北市板橋區縣民大道二段68號22樓（#3750）',note:'',code:'49057',total:1140,status:'shipped'},
-  {id:'WD-OLD-018',ts:'2026-03-07 11:47',name:'章荃溱',phone:'0926313443',date:'2026-03-11',time:'未指定',orig:2,cocoa:1,matcha:0,delivery:'宅配',address:'桃園市龜山區萬壽路二段48號',note:'',code:'72827',total:1110,status:'paid'},
-  {id:'WD-OLD-019',ts:'2026-03-07 17:41',name:'王金玫',phone:'0919319396',date:'2026-03-19',time:'未指定',orig:1,cocoa:1,matcha:0,delivery:'宅配',address:'桃園市桃園區中華路7-11德友極門市',note:'⚠️ 兩筆重複已合併；7-11店到店',code:'81705',total:750,status:'paid'},
-  {id:'WD-OLD-021',ts:'2026-03-07 20:15',name:'張寶珠',phone:'0929200099',date:'2026-03-26',time:'15:00',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'502彰化縣芬園鄉嘉東街785巷80號',note:'',code:'11245',total:1140,status:'paid'},
-  {id:'WD-OLD-022',ts:'2026-03-08 22:10',name:'林庭竹',phone:'0928075472',date:'2026-03-14',time:'14:00',orig:1,cocoa:0,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'00186',total:750,status:'paid'},
-  {id:'WD-OLD-023',ts:'2026-03-09 00:53',name:'翔媽',phone:'未填',date:'2026-03-14',time:'未指定',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭凱旋國小',note:'',code:'面交',total:360,status:'pending'},
-  {id:'WD-OLD-024',ts:'2026-03-09 00:55',name:'潘可荃',phone:'0932020630',date:'2026-03-11',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'200基隆市仁愛區港西街6號4樓（海港大樓）海技科',note:'',code:'待確認',total:1140,status:'paid'},
-  {id:'WD-OLD-025',ts:'2026-03-09 01:50',name:'Jianing/佳寧',phone:'0921077853',date:'2026-03-11',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'台北市中正區羅斯福路二段2號13樓',note:'週一到週三',code:'待確認',total:1140,status:'paid'},
-  {id:'WD-OLD-026',ts:'2026-03-09 01:51',name:'胡雅涵',phone:'0928081092',date:'',time:'避開週三週日',orig:1,cocoa:0,matcha:1,delivery:'宅配',address:'花蓮市重慶路486號6樓之六',note:'避開週三週日',code:'待確認',total:750,status:'paid'},
-  {id:'WD-OLD-027',ts:'2026-03-09 01:52',name:'黃乙純',phone:'未填',date:'2026-03-15',time:'14:00',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'宜蘭全家（詳見備註）',note:'宜運全家',code:'待確認',total:360,status:'pending'},
-  {id:'WD-NEW-001',ts:'2026-03-07',name:'charlene lee',phone:'未填',date:'2026-03-07',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'面交',address:'宜蘭凱旋國小',note:'已完成面交 ✅',code:'已收',total:1140,status:'shipped'},
-  {id:'WD-NEW-002',ts:'2026-03-09',name:'呂智恩',phone:'0953588510',date:'',time:'未指定',orig:1,cocoa:0,matcha:1,delivery:'宅配',address:'台北市大安區臥龍街170號（東區特教中心）',note:'',code:'待確認',total:750,status:'paid'},
-  {id:'WD-NEW-003',ts:'2026-03-09',name:'廖怡婷',phone:'0921891563',date:'',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'宅配',address:'新竹縣竹北市勝利十三路82號2樓',note:'',code:'待確認',total:1140,status:'paid'},
-  {id:'WD-NEW-004',ts:'2026-03-09',name:'Kay',phone:'未填',date:'2026-03-14',time:'未指定',orig:3,cocoa:0,matcha:0,delivery:'宅配',address:'待補',note:'',code:'待確認',total:1080,status:'paid'},
-  {id:'WD-NEW-005',ts:'2026-03-09',name:'王欣棣(sandy)',phone:'未填',date:'2026-03-14',time:'未指定',orig:0,cocoa:1,matcha:0,delivery:'宅配',address:'待補',note:'',code:'待確認',total:390,status:'paid'},
-  {id:'WD-NEW-006',ts:'2026-03-09',name:'藍美惠',phone:'未填',date:'',time:'未指定',orig:1,cocoa:1,matcha:1,delivery:'面交',address:'台北（待約）',note:'混裝成3盒，3/10或3/13',code:'待確認',total:1140,status:'paid'},
-  {id:'WD-NEW-007',ts:'2026-03-09',name:'郭雅玲',phone:'未填',date:'',time:'未指定',orig:1,cocoa:0,matcha:0,delivery:'面交',address:'台北（待約）',note:'',code:'未收款',total:360,status:'pending'},
-];
-
-const schedule=[
-  {date:'3/9 (日)',label:'製作日（供明天出貨）',tags:['make'],orig:18,matcha:6,cocoa:6,furnace:'3爐',
-   meet:[],ship:['📦 明天 3/10 寄出 → 客戶 3/11 收到']},
-  {date:'3/10 (一)',label:'出貨日（客戶 3/11 收到）',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
-   meet:[],ship:['陳展儀（新北新店）','潘雨柔（桃園）','李靜緹（新北土城）','潘可荃（基隆）','Jianing/佳寧（台北中正）','章荃溱（桃園龜山）','李佳珊（新北板橋）✅']},
-  {date:'3/11 (二)',label:'客戶到貨・製作下一批',tags:['make'],orig:12,matcha:12,cocoa:6,furnace:'3爐',
-   meet:[{name:'翔媽',time:'待約',place:'凱旋國小'}],
-   ship:[]},
-  {date:'3/11 (二)',label:'客戶到貨・製作下一批',tags:['make'],orig:12,matcha:12,cocoa:6,furnace:'3爐',
-   meet:[{name:'翔媽',time:'待約',place:'凱旋國小'}],
-   ship:[]},
-  {date:'3/12 (三)',label:'製作＋出貨',tags:['make','ship'],orig:6,matcha:6,cocoa:6,furnace:'2爐',
-   meet:[],ship:['邱書庭（花蓮）','文北辰（台南）']},
-  {date:'3/13 (四)',label:'出貨日',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
-   meet:[],ship:['Irene Chen怡如（台北文山）','陳彥潔（台北松山）','王信欽（台中）','林佳慧（新北新店）','胡雅涵（花蓮）']},
-  {date:'3/14 (五)',label:'面交＋出貨',tags:['meet','ship'],orig:6,matcha:3,cocoa:3,furnace:'2爐',
-   meet:[
-     {name:'謝強民',time:'10:00',place:'凱旋國小'},
-     {name:'游玉萍',time:'15:00',place:'凱旋國小',warn:'⚠️ 混裝盒確認'},
-     {name:'游唯溱',time:'11:00',place:'凱旋國小'},
-     {name:'翔媽',time:'待約',place:'凱旋國小'},
-     {name:'林庭竹',time:'14:00',place:'凱旋國小'},
-   ],
-   ship:['Kay（待地址補全）','王欣棣 sandy（待地址補全）']},
-  {date:'3/15 (六)',label:'面交',tags:['meet'],orig:0,matcha:0,cocoa:0,furnace:'—',
-   meet:[{name:'黃乙純',time:'14:00',place:'宜運全家',warn:'⚠️ 確認地點'}],ship:[]},
-  {date:'3/19 (三)',label:'出貨',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
-   meet:[],ship:['王金玫（桃園7-11德友極）']},
-  {date:'3/26 (四)',label:'出貨',tags:['ship'],orig:0,matcha:0,cocoa:0,furnace:'—',
-   meet:[],ship:['張寶珠（彰化芬園）']},
-  {date:'3/29 (六)',label:'面交',tags:['meet'],orig:0,matcha:0,cocoa:0,furnace:'—',
-   meet:[{name:'方虹云',time:'15:00',place:'凱旋國小',warn:'⚠️ 帶餐具'},{name:'潘倩玉',time:'待定',place:'凱旋國小',warn:'或3/31(二)'}],ship:[]},
-];
+const SEED_ORDERS = Array.isArray(globalThis.LOCAL_SEED_ORDERS) ? globalThis.LOCAL_SEED_ORDERS : [];
 
 // ── 光貿電子發票 ──
 const GUANGMAO = {
@@ -1187,8 +1129,7 @@ const GUANGMAO = {
 
 // ── 黑貓 API ──
 const TCAT = {
-  endpoint: 'https://tcat-proxy.lanfang-hsu.workers.dev', // Cloudflare proxy
-  sender: { name:'初白時光', tel:'0919058683', mobile:'0919058683', zip:'260', address:'宜蘭市縣政五街102巷50號' }
+  endpoint: 'https://tcat-proxy.lanfang-hsu.workers.dev' // Cloudflare proxy
 };
 
 // 台灣郵遞區號對照（縣市+區鄉鎮 → 3碼，API需6碼補000）
@@ -1247,12 +1188,10 @@ async function batchPrintOBT(date) {
       zip = prompt(`請輸入「${o.name}」的郵遞區號（3碼）\n地址：${o.address}`);
       if (!zip) return;
     }
-    const phone = (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile;
+    const phone = (o.phone && o.phone !== '未填') ? o.phone : '';
     const deliveryDate = o.date ? new Date(o.date) : (() => { const d = new Date(today); d.setDate(d.getDate()+1); return d; })();
     orderItems.push({
       OrderId: o.id, OBTNumber: '',
-      SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
-      SenderZipCode: TCAT.sender.zip.padEnd(6,'0'), SenderAddress: TCAT.sender.address,
       RecipientName: o.name, RecipientTel: phone, RecipientMobile: phone,
       RecipientZipCode: zip.padEnd(6,'0'), RecipientAddress: addr,
       ReceiptLocation: '01', Spec: '0001', Thermosphere: '0002',
@@ -1264,7 +1203,7 @@ async function batchPrintOBT(date) {
   showToast(`⏳ 批量建立 ${targets.length} 筆托運單...`);
   const pdfWin = window.open('', '_blank');
   try {
-    const res = await fetch(TCAT.endpoint + '/PrintOBT', {
+    const res = await workerFetch(TCAT.endpoint + '/PrintOBT', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({
         PrintType: '01', PrintOBTType: '01', Orders: orderItems
       })
@@ -1280,7 +1219,7 @@ async function batchPrintOBT(date) {
     showToast(`✅ 已建立 ${json.Data.Orders.length} 筆托運單`);
     renderDaily();
     if (fileNo) {
-      pdfWin ? pdfWin.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo) : window.open('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo), '_blank');
+      await openProtectedPdf(fileNo, pdfWin);
     } else { pdfWin && pdfWin.close(); alert('托運單已建立，請至黑貓後台列印'); }
   } catch(e) { pdfWin && pdfWin.close(); alert('API 連線錯誤：' + e.message); }
 }
@@ -1299,7 +1238,7 @@ async function printOBT(orderId) {
   }
 
   const zip6 = zip.padEnd(6, '0');
-  const phone = (o.phone && o.phone !== '未填') ? o.phone : TCAT.sender.mobile;
+  const phone = (o.phone && o.phone !== '未填') ? o.phone : '';
   const today = new Date();
   const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
   const deliveryDate = o.date ? new Date(o.date) : (() => { const d = new Date(today); d.setDate(d.getDate()+1); return d; })();
@@ -1307,8 +1246,6 @@ async function printOBT(orderId) {
   const payload = {
     PrintType: '01', PrintOBTType: '01',
     Orders: [{ OrderId: o.id, OBTNumber: '',
-      SenderName: TCAT.sender.name, SenderTel: TCAT.sender.tel, SenderMobile: TCAT.sender.mobile,
-      SenderZipCode: TCAT.sender.zip.padEnd(6,'0'), SenderAddress: TCAT.sender.address,
       RecipientName: o.name, RecipientTel: phone, RecipientMobile: phone,
       RecipientZipCode: zip6, RecipientAddress: addr,
       ReceiptLocation: '01', Spec: '0001',
@@ -1323,7 +1260,7 @@ async function printOBT(orderId) {
   showToast('⏳ 建立托運單中...');
   const pdfWin = window.open('', '_blank');
   try {
-    const res = await fetch(TCAT.endpoint + '/PrintOBT', {
+    const res = await workerFetch(TCAT.endpoint + '/PrintOBT', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
     const json = await res.json();
@@ -1334,7 +1271,7 @@ async function printOBT(orderId) {
     if (db) await db.ref('orders/' + orderId).update({ obtNumber: obt, obtFileNo: fileNo || '', obtTs: new Date().toISOString() });
     showToast('✅ 托運單 ' + obt);
     if (fileNo) {
-      pdfWin ? pdfWin.location.href = 'https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo) : window.open('https://tcat-proxy.lanfang-hsu.workers.dev/getPDF?fileNo=' + encodeURIComponent(fileNo), '_blank');
+      await openProtectedPdf(fileNo, pdfWin);
     } else { pdfWin && pdfWin.close(); alert('托運單號：' + obt + '\n（請至黑貓後台列印）'); }
   } catch(e) { pdfWin && pdfWin.close(); alert('API 連線錯誤：' + e.message); }
 }
@@ -1377,10 +1314,49 @@ function load(){
 async function seedIfEmpty(){
   const snap = await db.ref('orders').once('value');
   if(snap.exists()) return; // 已有資料，不覆蓋
+  if(!SEED_ORDERS.length){
+    console.warn('orders is empty and no private local seed is loaded');
+    updateRestorePanel();
+    return;
+  }
+  await restoreLegacyOrders();
+}
+
+async function restoreLegacyOrders(){
+  if(!db) { showToast('⚠️ Firebase 尚未初始化'); return; }
+  if(!SEED_ORDERS.length) {
+    showToast('⚠️ 找不到私有訂單備份檔');
+    updateRestorePanel();
+    return;
+  }
+  const snap = await db.ref('orders').once('value');
+  if(snap.exists() && !confirm('Firebase 已有訂單資料。確定要補入舊訂單嗎？同 ID 會被覆蓋。')) return;
   const updates = {};
   SEED_ORDERS.forEach(o => { updates['orders/'+o.id] = o; });
   await db.ref().update(updates);
-  showToast('✓ 現有訂單已匯入 Firebase');
+  showToast(`✓ 已匯入 ${SEED_ORDERS.length} 筆舊訂單`);
+  updateRestorePanel();
+}
+
+function updateRestorePanel(){
+  const panel = document.getElementById('restore-panel');
+  const msg = document.getElementById('restore-panel-msg');
+  if(!panel || !msg) return;
+  const hasSeed = SEED_ORDERS.length > 0;
+  const shouldShow = orders.length === 0;
+  panel.style.display = shouldShow ? 'block' : 'none';
+  msg.textContent = hasSeed
+    ? `已找到本機私有備份 ${SEED_ORDERS.length} 筆。如果 Firebase 真的空了，可以按右側按鈕匯回。`
+    : '沒有載入私有備份檔 .private-seed-orders.js；請確認你是在本機工作區打開後台。';
+}
+
+function showLocalSeedOrders(reason){
+  if(!SEED_ORDERS.length) return;
+  orders = JSON.parse(JSON.stringify(SEED_ORDERS));
+  orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+  renderStats(); renderTable(); renderDaily(); renderSchedule(); renderIngAll();
+  updateRestorePanel();
+  showToast(reason || `⚠️ Firebase 讀取被擋，先顯示本機備份 ${SEED_ORDERS.length} 筆`);
 }
 
 async function seedSettings(){
@@ -1422,11 +1398,16 @@ function startFirebaseListener(){
     snap.forEach(child => { orders.push(child.val()); });
     orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
     renderStats(); renderTable(); renderDaily(); renderSchedule(); renderIngAll();
+    updateRestorePanel();
     autoSyncToGCal();
     const totalBoxes = orders
       .filter(o => o.source !== 'yixin' && o.status !== 'pending')
       .reduce((a, o) => a + orderBoxCount(o), 0);
     db.ref('stats/totalBoxes').set(totalBoxes);
+  }, e => {
+    console.error('orders listener:', e);
+    showLocalSeedOrders(`⚠️ Firebase 訂單讀取被擋，先顯示本機備份 ${SEED_ORDERS.length} 筆`);
+    showToast('⚠️ 讀取訂單失敗：請確認 Firebase 登入或資料庫規則');
   });
   db.ref('settings/packaging').on('value', snap => {
     if(snap.val()){ pkgData = snap.val(); renderPkgAll(); }
@@ -1471,6 +1452,30 @@ function startFirebaseListener(){
 }
 
 // ── login ──
+function scrubLoginCredentialsFromUrl(){
+  const params = new URLSearchParams(window.location.search || '');
+  const hasUsername = params.has('username');
+  const hasPassword = params.has('password');
+  if(!hasUsername && !hasPassword) return;
+
+  const username = params.get('username');
+  if(username){
+    const emailInput = document.getElementById('un-input');
+    if(emailInput) emailInput.value = username;
+  }
+
+  const passwordInput = document.getElementById('pw-input');
+  if(passwordInput) passwordInput.value = '';
+
+  const errEl = document.getElementById('login-err');
+  if(errEl) errEl.textContent = '為了安全，已移除網址列裡的帳密。請重新輸入密碼登入。';
+
+  const cleanUrl = window.location.href.replace(/[?#].*$/, '') + window.location.hash;
+  window.history.replaceState(null, document.title, cleanUrl);
+}
+
+scrubLoginCredentialsFromUrl();
+
 async function doLogin(){
   const email=document.getElementById('un-input').value.trim();
   const pw=document.getElementById('pw-input').value;
@@ -1487,12 +1492,30 @@ async function doLogin(){
       await auth.signOut().catch(()=>{});
       throw { code: 'auth/not-admin-email' };
     }
+    await cred.user.getIdToken(true);
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        unsub();
+        reject(new Error('等待 Firebase 登入狀態逾時'));
+      }, 5000);
+      const unsub = auth.onAuthStateChanged(user => {
+        if(user && (user.email || '').toLowerCase() === ADMIN_EMAIL){
+          clearTimeout(timeout);
+          unsub();
+          resolve();
+        }
+      });
+    });
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-screen').style.display='block';
     initFilters();
     document.getElementById('topbar-date').textContent=new Date().toLocaleDateString('zh-TW');
     if(db){
-      Promise.all([seedIfEmpty(), seedSettings(), seedProducts().catch(e => console.warn('seedProducts:', e))]).then(()=> startFirebaseListener());
+      Promise.all([
+        seedIfEmpty().catch(e => { console.error('seedIfEmpty:', e); showToast('⚠️ 舊訂單匯入失敗：請按恢復舊訂單再試'); }),
+        seedSettings().catch(e => console.warn('seedSettings:', e)),
+        seedProducts().catch(e => console.warn('seedProducts:', e)),
+      ]).finally(()=> startFirebaseListener());
     } else {
       // Firebase 無法連線，使用本地 SEED 資料
       orders = JSON.parse(JSON.stringify(SEED_ORDERS));
@@ -1521,6 +1544,31 @@ function logout(){
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('main-screen').style.display='none';
   document.getElementById('pw-input').value='';
+}
+
+async function getAdminIdToken() {
+  if (!auth || !auth.currentUser) throw new Error('請先登入後台');
+  return auth.currentUser.getIdToken();
+}
+
+async function workerFetch(url, options = {}) {
+  const token = await getAdminIdToken();
+  const headers = new Headers(options.headers || {});
+  headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...options, headers });
+}
+
+async function openProtectedPdf(fileNo, pdfWin) {
+  const res = await workerFetch(`${TCAT.endpoint}/getPDF`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileNo }),
+  });
+  if (!res.ok) throw new Error(`PDF 下載失敗（${res.status}）`);
+  const blobUrl = URL.createObjectURL(await res.blob());
+  if (pdfWin) pdfWin.location.href = blobUrl;
+  else window.open(blobUrl, '_blank');
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60 * 1000);
 }
 
 // ── stats ──
@@ -3483,7 +3531,7 @@ async function openLineMsg(id) {
   if (!o || !o.lineId) return;
   const msg = prompt(`傳 LINE 給 ${o.name}：`, '');
   if (!msg || !msg.trim()) return;
-  const r = await fetch(`${LINE_WORKER}/sendLine`, {
+  const r = await workerFetch(`${LINE_WORKER}/sendLine`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ userId: o.lineId, message: msg.trim() }),
@@ -3507,7 +3555,7 @@ async function sendLineNotify(id) {
     message = `🍮 white dessert 面交提醒\n${o.name} 您好！\n\n品項：${items}\n日期：${dateDisp}\n時間：${timeStr}\n地點：${o.address}\n\n謝謝您的訂購！`;
   }
   try {
-    const r = await fetch(`${LINE_WORKER}/sendLine`, {
+    const r = await workerFetch(`${LINE_WORKER}/sendLine`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: o.lineId, message }),
@@ -5619,7 +5667,7 @@ async function submitInvoice() {
                             carrierType === 'donation' ? '' :
                             carrierType === 'taxid'    ? '' :
                             carrierNum;
-    const r = await fetch(GUANGMAO.issueUrl, {
+    const r = await workerFetch(GUANGMAO.issueUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -5709,7 +5757,7 @@ async function openInvoiceOnAmego() {
   const o = orders.find(x => x.id === _invViewOrderId);
   if (!o) return;
   try {
-    const r = await fetch(`${GUANGMAO.issueUrl.replace('issueInvoice','invoiceFile')}`, {
+    const r = await workerFetch(`${GUANGMAO.issueUrl.replace('issueInvoice','invoiceFile')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invoiceNo: o.invoiceNo, orderId: o.id }),
@@ -5772,7 +5820,7 @@ async function voidInvoice(id) {
   if (reason === null) return;
   showToast('⏳ 作廢中…');
   try {
-    const r = await fetch(GUANGMAO.voidUrl, {
+    const r = await workerFetch(GUANGMAO.voidUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invoiceNo: o.invoiceNo, invoiceDate: o.invoiceDate, reason }),

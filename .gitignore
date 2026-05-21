@@ -1,4 +1,8 @@
+.private-seed-orders.js
+.firebase-orders-backup.json
+firebase-backups/
 .firebase/
+.wrangler/
 node_modules/
 functions/node_modules/
 package-lock.json
