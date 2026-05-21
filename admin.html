@@ -3529,14 +3529,24 @@ function sendShipNotify(id){
   const items = fmtOrderItemsFull(o);
   const ws = ['日','一','二','三','四','五','六'];
   const dateDisplay = o.date ? (() => { const d=new Date(o.date); return `${d.getMonth()+1}/${d.getDate()}（週${ws[d.getDay()]}）`; })() : '明日';
+  const isPickup = o.delivery === '面交';
+  const timeStr = o.time && o.time !== '未指定' ? o.time : '待確認';
+  const handoffLine = isPickup
+    ? `已為您保留，請於 ${dateDisplay}${timeStr !== '待確認' ? ` ${timeStr}` : ''} 至面交地點領取。`
+    : `已交給黑貓宅急便，預計 ${dateDisplay} 送達！`;
+  const addressLabel = isPickup ? '面交地點' : '收件地址';
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_SHIP, {
     customer_name:  o.name,
     order_num:      o.id,
     flavor_lines:   items,
     shipping_fee:   (() => { const s = o.total - (o.orig||0)*360 - (o.matcha||0)*390 - (o.cocoa||0)*390; return s > 0 ? `NT$${s}` : 'NT$0（免運）'; })(),
     total_amount:   `NT$${o.total}`,
-    delivery_mode:  o.delivery==='面交'?'📍 面交':'🚚 宅配到府',
-    delivery_date:  dateDisplay,
+    delivery_mode:  isPickup ? '📍 面交領取' : '🚚 黑貓冷藏宅配',
+    delivery_date:  isPickup ? `面交日期：${dateDisplay}` : `預計到貨：${dateDisplay}`,
+    delivery_time:  isPickup ? `面交時間：${timeStr}` : '',
+    delivery_notice: handoffLine,
+    handoff_line:   handoffLine,
+    address_label:  addressLabel,
     address:        o.address || '',
     transfer_date:  o.transferDate || '—',
     transfer_code:  o.code || '—',
