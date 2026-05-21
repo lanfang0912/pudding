@@ -4194,9 +4194,9 @@ function recalcScheduleRecipe(dateKey){
 
 function buildRecipeCalcHtml(dateKey, make){
   const inStyle = 'width:50px;padding:2px 4px;border:1px solid var(--rule);border-radius:3px;font-size:11px;text-align:center';
-  const origCups   = (make.orig||0) * 6;
-  const matchaCups = (make.matcha||0) * 6;
-  const cocoaCups  = (make.cocoa||0) * 6;
+  const origCups   = Math.round((make.orig||0) * 6);
+  const matchaCups = Math.round((make.matcha||0) * 6);
+  const cocoaCups  = Math.round((make.cocoa||0) * 6);
   return `<div style="margin-top:12px;border-top:1px solid var(--rule);padding-top:10px">
     <div style="font-size:11px;font-weight:600;color:var(--ink-mid);margin-bottom:8px">📋 配方計算</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;font-size:11px">
