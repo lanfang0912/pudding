@@ -1605,9 +1605,13 @@ const FB_CONFIG = {
   projectId: 'whitedessert',
 };
 let db = null;
+let authReady = Promise.resolve();
 try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
+  authReady = firebase.auth().signInAnonymously().catch(err => {
+    console.warn('Firebase anonymous auth failed:', err);
+  });
 
   db.ref('products').on('value', snap => {
     applyStoreProducts(snap.val());
@@ -2254,21 +2258,12 @@ function submitOrder(){
 
   // 先寫入 Firebase（不等信寄出）
   if(db){
+    await authReady;
     db.ref('orders/' + num).set(firebaseOrder)
       .then(() => console.log('✅ Firebase 寫入成功:', num))
       .catch(err => console.error('❌ Firebase 寫入失敗:', err));
   } else {
     console.error('❌ db 是 null，Firebase 未初始化');
-  }
-
-  // LINE 訂購確認通知
-  if(lineUserId){
-    const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${method.emailLabel}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
-    fetch('https://tcat-proxy.lanfang-hsu.workers.dev/sendLine', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ userId: lineUserId, message: lineMsg }),
-    }).catch(()=>{});
   }
 
   Promise.all([

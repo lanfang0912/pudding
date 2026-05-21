@@ -231,7 +231,7 @@ firebase.initializeApp({
 });
 const db = firebase.database();
 // 匿名登入，讓訪客可以寫入問卷
-firebase.auth().signInAnonymously().catch(() => {});
+const authReady = firebase.auth().signInAnonymously().catch(() => {});
 
 // Scale state
 const scaleVals = { flavor: 0, packaging: 0 };
@@ -292,6 +292,7 @@ async function submitSurvey(e){
   data.message = document.getElementById('q-message').value.trim();
 
   try {
+    await authReady;
     await db.ref('surveys/responses/' + Date.now()).set(data);
     document.getElementById('survey-form').style.display = 'none';
     document.getElementById('thankyou').style.display = 'block';

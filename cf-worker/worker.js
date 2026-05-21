@@ -1,11 +1,16 @@
 const TCAT_ENDPOINT = 'https://api.suda.com.tw/api/Egs';
 const AMEGO_BASE = 'https://invoice-api.amego.tw';
+const FIREBASE_PROJECT_ID = 'whitedessert';
+const DEFAULT_ADMIN_EMAIL = 'admin@wd.tw';
+const FIREBASE_JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+let jwksCache = { expiresAt: 0, keys: null };
 
 // ── 純 JS MD5（Cloudflare Worker 無 Node crypto，自行實作）──
 function md5hex(str) {
@@ -66,11 +71,118 @@ function requireEnv(env, name) {
   return value;
 }
 
+function base64UrlToBytes(value) {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function decodeJwtPart(value) {
+  return JSON.parse(new TextDecoder().decode(base64UrlToBytes(value)));
+}
+
+function timingSafeIncludes(list, value) {
+  const normalized = String(value || '').toLowerCase();
+  return list.some(item => String(item || '').trim().toLowerCase() === normalized);
+}
+
+async function getFirebaseJwks() {
+  const now = Math.floor(Date.now() / 1000);
+  if (jwksCache.keys && jwksCache.expiresAt > now + 60) return jwksCache.keys;
+
+  const res = await fetch(FIREBASE_JWKS_URL);
+  if (!res.ok) throw new Error('Unable to fetch Firebase signing keys');
+
+  const cacheControl = res.headers.get('cache-control') || '';
+  const maxAge = Number((cacheControl.match(/max-age=(\d+)/) || [])[1] || 3600);
+  const body = await res.json();
+  jwksCache = {
+    expiresAt: now + maxAge,
+    keys: Array.isArray(body.keys) ? body.keys : [],
+  };
+  return jwksCache.keys;
+}
+
+async function verifyFirebaseIdToken(token, env) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3) throw new Error('Malformed token');
+
+  const [encodedHeader, encodedPayload, encodedSignature] = parts;
+  const header = decodeJwtPart(encodedHeader);
+  const payload = decodeJwtPart(encodedPayload);
+  if (header.alg !== 'RS256' || !header.kid) throw new Error('Unsupported token algorithm');
+
+  const projectId = (env && env.FIREBASE_PROJECT_ID) || FIREBASE_PROJECT_ID;
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.aud !== projectId) throw new Error('Invalid token audience');
+  if (payload.iss !== `https://securetoken.google.com/${projectId}`) throw new Error('Invalid token issuer');
+  if (!payload.sub) throw new Error('Missing token subject');
+  if (payload.exp <= now) throw new Error('Expired token');
+  if (payload.iat > now + 300) throw new Error('Token issued in the future');
+
+  const keys = await getFirebaseJwks();
+  const jwk = keys.find(key => key.kid === header.kid);
+  if (!jwk) throw new Error('Unknown token signing key');
+
+  const key = await crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+  const valid = await crypto.subtle.verify(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    base64UrlToBytes(encodedSignature),
+    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+  );
+  if (!valid) throw new Error('Invalid token signature');
+  return payload;
+}
+
+async function requireAdmin(request, env) {
+  const auth = request.headers.get('Authorization') || '';
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    return { ok: false, response: new Response(JSON.stringify({ success: false, message: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    }) };
+  }
+
+  try {
+    const payload = await verifyFirebaseIdToken(match[1], env);
+    const allowed = String((env && (env.ADMIN_EMAILS || env.ADMIN_EMAIL)) || DEFAULT_ADMIN_EMAIL)
+      .split(',')
+      .map(email => email.trim())
+      .filter(Boolean);
+    if (!timingSafeIncludes(allowed, payload.email)) throw new Error('Forbidden email');
+    return { ok: true, user: payload };
+  } catch (e) {
+    return { ok: false, response: new Response(JSON.stringify({ success: false, message: 'Forbidden' }), {
+      status: 403,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    }) };
+  }
+}
+
 function getTcatSecrets(env) {
   return {
     endpoint: env.TCAT_ENDPOINT || TCAT_ENDPOINT,
     customerId: requireEnv(env, 'TCAT_CUSTOMER_ID'),
     token: requireEnv(env, 'TCAT_CUSTOMER_TOKEN'),
+  };
+}
+function getSenderSecrets(env) {
+  return {
+    name: requireEnv(env, 'SENDER_NAME'),
+    tel: requireEnv(env, 'SENDER_TEL'),
+    mobile: requireEnv(env, 'SENDER_MOBILE'),
+    zip: requireEnv(env, 'SENDER_ZIP'),
+    address: requireEnv(env, 'SENDER_ADDRESS'),
   };
 }
 function getLineToken(env) {
@@ -136,6 +248,21 @@ async function debugPDF(fileNo, tcat) {
   return results;
 }
 
+function withTcatCredentials(body, tcat, sender) {
+  const next = { ...body, CustomerId: tcat.customerId, CustomerToken: tcat.token };
+  if (sender && Array.isArray(next.Orders)) {
+    next.Orders = next.Orders.map(order => ({
+      ...order,
+      SenderName: sender.name,
+      SenderTel: sender.tel,
+      SenderMobile: sender.mobile,
+      SenderZipCode: sender.zip.padEnd(6, '0'),
+      SenderAddress: sender.address,
+    }));
+  }
+  return next;
+}
+
 // ── 主路由 ──
 export default {
   async fetch(request, env) {
@@ -146,6 +273,15 @@ export default {
     const url  = new URL(request.url);
     const path = url.pathname.replace(/^\//, '');
     const json = h => new Response(JSON.stringify(h), { headers: { ...CORS, 'Content-Type': 'application/json' } });
+
+    const protectedPaths = new Set([
+      'getPDF', 'debugPDF', 'PrintOBT', 'QueryOBT',
+      'sendLine', 'issueInvoice', 'voidInvoice', 'invoiceFile',
+    ]);
+    if (protectedPaths.has(path)) {
+      const auth = await requireAdmin(request, env);
+      if (!auth.ok) return auth.response;
+    }
 
     // ── TCAT PDF ──
     if (path === 'getPDF') {
@@ -170,11 +306,10 @@ export default {
     // ── TCAT 通用 proxy ──
     if (['PrintOBT', 'QueryOBT'].includes(path)) {
       let tcat; try { tcat = getTcatSecrets(env); } catch(e) { return json({ success: false, message: e.message }); }
+      let sender; try { sender = path === 'PrintOBT' ? getSenderSecrets(env) : null; } catch(e) { return json({ success: false, message: e.message }); }
       const body = await request.json();
-      body.CustomerId = tcat.customerId;
-      body.CustomerToken = tcat.token;
       const r = await fetch(`${tcat.endpoint}/${path}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(withTcatCredentials(body, tcat, sender)),
       });
       return json(await r.json());
     }
