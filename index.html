@@ -2131,7 +2131,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── SUBMIT ───
-function submitOrder(){
+async function submitOrder(){
   // 驗證匯款資訊
   const transferDate = document.getElementById('f-transfer-date').value;
   const transferCode = document.getElementById('f-transfer-code').value.trim();
@@ -2142,18 +2142,6 @@ function submitOrder(){
 
   const orderItems = currentOrderItems();
   const legacyCounts = ProductModel.legacyCountsFromItems(orderItems);
-
-  // Reserve stock
-  if(order.isCombo){
-    (MIX_PRODUCT?.components || []).forEach(c => reserve(order.date, c.stockKey, Number(c.cups || 0) * order.comboQty / 6));
-    totalSold += order.comboQty;
-  } else {
-    for(const fid of Object.keys(order.flavors)){
-      const f = FLAVORS.find(x => x.id === fid);
-      reserve(order.date, f?.product?.stockKey || fid, order.flavors[fid]);
-      totalSold += order.flavors[fid];
-    }
-  }
 
   const num = 'WD' + Date.now().toString().slice(-8);
   order.orderNum = num;
@@ -2252,13 +2240,35 @@ function submitOrder(){
     if(order.comboLowSugar) firebaseOrder.comboLowSugar = true;
   }
 
-  // 先寫入 Firebase（不等信寄出）
-  if(db){
-    db.ref('orders/' + num).set(firebaseOrder)
-      .then(() => console.log('✅ Firebase 寫入成功:', num))
-      .catch(err => console.error('❌ Firebase 寫入失敗:', err));
-  } else {
+  // 先確認 Firebase 寫入成功，才算下單完成。
+  // 避免資料庫被規則或網路擋下時，客人看到成功頁但後台沒有訂單。
+  if(!db){
     console.error('❌ db 是 null，Firebase 未初始化');
+    btn.disabled = false;
+    btn.textContent = '✓ 確認預訂，完成下單';
+    toast('系統暫時無法連線，訂單尚未送出。請稍後再試或用 LINE 聯繫我們。','error');
+    return;
+  }
+
+  try {
+    await db.ref('orders/' + num).set(firebaseOrder);
+    console.log('✅ Firebase 寫入成功:', num);
+    if(order.isCombo){
+      (MIX_PRODUCT?.components || []).forEach(c => reserve(order.date, c.stockKey, Number(c.cups || 0) * order.comboQty / 6));
+      totalSold += order.comboQty;
+    } else {
+      for(const fid of Object.keys(order.flavors)){
+        const f = FLAVORS.find(x => x.id === fid);
+        reserve(order.date, f?.product?.stockKey || fid, order.flavors[fid]);
+        totalSold += order.flavors[fid];
+      }
+    }
+  } catch(err) {
+    console.error('❌ Firebase 寫入失敗:', err);
+    btn.disabled = false;
+    btn.textContent = '✓ 確認預訂，完成下單';
+    toast('訂單送出失敗，尚未成立。請稍後再試或用 LINE 聯繫我們。','error');
+    return;
   }
 
   // LINE 訂購確認通知
