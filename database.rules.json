@@ -33,26 +33,6 @@
           ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || (auth != null && !data.exists() && newData.exists() && newData.hasChildren(['ts','nickname','hasPurchased']) && newData.child('ts').isString() && newData.child('ts').val().length <= 40 && newData.child('nickname').isString() && newData.child('nickname').val().length <= 80 && newData.child('hasPurchased').val().matches(/^(yes|no)$/))"
         }
       }
-    },
-    "bakery": {
-      "events": {
-        ".read": true,
-        ".write": "auth != null && auth.token.email == 'bakery@wd.tw'",
-        "$eventId": { ".write": "auth != null && auth.token.email == 'bakery@wd.tw'" }
-      },
-      "registrations": {
-        ".read": "auth != null && auth.token.email == 'bakery@wd.tw'",
-        ".write": "auth != null && auth.token.email == 'bakery@wd.tw'",
-        "$eventId": {
-          "$regId": {
-            ".write": "(auth != null && auth.token.email == 'bakery@wd.tw') || (auth != null && !data.exists() && newData.exists())"
-          }
-        }
-      },
-      "settings": {
-        ".read": "auth != null && auth.token.email == 'bakery@wd.tw'",
-        ".write": "auth != null && auth.token.email == 'bakery@wd.tw'"
-      }
     }
   }
 }
