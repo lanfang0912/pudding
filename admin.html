@@ -3211,6 +3211,18 @@ function fmtBoxes(boxes){
 
 // 短格式品項文字（生產/出貨清單用），三拼直接取杯數
 function fmtOrderItemsShort(o){
+  if(o.yixinItems){
+    const yi = o.yixinItems;
+    return [
+      yi.origCup    ? `原×${yi.origCup}杯`      : '',
+      yi.cocoaCup   ? `可×${yi.cocoaCup}杯`     : '',
+      yi.matchaCup  ? `抹×${yi.matchaCup}杯`    : '',
+      yi.origCard   ? `原卡×${yi.origCard}`     : '',
+      yi.cocoaCard  ? `可卡×${yi.cocoaCard}`    : '',
+      yi.matchaCard ? `抹卡×${yi.matchaCard}`   : '',
+      yi.mixCard    ? `綜卡×${yi.mixCard}`      : '',
+    ].filter(Boolean).join(' ');
+  }
   if(o.comboItems){
     const ci = o.comboItems;
     return [
@@ -3821,10 +3833,11 @@ function saveNew(){
     };
     const totalItems = Object.values(yixinItems).reduce((a,b)=>a+b,0);
     if(!totalItems){ alert('請填寫品項數量'); return; }
-    // 換算杯數→盒（用於食材估算，10杯≒1盒）
-    orig   = Math.round((yixinItems.origCup + yixinItems.origCard*10) / 6 * 10) / 10;
-    matcha = Math.round((yixinItems.matchaCup + yixinItems.matchaCard*10) / 6 * 10) / 10;
-    cocoa  = Math.round((yixinItems.cocoaCup + yixinItems.cocoaCard*10) / 6 * 10) / 10;
+    // 換算杯數→盒（綜合卡平均分配三種口味）
+    const mixPer = (yixinItems.mixCard||0) * 10 / 3;
+    orig   = Math.round((yixinItems.origCup + yixinItems.origCard*10 + mixPer) / 6 * 10) / 10;
+    matcha = Math.round((yixinItems.matchaCup + yixinItems.matchaCard*10 + mixPer) / 6 * 10) / 10;
+    cocoa  = Math.round((yixinItems.cocoaCup + yixinItems.cocoaCard*10 + mixPer) / 6 * 10) / 10;
   }
 
   const id = (src==='yixin'?'YX-':'WD-M-') + Date.now().toString().slice(-8);
@@ -3951,9 +3964,10 @@ function saveEdit(){
       origCup: g('e-yi-orig-cup'), cocoaCup: g('e-yi-cocoa-cup'), matchaCup: g('e-yi-matcha-cup'),
       origCard: g('e-yi-orig-card'), cocoaCard: g('e-yi-cocoa-card'), matchaCard: g('e-yi-matcha-card'), mixCard: g('e-yi-mix-card'),
     };
-    orig   = Math.round((yixinItems.origCup + yixinItems.origCard*10) / 6 * 10) / 10;
-    matcha = Math.round((yixinItems.matchaCup + yixinItems.matchaCard*10) / 6 * 10) / 10;
-    cocoa  = Math.round((yixinItems.cocoaCup + yixinItems.cocoaCard*10) / 6 * 10) / 10;
+    const mixPer = (yixinItems.mixCard||0) * 10 / 3;
+    orig   = Math.round((yixinItems.origCup + yixinItems.origCard*10 + mixPer) / 6 * 10) / 10;
+    matcha = Math.round((yixinItems.matchaCup + yixinItems.matchaCard*10 + mixPer) / 6 * 10) / 10;
+    cocoa  = Math.round((yixinItems.cocoaCup + yixinItems.cocoaCard*10 + mixPer) / 6 * 10) / 10;
   } else if(isCombo){
     applyStandardCombo('e');
     const origCup   = +document.getElementById('e-combo-orig').value||0;
