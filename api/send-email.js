@@ -1,5 +1,6 @@
 const {
   buildCustomerConfirmationEmail,
+  buildOwnerNotificationEmail,
   buildResendPayload,
   buildShipmentEmail,
 } = require('../lib/email');
@@ -70,6 +71,23 @@ async function handler(req, res, deps = {}) {
         details: data,
       });
       return;
+    }
+
+    // 新訂單時通知店家
+    if (type === 'customer-confirmation') {
+      const ownerEmail = env.OWNER_EMAIL;
+      if (ownerEmail) {
+        const ownerNotification = buildOwnerNotificationEmail(order);
+        const ownerPayload = buildResendPayload({ from, email: { to: ownerEmail, ...ownerNotification } });
+        fetchImpl('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(ownerPayload),
+        }).catch(() => {});
+      }
     }
 
     res.status(200).json({ success: true, id: data.id || '' });
