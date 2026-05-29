@@ -2022,6 +2022,17 @@ function goTo(n){
     renderCal();
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
+  if(n===3 && order.date){
+    const dt = new Date(order.date + 'T00:00:00');
+    const _today = new Date(); _today.setHours(0,0,0,0);
+    const _minD = new Date(_today); _minD.setDate(_minD.getDate()+3);
+    const _isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay()===0||dt.getDay()===1);
+    const _isTaipeiBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay()===1||dt.getDay()===2);
+    const _totalNeeded = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
+    if(dt < _minD || _isDeliveryBlocked || _isTaipeiBlocked || getProdDayTotal(order.date) < _totalNeeded){
+      order.date = null; renderCal(); toast('所選日期已無法預訂，請重新選擇 📅','error'); return;
+    }
+  }
   if(n===4){
     const method = getDeliveryMethod();
     const name=document.getElementById('f-name').value.trim();
