@@ -2938,7 +2938,8 @@ function renderRestockLog(){
 }
 
 function saveDefaultInv(){
-  const total = +document.getElementById('inv-default-total').value || 9;
+  const raw = document.getElementById('inv-default-total').value.trim();
+  const total = raw === '' ? 9 : +raw;
   db.ref('settings/maxPerDay').update({total}).then(()=>{
     showToast(`✅ 每日總上限 ${total} 盒`);
   });
