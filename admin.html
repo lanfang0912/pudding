@@ -4714,10 +4714,10 @@ function renderAccounting(){
   const month = document.getElementById('acc-month-sel').value;
   if(!month || !accIngLog) return;
 
-  // ── 收入（已確認/已出貨訂單，用下單時間 ts 歸月）
+  // ── 收入（已確認/已出貨訂單，用下單時間 ts 歸月；行銷專區不計收入）
   const revOrders = orders.filter(o => {
     const m = (o.ts||'').slice(0,7);
-    return m === month && (o.status==='paid' || o.status==='shipped');
+    return m === month && o.source !== 'yixin' && (o.status==='paid' || o.status==='shipped');
   });
   const revenue = revOrders.reduce((a,o) => a+(o.total||0), 0);
 
