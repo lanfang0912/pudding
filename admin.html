@@ -4833,8 +4833,9 @@ function renderAccounting(){
         <tbody>
           ${allIngRows.join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
-            <td colspan="4" style="${tdStyle};font-weight:600">合計</td>
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
             <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${totalIngCost.toLocaleString()}</td>
+            <td></td>
           </tr>
         </tbody></table>`;
 
@@ -4871,8 +4872,9 @@ function renderAccounting(){
         <tbody>
           ${allPkgRows.join('')}
           <tr style="border-top:2px solid var(--rule);background:var(--paper-dark)">
-            <td colspan="4" style="${tdStyle};font-weight:600">合計</td>
+            <td colspan="3" style="${tdStyle};font-weight:600">合計</td>
             <td style="${tdR};font-weight:600;color:var(--caramel)">NT$ ${totalPkgCost.toLocaleString()}</td>
+            <td></td>
           </tr>
         </tbody></table>`;
 
