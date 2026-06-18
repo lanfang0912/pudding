@@ -322,6 +322,7 @@ tr.done-row td{opacity:.45;}
     <div class="topbar-right"><span id="topbar-date"></span><button class="act-btn" onclick="openNew()" style="border-color:var(--caramel);color:var(--caramel);padding:6px 14px;font-size:11px;">＋ 新增訂單</button><button class="logout-btn" onclick="logout()">登出</button></div>
   </div>
   <div class="stats-bar" id="stats-bar"></div>
+  <div id="acc-overall" style="background:var(--paper-warm);border-bottom:1px solid var(--rule);padding:10px 28px"></div>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('orders',this)">📋 訂單總覽</button>
     <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
@@ -841,9 +842,6 @@ tr.done-row td{opacity:.45;}
   <!-- ── 記帳 ── -->
   <div class="tab-panel" id="tab-accounting">
     <div style="max-width:960px;margin:0 auto;padding:24px 28px">
-
-      <!-- 累計總覽 -->
-      <div id="acc-overall"></div>
 
       <!-- 月份篩選 -->
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
@@ -1465,6 +1463,20 @@ function startFirebaseListener(){
       .reduce((a, o) => a + orderBoxCount(o), 0);
     db.ref('stats/totalBoxes').set(totalBoxes);
   });
+  // 預載支出資料供頂部電腦基金顯示
+  if(!accLoaded){
+    Promise.all([
+      db.ref('settings/restockLog').once('value'),
+      db.ref('settings/pkgRestockLog').once('value'),
+      db.ref('settings/expenseLog').once('value'),
+    ]).then(([ingSnap, pkgSnap, expSnap]) => {
+      accIngLog = ingSnap.val() || {};
+      accPkgLog = pkgSnap.val() || {};
+      accExpLog = expSnap.val() || {};
+      accLoaded = true;
+      renderAccOverall();
+    });
+  }
   db.ref('settings/packaging').on('value', snap => {
     if(snap.val()){ pkgData = snap.val(); renderPkgAll(); }
   });
@@ -1576,6 +1588,7 @@ function renderStats(){
     <div class="stat-item"><div class="stat-value">${Math.round(boxes)}</div><div class="stat-label">確認盒數</div></div>
     <div class="stat-item" style="border-left:2px solid #7b5ea7;padding-left:14px"><div class="stat-value" style="color:#7b5ea7">${yixin.length}</div><div class="stat-label">📣 行銷筆數</div></div>
     <div class="stat-item"><div class="stat-value" style="color:#7b5ea7">NT$${yixinRev.toLocaleString()}</div><div class="stat-label">📣 行銷金額</div></div>`;
+  renderAccOverall();
 }
 
 function initFilters(){
@@ -4677,7 +4690,7 @@ let accLoaded = false;
 
 function renderAccOverall(){
   const el = document.getElementById('acc-overall');
-  if(!el) return;
+  if(!el || !accIngLog) return;
 
   const totalRevenue = orders
     .filter(o => o.source !== 'yixin' && (o.status==='paid' || o.status==='shipped'))
@@ -4692,30 +4705,23 @@ function renderAccOverall(){
   const pct = Math.min(100, Math.round(totalProfit / COMPUTER_GOAL * 100));
 
   el.innerHTML = `
-    <div style="background:var(--paper-dark);border-radius:6px;padding:20px 24px;margin-bottom:28px">
-      <div style="font-size:10px;letter-spacing:3px;color:var(--caramel);text-transform:uppercase;margin-bottom:16px">🖥️ 電腦基金 — 累計進度</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);margin-bottom:4px">累計淨利</div>
-          <div style="font-size:22px;font-weight:700;color:${totalProfit>=0?'var(--matcha)':'var(--red)'}">NT$ ${totalProfit.toLocaleString()}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);margin-bottom:4px">目標</div>
-          <div style="font-size:22px;font-weight:700;color:var(--ink)">NT$ ${COMPUTER_GOAL.toLocaleString()}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:var(--ink-soft);margin-bottom:4px">${remaining>0?'還差':'已達成 🎉'}</div>
-          <div style="font-size:22px;font-weight:700;color:${remaining>0?'var(--caramel)':'var(--matcha)'}">
-            ${remaining>0?'NT$ '+remaining.toLocaleString():'🎉'}
-          </div>
-        </div>
+    <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap">
+      <div class="stat-item" style="border-left:2px solid var(--matcha);padding-left:14px">
+        <div class="stat-value" style="color:${totalProfit>=0?'var(--matcha)':'var(--red)'}">NT$${totalProfit.toLocaleString()}</div>
+        <div class="stat-label">🖥️ 累計淨利</div>
       </div>
-      <div style="background:var(--paper);border-radius:3px;height:8px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(to right,var(--caramel),#e8a84c);border-radius:3px;transition:width 1s ease"></div>
+      <div class="stat-item">
+        <div class="stat-value" style="color:var(--caramel)">${remaining>0?'NT$'+remaining.toLocaleString():'🎉 達成！'}</div>
+        <div class="stat-label">還差電腦</div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--ink-soft)">
-        <span>NT$ ${totalProfit.toLocaleString()} / ${COMPUTER_GOAL.toLocaleString()}</span>
-        <span style="color:var(--caramel);font-weight:600">${pct}%</span>
+      <div style="flex:1;min-width:180px;max-width:320px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-bottom:5px">
+          <span>NT$42,900 目標</span>
+          <span style="color:var(--caramel);font-weight:600">${pct}%</span>
+        </div>
+        <div style="background:var(--paper);border-radius:2px;height:5px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(to right,var(--caramel),#e8a84c);border-radius:2px;transition:width 1s ease"></div>
+        </div>
       </div>
     </div>`;
 }
