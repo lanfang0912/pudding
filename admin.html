@@ -322,7 +322,6 @@ tr.done-row td{opacity:.45;}
     <div class="topbar-right"><span id="topbar-date"></span><button class="act-btn" onclick="openNew()" style="border-color:var(--caramel);color:var(--caramel);padding:6px 14px;font-size:11px;">＋ 新增訂單</button><button class="logout-btn" onclick="logout()">登出</button></div>
   </div>
   <div class="stats-bar" id="stats-bar"></div>
-  <div id="acc-overall" style="background:var(--paper-warm);border-bottom:1px solid var(--rule);padding:10px 28px"></div>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('orders',this)">📋 訂單總覽</button>
     <button class="tab-btn" onclick="switchTab('daily',this)">🚚 每日出貨清單</button>
@@ -1579,6 +1578,30 @@ function renderStats(){
   const boxes=orders.filter(o=>o.status!=='pending'&&o.source!=='yixin').reduce((a,o)=>a+orderBoxCount(o),0);
   const yixin=orders.filter(o=>o.source==='yixin');
   const yixinRev=yixin.filter(o=>o.status!=='pending').reduce((a,o)=>a+o.total,0);
+  // computer fund (only rendered if data is loaded)
+  let fundHtml = '';
+  if(accIngLog){
+    const totalRevenue = orders.filter(o=>o.source!=='yixin'&&(o.status==='paid'||o.status==='shipped')).reduce((a,o)=>a+(o.total||0),0);
+    const totalCost = Object.values(accIngLog).reduce((a,r)=>a+(r.totalCost||0),0)
+                    + Object.values(accPkgLog||{}).reduce((a,r)=>a+(r.cost||0),0)
+                    + Object.values(accExpLog||{}).reduce((a,r)=>a+(r.amount||0),0);
+    const profit = totalRevenue - totalCost;
+    const remaining = Math.max(0, COMPUTER_GOAL - profit);
+    const pct = Math.min(100, Math.round(profit / COMPUTER_GOAL * 100));
+    fundHtml = `
+      <div class="stat-item" style="border-left:2px solid var(--matcha);padding-left:14px">
+        <div class="stat-value" style="color:${profit>=0?'var(--matcha)':'var(--red)'}">NT$${profit.toLocaleString()}</div>
+        <div class="stat-label">🖥️ 累計淨利</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" style="color:var(--caramel)">${remaining>0?'NT$'+remaining.toLocaleString():'🎉 達成！'}</div>
+        <div class="stat-label">還差電腦</div>
+      </div>
+      <div style="flex-basis:100%;height:4px;background:var(--paper);border-radius:2px;overflow:hidden;margin-top:6px">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(to right,var(--caramel),#e8a84c);border-radius:2px;transition:width 1s ease"></div>
+      </div>`;
+  }
+
   document.getElementById('stats-bar').innerHTML=`
     <div class="stat-item"><div class="stat-value">${t}</div><div class="stat-label">總訂單</div></div>
     <div class="stat-item"><div class="stat-value" style="color:var(--red)">${p}</div><div class="stat-label">待確認匯款</div></div>
@@ -1587,8 +1610,8 @@ function renderStats(){
     <div class="stat-item"><div class="stat-value" style="color:var(--caramel)">NT$${rev.toLocaleString()}</div><div class="stat-label">已確認金額</div></div>
     <div class="stat-item"><div class="stat-value">${Math.round(boxes)}</div><div class="stat-label">確認盒數</div></div>
     <div class="stat-item" style="border-left:2px solid #7b5ea7;padding-left:14px"><div class="stat-value" style="color:#7b5ea7">${yixin.length}</div><div class="stat-label">📣 行銷筆數</div></div>
-    <div class="stat-item"><div class="stat-value" style="color:#7b5ea7">NT$${yixinRev.toLocaleString()}</div><div class="stat-label">📣 行銷金額</div></div>`;
-  renderAccOverall();
+    <div class="stat-item"><div class="stat-value" style="color:#7b5ea7">NT$${yixinRev.toLocaleString()}</div><div class="stat-label">📣 行銷金額</div></div>
+    ${fundHtml}`;
 }
 
 function initFilters(){
@@ -4689,6 +4712,7 @@ let accIngLog = null, accPkgLog = null, accExpLog = {};
 let accLoaded = false;
 
 function renderAccOverall(){
+  renderStats();
   const el = document.getElementById('acc-overall');
   if(!el || !accIngLog) return;
 
