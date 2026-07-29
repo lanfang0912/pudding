@@ -157,12 +157,15 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
       <label class="form-label" id="row-carrier-num-label">載具號碼</label>
       <div class="input-with-btn">
         <input class="form-ctrl" id="inv-carrier-num" placeholder="手機條碼：/XXXXXXX">
-        <button type="button" class="scan-btn" id="scan-btn" style="display:none" onclick="openScan()">📷 掃描</button>
+        <button type="button" class="scan-btn" id="scan-btn" style="display:none" onclick="openScan('carrier')">📷 掃描</button>
       </div>
     </div>
     <div class="form-group" id="row-npo" style="display:none">
       <label class="form-label">愛心碼</label>
-      <input class="form-ctrl" id="inv-npo" placeholder="3~7 位數字" inputmode="numeric">
+      <div class="input-with-btn">
+        <input class="form-ctrl" id="inv-npo" placeholder="3~7 位數字" inputmode="numeric">
+        <button type="button" class="scan-btn" onclick="openScan('npo')">📷 掃描</button>
+      </div>
     </div>
     <div class="form-group" id="row-taxid" style="display:none">
       <label class="form-label">公司統編（8 碼）</label>
@@ -395,7 +398,7 @@ function setCarrier(type) {
   document.getElementById('row-taxid-name').style.display    = type === 'taxid' ? '' : 'none';
   const label = document.getElementById('row-carrier-num-label');
   label.textContent = type === 'CQ0001' ? '自然人憑證（2碼英文＋14碼數字）' : '手機條碼（/XXXXXXX）';
-  if (type === '3J0002') openScan();
+  if (type === '3J0002') openScan('carrier');
 }
 
 function showInvErr(msg) {
@@ -411,7 +414,14 @@ function setScanStatus(msg) {
   document.getElementById('scan-status').textContent = msg;
 }
 
-async function openScan() {
+const SCAN_TARGETS = {
+  carrier: { inputId: 'inv-carrier-num', regex: /^\/[0-9A-Z+\-.]{7}$/ },
+  npo:     { inputId: 'inv-npo',         regex: /^\d{3,7}$/ },
+};
+
+async function openScan(target) {
+  const cfg = SCAN_TARGETS[target] || SCAN_TARGETS.carrier;
+
   if (typeof ZXing === 'undefined') {
     showInvErr('⚠️ 掃描功能載入失敗（網路問題），請改用手動輸入');
     return;
@@ -435,8 +445,8 @@ async function openScan() {
       (result) => {
         if (result) {
           const text = result.getText().trim();
-          if (/^\/[0-9A-Z+\-.]{7}$/.test(text)) {
-            document.getElementById('inv-carrier-num').value = text;
+          if (cfg.regex.test(text)) {
+            document.getElementById(cfg.inputId).value = text;
             closeScan();
             showToast(`✅ 已掃描：${text}`);
           } else {
