@@ -9,6 +9,8 @@
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;--green:#4a7a4a;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{overflow-x:hidden;}
+input,button,select{min-width:0;font-size:16px;}
 body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);min-height:100vh;padding-bottom:96px;}
 .topbar{background:var(--ink);color:var(--paper);padding:14px 18px;position:sticky;top:0;z-index:100;}
 .topbar-title{font-family:'DM Serif Display',serif;font-size:18px;}
@@ -28,7 +30,7 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 .step-qty{min-width:22px;font-size:15px;font-weight:700;}
 
 .custom-row{display:flex;gap:8px;margin-top:10px;}
-.custom-row input{flex:1;border:1px solid var(--rule);border-radius:4px;padding:9px 10px;font-family:inherit;font-size:13px;background:var(--paper-warm);}
+.custom-row input{flex:1;min-width:0;border:1px solid var(--rule);border-radius:4px;padding:9px 10px;font-family:inherit;font-size:16px;background:var(--paper-warm);}
 .custom-row input.price{flex:0 0 90px;}
 .add-btn{padding:9px 16px;background:var(--ink-mid);color:#fff;border:none;border-radius:4px;font-family:inherit;font-size:13px;cursor:pointer;}
 
@@ -58,7 +60,7 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 
 .form-group{margin-bottom:14px;}
 .form-label{font-size:11px;color:var(--ink-soft);letter-spacing:1px;display:block;margin-bottom:5px;}
-.form-ctrl{width:100%;border:1px solid var(--rule);border-radius:4px;padding:11px 12px;font-family:inherit;font-size:14px;background:var(--paper-warm);}
+.form-ctrl{width:100%;border:1px solid var(--rule);border-radius:4px;padding:11px 12px;font-family:inherit;font-size:16px;background:var(--paper-warm);}
 .form-ctrl:focus{outline:none;border-color:var(--caramel);}
 
 .carrier-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
@@ -81,7 +83,7 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 .manual-row{margin-top:14px;}
 
 .input-with-btn{display:flex;gap:8px;}
-.input-with-btn input{flex:1;}
+.input-with-btn input{flex:1;min-width:0;}
 .scan-btn{flex-shrink:0;padding:0 16px;border:1px solid var(--caramel);color:var(--caramel);background:var(--paper-warm);border-radius:4px;font-family:inherit;font-size:13px;cursor:pointer;white-space:nowrap;}
 
 .scan-overlay{position:fixed;inset:0;background:#000;z-index:400;display:none;flex-direction:column;}
@@ -411,9 +413,14 @@ function setScanStatus(msg) {
 
 async function openScan() {
   if (typeof ZXing === 'undefined') {
-    showInvErr('⚠️ 掃描功能載入失敗，請改用手動輸入');
+    showInvErr('⚠️ 掃描功能載入失敗（網路問題），請改用手動輸入');
     return;
   }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showInvErr('⚠️ 這個瀏覽器不支援相機掃描。若是從 LINE／Messenger／IG 等 App 內建瀏覽器打開，請點右上角「⋯」選「在瀏覽器中開啟」（Safari 或 Chrome），再回來試一次。');
+    return;
+  }
+
   document.getElementById('scan-overlay').classList.add('open');
   setScanStatus('請將條碼對準框內');
 
@@ -422,22 +429,37 @@ async function openScan() {
   zxingReader = new ZXing.BrowserMultiFormatReader(hints);
 
   try {
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    await zxingReader.decodeFromVideoDevice(backCam ? backCam.deviceId : undefined, 'scan-video', (result, err) => {
-      if (result) {
-        const text = result.getText().trim();
-        if (/^\/[0-9A-Z+\-.]{7}$/.test(text)) {
-          document.getElementById('inv-carrier-num').value = text;
-          closeScan();
-          showToast(`✅ 已掃描：${text}`);
-        } else {
-          setScanStatus(`格式不符：${text}，請重新對準`);
+    await zxingReader.decodeFromConstraints(
+      { video: { facingMode: 'environment' } },
+      'scan-video',
+      (result) => {
+        if (result) {
+          const text = result.getText().trim();
+          if (/^\/[0-9A-Z+\-.]{7}$/.test(text)) {
+            document.getElementById('inv-carrier-num').value = text;
+            closeScan();
+            showToast(`✅ 已掃描：${text}`);
+          } else {
+            setScanStatus(`格式不符：${text}，請重新對準`);
+          }
         }
       }
-    });
+    );
   } catch (e) {
-    setScanStatus('⚠️ 無法開啟相機，請確認已允許相機權限，或改用手動輸入');
+    document.getElementById('scan-overlay').classList.remove('open');
+    let msg = '⚠️ 無法開啟相機';
+    if (e.name === 'NotAllowedError') {
+      msg = '⚠️ 相機權限被拒絕。請到瀏覽器的「網站設定」把這個網站的相機權限改成允許，再重新整理頁面試一次';
+    } else if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') {
+      msg = '⚠️ 找不到可用的相機';
+    } else if (e.name === 'NotReadableError') {
+      msg = '⚠️ 相機被其他 App 占用中，請關閉其他有用到相機的畫面後再試';
+    } else if (e.name === 'SecurityError') {
+      msg = '⚠️ 需要在 https 網址下才能使用相機';
+    } else if (e.message) {
+      msg = `⚠️ 無法開啟相機：${e.message}`;
+    }
+    showInvErr(msg + '，可先改用手動輸入');
   }
 }
 
