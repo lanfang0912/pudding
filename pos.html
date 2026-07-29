@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>初白時光｜擺攤 POS</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;--green:#4a7a4a;}
@@ -241,15 +243,32 @@ const PRODUCTS = [
   { key:'cocoa',    name:'可可布丁', price:STALL_PRICES.cocoa,    unit:'顆' },
 ];
 
-const PRESET_STORAGE_KEY = 'pos_preset_products';
-function loadPresets() {
-  try { return JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY)) || []; }
-  catch(e) { return []; }
+// ── 常用品項：存在 Firebase，兩邊攤位共用同步 ──
+const FB_CONFIG = {
+  apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
+  authDomain: 'whitedessert.firebaseapp.com',
+  databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'whitedessert',
+};
+let db = null;
+try {
+  firebase.initializeApp(FB_CONFIG);
+  db = firebase.database();
+} catch (e) {
+  console.warn('Firebase 初始化失敗，常用品項將無法同步', e);
 }
-function savePresets(list) {
-  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(list));
+
+let presets = []; // { key, name, price, unit }
+
+if (db) {
+  db.ref('settings/posPresets').on('value', snap => {
+    const val = snap.val() || {};
+    presets = Object.entries(val).map(([key, p]) => ({ key, name: p.name, price: p.price, unit: p.unit || '份' }));
+    renderProducts();
+    renderCart();
+    if (document.getElementById('manage-overlay').classList.contains('open')) renderManageList();
+  }, e => console.warn('posPresets listener:', e));
 }
-let presets = loadPresets(); // { key, name, price, unit }
 
 function allProducts() { return PRODUCTS.concat(presets); }
 
@@ -349,29 +368,29 @@ function renderManageList() {
     el.innerHTML = '<div class="cart-empty">尚未新增常用品項</div>';
     return;
   }
-  el.innerHTML = presets.map((p, i) => `
+  el.innerHTML = presets.map(p => `
     <div class="cart-row">
       <div class="cart-row-name">${p.name}</div>
       <div class="cart-row-amt">$${p.price}</div>
-      <button class="cart-row-del" onclick="deletePreset(${i})">✕</button>
+      <button class="cart-row-del" onclick="deletePreset('${p.key}')">✕</button>
     </div>`).join('');
 }
 function addPreset() {
+  if (!db) { showToast('⚠️ 無法連線，稍後再試'); return; }
   const nameEl  = document.getElementById('preset-name');
   const priceEl = document.getElementById('preset-price');
   const name  = nameEl.value.trim();
   const price = Number(priceEl.value);
   if (!name) { showToast('⚠️ 請輸入品名'); return; }
   if (!price || price <= 0) { showToast('⚠️ 請輸入正確單價'); return; }
-  presets.push({ key:`preset_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, name, price, unit:'份' });
-  savePresets(presets);
-  nameEl.value = ''; priceEl.value = '';
-  renderManageList();
+  const key = `preset_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  db.ref('settings/posPresets/' + key).set({ name, price, unit: '份' }).then(() => {
+    nameEl.value = ''; priceEl.value = '';
+  }).catch(e => showToast('⚠️ 新增失敗：' + e.message));
 }
-function deletePreset(idx) {
-  presets.splice(idx, 1);
-  savePresets(presets);
-  renderManageList();
+function deletePreset(key) {
+  if (!db) return;
+  db.ref('settings/posPresets/' + key).remove().catch(e => showToast('⚠️ 刪除失敗：' + e.message));
 }
 
 // ── Step 2：開發票 ──

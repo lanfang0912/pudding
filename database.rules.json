@@ -10,6 +10,12 @@
       "design":        { ".read": true, ".write": "auth != null && auth.token.email == 'admin@wd.tw'" },
       "maxPerDay":     { ".read": true, ".write": "auth != null && auth.token.email == 'admin@wd.tw'" },
       "prodOverrides": { ".read": true, ".write": "auth != null && auth.token.email == 'admin@wd.tw'" },
+      "posPresets": {
+        ".read": true,
+        "$presetId": {
+          ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !newData.exists() || (newData.hasChildren(['name','price']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('price').isNumber() && newData.child('price').val() > 0 && newData.child('price').val() <= 5000)"
+        }
+      },
       "$other":        { ".read": "auth != null && auth.token.email == 'admin@wd.tw'", ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
     },
     "articles": {
