@@ -183,16 +183,12 @@ tr.done-row td{opacity:.45;}
   .stat-value { font-size: 20px; }
   .stat-label { font-size: 10px; }
 
-  /* ── Tabs：橫向捲動（隱藏捲軸）── */
+  /* ── Tabs：自動換行，不需左右滑動 ── */
   .tabs {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    white-space: nowrap;
-    padding: 0 6px;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    padding: 6px 6px 0;
   }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab-btn { padding: 11px 14px; font-size: 12px; letter-spacing: 0.3px; }
+  .tab-btn { padding: 9px 12px; font-size: 12px; letter-spacing: 0.3px; }
 
   /* ── Filters ── */
   .filters { padding: 10px 14px; gap: 8px; }
