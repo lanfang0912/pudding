@@ -205,6 +205,10 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
     <div class="overlay-title">⚙️ 管理常用品項</div>
   </div>
   <div class="overlay-body">
+    <div class="section-label" style="margin-top:0">基本品項單價</div>
+    <div class="cart" id="base-manage-list" style="margin-bottom:20px"></div>
+
+    <div class="section-label">常用／限定品項</div>
     <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">先把限定口味／固定價格的品項存起來，擺攤時就能跟布丁一樣直接點按鈕加入，不用每次手動輸入。</div>
     <div class="cart" id="manage-list" style="margin-bottom:16px"></div>
     <div class="custom-row">
@@ -235,15 +239,15 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 const GUANGMAO = {
   issueUrl: 'https://tcat-proxy.lanfang-hsu.workers.dev/issueInvoice',
 };
-// 擺攤單顆計價，跟官網整盒售價不同
-const STALL_PRICES = { original: 60, matcha: 65, cocoa: 65 };
-const PRODUCTS = [
-  { key:'original', name:'原味布丁', price:STALL_PRICES.original, unit:'顆' },
-  { key:'matcha',   name:'抹茶布丁', price:STALL_PRICES.matcha,   unit:'顆' },
-  { key:'cocoa',    name:'可可布丁', price:STALL_PRICES.cocoa,    unit:'顆' },
-];
+// 擺攤單顆計價，跟官網整盒售價不同（存在 Firebase，可在「管理常用品項」直接改）
+const DEFAULT_BASE_PRODUCTS = {
+  original: { name:'原味布丁', price:60, unit:'顆' },
+  matcha:   { name:'抹茶布丁', price:65, unit:'顆' },
+  cocoa:    { name:'可可布丁', price:65, unit:'顆' },
+};
+const BASE_ORDER = ['original', 'matcha', 'cocoa'];
 
-// ── 常用品項：存在 Firebase，兩邊攤位共用同步 ──
+// ── 常用品項 + 基本品項：存在 Firebase，兩邊攤位共用同步 ──
 const FB_CONFIG = {
   apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
   authDomain: 'whitedessert.firebaseapp.com',
@@ -255,12 +259,27 @@ try {
   firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
 } catch (e) {
-  console.warn('Firebase 初始化失敗，常用品項將無法同步', e);
+  console.warn('Firebase 初始化失敗，商品將無法同步', e);
 }
 
+let baseProducts = BASE_ORDER.map(k => ({ key: k, ...DEFAULT_BASE_PRODUCTS[k] }));
 let presets = []; // { key, name, price, unit }
 
 if (db) {
+  db.ref('settings/posProducts').on('value', snap => {
+    const val = snap.val();
+    if (!val) {
+      const seed = {};
+      BASE_ORDER.forEach(k => { seed[k] = DEFAULT_BASE_PRODUCTS[k]; });
+      db.ref('settings/posProducts').set(seed);
+      return; // 寫入後會再次觸發這個監聽，帶回剛存的資料
+    }
+    baseProducts = BASE_ORDER.map(k => ({ key: k, ...(val[k] || DEFAULT_BASE_PRODUCTS[k]) }));
+    renderProducts();
+    renderCart();
+    if (document.getElementById('manage-overlay').classList.contains('open')) renderBaseManageList();
+  }, e => console.warn('posProducts listener:', e));
+
   db.ref('settings/posPresets').on('value', snap => {
     const val = snap.val() || {};
     presets = Object.entries(val).map(([key, p]) => ({ key, name: p.name, price: p.price, unit: p.unit || '份' }));
@@ -270,7 +289,7 @@ if (db) {
   }, e => console.warn('posPresets listener:', e));
 }
 
-function allProducts() { return PRODUCTS.concat(presets); }
+function allProducts() { return baseProducts.concat(presets); }
 
 let cart = []; // { name, unit, price, count }
 let carrierType = 'email';
@@ -355,12 +374,34 @@ function showToast(msg) {
 
 // ── 常用品項管理 ──
 function openManage() {
+  renderBaseManageList();
   renderManageList();
   document.getElementById('manage-overlay').classList.add('open');
 }
 function closeManage() {
   document.getElementById('manage-overlay').classList.remove('open');
   renderProducts();
+}
+function renderBaseManageList() {
+  const el = document.getElementById('base-manage-list');
+  if (!el) return;
+  el.innerHTML = baseProducts.map(p => `
+    <div class="cart-row">
+      <div class="cart-row-name">${p.name}（${p.unit}）</div>
+      <div style="display:flex;align-items:center;gap:4px;font-size:16px">
+        $<input type="number" min="1" value="${p.price}"
+          style="width:64px;padding:5px 6px;border:1px solid var(--rule);border-radius:4px;font-family:inherit;font-size:16px;text-align:right"
+          onchange="saveBasePrice('${p.key}', this.value)">
+      </div>
+    </div>`).join('');
+}
+function saveBasePrice(key, value) {
+  const price = Number(value);
+  if (!price || price <= 0) { showToast('⚠️ 價格不正確'); renderBaseManageList(); return; }
+  if (!db) return;
+  db.ref('settings/posProducts/' + key + '/price').set(price)
+    .then(() => showToast('✅ 已更新'))
+    .catch(e => showToast('⚠️ 更新失敗：' + e.message));
 }
 function renderManageList() {
   const el = document.getElementById('manage-list');
