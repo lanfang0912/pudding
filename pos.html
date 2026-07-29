@@ -90,10 +90,13 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 </div>
 
 <div class="wrap">
-  <div class="section-label">商品</div>
+  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+    <span>商品</span>
+    <span style="color:var(--caramel);font-size:11px;cursor:pointer;letter-spacing:1px" onclick="openManage()">⚙️ 管理常用品項</span>
+  </div>
   <div class="prod-grid" id="prod-grid"></div>
 
-  <div class="section-label">自訂品項（限定口味／特殊包裝）</div>
+  <div class="section-label">臨時單筆加入（不會存起來）</div>
   <div class="custom-row">
     <input id="custom-name" placeholder="品名">
     <input id="custom-price" class="price" type="number" inputmode="numeric" placeholder="單價">
@@ -171,6 +174,23 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
   </div>
 </div>
 
+<!-- 管理常用品項 -->
+<div class="overlay" id="manage-overlay">
+  <div class="overlay-hdr">
+    <button class="back-btn" onclick="closeManage()">←</button>
+    <div class="overlay-title">⚙️ 管理常用品項</div>
+  </div>
+  <div class="overlay-body">
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">先把限定口味／固定價格的品項存起來，擺攤時就能跟布丁一樣直接點按鈕加入，不用每次手動輸入。</div>
+    <div class="cart" id="manage-list" style="margin-bottom:16px"></div>
+    <div class="custom-row">
+      <input id="preset-name" placeholder="品名">
+      <input id="preset-price" class="price" type="number" inputmode="numeric" placeholder="單價">
+      <button class="add-btn" onclick="addPreset()">新增</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -185,12 +205,24 @@ const PRODUCTS = [
   { key:'cocoa',    name:'可可布丁', price:GUANGMAO.prices.cocoa,    unit:'盒' },
 ];
 
+const PRESET_STORAGE_KEY = 'pos_preset_products';
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY)) || []; }
+  catch(e) { return []; }
+}
+function savePresets(list) {
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(list));
+}
+let presets = loadPresets(); // { key, name, price, unit }
+
+function allProducts() { return PRODUCTS.concat(presets); }
+
 let cart = []; // { name, unit, price, count }
 let carrierType = 'email';
 
 function renderProducts() {
   const grid = document.getElementById('prod-grid');
-  grid.innerHTML = PRODUCTS.map(p => {
+  grid.innerHTML = allProducts().map(p => {
     const line = cart.find(c => c.key === p.key);
     const qty = line ? line.count : 0;
     return `
@@ -207,7 +239,7 @@ function renderProducts() {
 }
 
 function stepProduct(key, delta) {
-  const p = PRODUCTS.find(x => x.key === key);
+  const p = allProducts().find(x => x.key === key);
   let line = cart.find(c => c.key === key);
   if (!line) {
     if (delta < 0) return;
@@ -264,6 +296,46 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── 常用品項管理 ──
+function openManage() {
+  renderManageList();
+  document.getElementById('manage-overlay').classList.add('open');
+}
+function closeManage() {
+  document.getElementById('manage-overlay').classList.remove('open');
+  renderProducts();
+}
+function renderManageList() {
+  const el = document.getElementById('manage-list');
+  if (!presets.length) {
+    el.innerHTML = '<div class="cart-empty">尚未新增常用品項</div>';
+    return;
+  }
+  el.innerHTML = presets.map((p, i) => `
+    <div class="cart-row">
+      <div class="cart-row-name">${p.name}</div>
+      <div class="cart-row-amt">$${p.price}</div>
+      <button class="cart-row-del" onclick="deletePreset(${i})">✕</button>
+    </div>`).join('');
+}
+function addPreset() {
+  const nameEl  = document.getElementById('preset-name');
+  const priceEl = document.getElementById('preset-price');
+  const name  = nameEl.value.trim();
+  const price = Number(priceEl.value);
+  if (!name) { showToast('⚠️ 請輸入品名'); return; }
+  if (!price || price <= 0) { showToast('⚠️ 請輸入正確單價'); return; }
+  presets.push({ key:`preset_${Date.now()}_${Math.random().toString(36).slice(2,6)}`, name, price, unit:'份' });
+  savePresets(presets);
+  nameEl.value = ''; priceEl.value = '';
+  renderManageList();
+}
+function deletePreset(idx) {
+  presets.splice(idx, 1);
+  savePresets(presets);
+  renderManageList();
 }
 
 // ── Step 2：開發票 ──
