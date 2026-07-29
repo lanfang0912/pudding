@@ -411,9 +411,14 @@ function setScanStatus(msg) {
 
 async function openScan() {
   if (typeof ZXing === 'undefined') {
-    showInvErr('⚠️ 掃描功能載入失敗，請改用手動輸入');
+    showInvErr('⚠️ 掃描功能載入失敗（網路問題），請改用手動輸入');
     return;
   }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showInvErr('⚠️ 這個瀏覽器不支援相機掃描。若是從 LINE／Messenger／IG 等 App 內建瀏覽器打開，請點右上角「⋯」選「在瀏覽器中開啟」（Safari 或 Chrome），再回來試一次。');
+    return;
+  }
+
   document.getElementById('scan-overlay').classList.add('open');
   setScanStatus('請將條碼對準框內');
 
@@ -422,22 +427,37 @@ async function openScan() {
   zxingReader = new ZXing.BrowserMultiFormatReader(hints);
 
   try {
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    await zxingReader.decodeFromVideoDevice(backCam ? backCam.deviceId : undefined, 'scan-video', (result, err) => {
-      if (result) {
-        const text = result.getText().trim();
-        if (/^\/[0-9A-Z+\-.]{7}$/.test(text)) {
-          document.getElementById('inv-carrier-num').value = text;
-          closeScan();
-          showToast(`✅ 已掃描：${text}`);
-        } else {
-          setScanStatus(`格式不符：${text}，請重新對準`);
+    await zxingReader.decodeFromConstraints(
+      { video: { facingMode: 'environment' } },
+      'scan-video',
+      (result) => {
+        if (result) {
+          const text = result.getText().trim();
+          if (/^\/[0-9A-Z+\-.]{7}$/.test(text)) {
+            document.getElementById('inv-carrier-num').value = text;
+            closeScan();
+            showToast(`✅ 已掃描：${text}`);
+          } else {
+            setScanStatus(`格式不符：${text}，請重新對準`);
+          }
         }
       }
-    });
+    );
   } catch (e) {
-    setScanStatus('⚠️ 無法開啟相機，請確認已允許相機權限，或改用手動輸入');
+    document.getElementById('scan-overlay').classList.remove('open');
+    let msg = '⚠️ 無法開啟相機';
+    if (e.name === 'NotAllowedError') {
+      msg = '⚠️ 相機權限被拒絕。請到瀏覽器的「網站設定」把這個網站的相機權限改成允許，再重新整理頁面試一次';
+    } else if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') {
+      msg = '⚠️ 找不到可用的相機';
+    } else if (e.name === 'NotReadableError') {
+      msg = '⚠️ 相機被其他 App 占用中，請關閉其他有用到相機的畫面後再試';
+    } else if (e.name === 'SecurityError') {
+      msg = '⚠️ 需要在 https 網址下才能使用相機';
+    } else if (e.message) {
+      msg = `⚠️ 無法開啟相機：${e.message}`;
+    }
+    showInvErr(msg + '，可先改用手動輸入');
   }
 }
 
