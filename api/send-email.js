@@ -73,20 +73,30 @@ async function handler(req, res, deps = {}) {
       return;
     }
 
-    // 新訂單時通知店家
+    // 新訂單時通知店家（await 執行完成，避免 serverless function 在寄送完成前就被終止）
     if (type === 'customer-confirmation') {
       const ownerEmail = env.OWNER_EMAIL;
       if (ownerEmail) {
-        const ownerNotification = buildOwnerNotificationEmail(order);
-        const ownerPayload = buildResendPayload({ from, email: { to: ownerEmail, ...ownerNotification } });
-        fetchImpl('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(ownerPayload),
-        }).catch(() => {});
+        try {
+          const ownerNotification = buildOwnerNotificationEmail(order);
+          const ownerPayload = buildResendPayload({ from, email: { to: ownerEmail, ...ownerNotification } });
+          const ownerRes = await fetchImpl('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(ownerPayload),
+          });
+          if (!ownerRes.ok) {
+            const ownerText = await ownerRes.text();
+            console.error('店家通知信寄送失敗:', ownerRes.status, ownerText);
+          }
+        } catch (err) {
+          console.error('店家通知信寄送發生例外:', err);
+        }
+      } else {
+        console.error('未設定 OWNER_EMAIL，略過店家新訂單通知');
       }
     }
 
