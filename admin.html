@@ -3057,7 +3057,10 @@ function renderInvCalendar(overrides){
 
   const wd = ['日','一','二','三','四','五','六'];
 
-  const mobile = isMobile();
+  // 這個區塊的外層容器固定 max-width:640px（見 #tab-inventory），
+  // 桌機用的 7 欄表格塞不下會橫向溢出、把上限輸入框擠出視窗外，
+  // 所以一律用卡片版面，不看視窗寬度。
+  const mobile = true;
 
   // 建立表格（電腦/平板）或卡片（手機）
   let html = mobile ? '' : `
