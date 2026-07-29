@@ -197,12 +197,13 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 // ── 光貿電子發票（沿用官網後台設定）──
 const GUANGMAO = {
   issueUrl: 'https://tcat-proxy.lanfang-hsu.workers.dev/issueInvoice',
-  prices: { original: 360, matcha: 390, cocoa: 390 },
 };
+// 擺攤單顆計價，跟官網整盒售價不同
+const STALL_PRICES = { original: 60, matcha: 65, cocoa: 65 };
 const PRODUCTS = [
-  { key:'original', name:'原味布丁', price:GUANGMAO.prices.original, unit:'盒' },
-  { key:'matcha',   name:'抹茶布丁', price:GUANGMAO.prices.matcha,   unit:'盒' },
-  { key:'cocoa',    name:'可可布丁', price:GUANGMAO.prices.cocoa,    unit:'盒' },
+  { key:'original', name:'原味布丁', price:STALL_PRICES.original, unit:'顆' },
+  { key:'matcha',   name:'抹茶布丁', price:STALL_PRICES.matcha,   unit:'顆' },
+  { key:'cocoa',    name:'可可布丁', price:STALL_PRICES.cocoa,    unit:'顆' },
 ];
 
 const PRESET_STORAGE_KEY = 'pos_preset_products';
