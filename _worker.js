@@ -197,11 +197,12 @@ async function handleSendEmail(request, env, ctx) {
     const { ok, status, data } = await sendEmail({ from, to: [email.to], subject: email.subject, text: email.text });
     if (!ok) return json({ success: false, error: data.message || data.error || 'Resend error', details: data }, status || 502);
 
-    // 新訂單時通知店家
+    // 新訂單時通知店家（OWNER_EMAIL 可用逗號或分號分隔多個收件人）
     if (type === 'customer-confirmation') {
-      if (env.OWNER_EMAIL) {
+      const ownerEmails = (env.OWNER_EMAIL || '').split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+      if (ownerEmails.length > 0) {
         const ownerEmail = buildOwnerNotificationEmail(order);
-        const notifyOwner = sendEmail({ from, to: [env.OWNER_EMAIL], subject: ownerEmail.subject, text: ownerEmail.text })
+        const notifyOwner = sendEmail({ from, to: ownerEmails, subject: ownerEmail.subject, text: ownerEmail.text })
           .then((result) => {
             if (!result.ok) console.error('店家通知信寄送失敗:', result.status, result.data);
           })
