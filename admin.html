@@ -3179,6 +3179,8 @@ function saveInvCell(input){
   const field = input.dataset.field;
   const val   = input.value.trim();
 
+  input.disabled = true;
+
   // 讀取該日目前的 override（避免覆蓋其他欄位）
   db.ref('settings/prodOverrides/'+date).once('value').then(snap => {
     const current = snap.val() || {};
@@ -3188,13 +3190,17 @@ function saveInvCell(input){
     } else {
       current[field] = +val;
     }
-    if(Object.keys(current).length === 0){
-      // 全空 → 刪掉整個日期
-      db.ref('settings/prodOverrides/'+date).remove();
-    } else {
-      db.ref('settings/prodOverrides/'+date).set(current);
-    }
+    const write = Object.keys(current).length === 0
+      ? db.ref('settings/prodOverrides/'+date).remove()  // 全空 → 刪掉整個日期
+      : db.ref('settings/prodOverrides/'+date).set(current);
+    return write;
+  }).then(()=>{
     showToast(`✅ ${date} ${field} 已儲存`);
+    loadInvSettings();
+  }).catch(err => {
+    console.error('[saveInvCell] 儲存失敗:', err);
+    showToast(`⚠️ 儲存失敗：${err.message}`);
+    input.disabled = false;
   });
 }
 
