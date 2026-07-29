@@ -108,9 +108,12 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 </div>
 
 <div class="wrap">
-  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+  <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
     <span>商品</span>
-    <span style="color:var(--caramel);font-size:11px;cursor:pointer;letter-spacing:1px" onclick="openManage()">⚙️ 管理常用品項</span>
+    <span style="display:flex;gap:14px">
+      <span style="color:var(--caramel);font-size:11px;cursor:pointer;letter-spacing:1px" onclick="openReport()">📊 今日進度</span>
+      <span style="color:var(--caramel);font-size:11px;cursor:pointer;letter-spacing:1px" onclick="openManage()">⚙️ 管理常用品項</span>
+    </span>
   </div>
   <div class="prod-grid" id="prod-grid"></div>
 
@@ -219,6 +222,23 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
   </div>
 </div>
 
+<!-- 今日進度／收攤報表 -->
+<div class="overlay" id="report-overlay">
+  <div class="overlay-hdr">
+    <button class="back-btn" onclick="closeReport()">←</button>
+    <div class="overlay-title">📊 今日進度</div>
+  </div>
+  <div class="overlay-body">
+    <div class="cart" id="report-list" style="margin-bottom:16px"></div>
+    <div class="order-summary" style="display:flex;justify-content:space-between;align-items:center">
+      <span>今日總營收</span>
+      <span style="font-size:20px;color:var(--caramel);font-weight:700" id="report-total">$0</span>
+    </div>
+    <button class="submit-btn" style="background:var(--red);margin-top:24px" onclick="confirmCloseDay()">🔚 收攤，確認歸零</button>
+    <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:8px">歸零後今天的備貨量與銷售紀錄會清空，明天要重新設定備貨量</div>
+  </div>
+</div>
+
 <!-- 掃描手機條碼 -->
 <div class="scan-overlay" id="scan-overlay">
   <div class="scan-hdr">
@@ -264,6 +284,7 @@ try {
 
 let baseProducts = BASE_ORDER.map(k => ({ key: k, ...DEFAULT_BASE_PRODUCTS[k] }));
 let presets = []; // { key, name, price, unit }
+let dailyStock = {}; // { [key]: { stock, sold } } ── 今日備貨與已售，兩邊攤位共用同步
 
 if (db) {
   db.ref('settings/posProducts').on('value', snap => {
@@ -287,6 +308,24 @@ if (db) {
     renderCart();
     if (document.getElementById('manage-overlay').classList.contains('open')) renderManageList();
   }, e => console.warn('posPresets listener:', e));
+
+  db.ref('settings/posDaily').on('value', snap => {
+    dailyStock = snap.val() || {};
+    renderProducts();
+    if (document.getElementById('manage-overlay').classList.contains('open')) {
+      renderBaseManageList();
+      renderManageList();
+    }
+    if (document.getElementById('report-overlay').classList.contains('open')) renderReport();
+  }, e => console.warn('posDaily listener:', e));
+}
+
+// stock === 0（或未設定）代表這個品項不管控庫存，賣多少算多少
+function stockInfo(key) {
+  const d = dailyStock[key];
+  if (!d || !d.stock) return null;
+  const sold = d.sold || 0;
+  return { stock: d.stock, sold, remaining: Math.max(0, d.stock - sold) };
 }
 
 function allProducts() { return baseProducts.concat(presets); }
@@ -299,14 +338,17 @@ function renderProducts() {
   grid.innerHTML = allProducts().map(p => {
     const line = cart.find(c => c.key === p.key);
     const qty = line ? line.count : 0;
+    const si = stockInfo(p.key);
+    const availLeft = si ? si.remaining - qty : null;
+    const soldOut = si && availLeft <= 0;
     return `
       <div class="prod-card">
         <div class="prod-name">${p.name}</div>
-        <div class="prod-price">$${p.price} / ${p.unit}</div>
+        <div class="prod-price">$${p.price} / ${p.unit}${si ? `　<span style="color:${soldOut ? 'var(--red)' : 'var(--ink-soft)'}">${soldOut ? '售完' : `剩 ${si.remaining}`}</span>` : ''}</div>
         <div class="prod-steps">
           <button class="step-btn" onclick="stepProduct('${p.key}',-1)">－</button>
           <span class="step-qty">${qty}</span>
-          <button class="step-btn" onclick="stepProduct('${p.key}',1)">＋</button>
+          <button class="step-btn" ${soldOut ? 'disabled style="opacity:.35;cursor:not-allowed"' : ''} onclick="stepProduct('${p.key}',1)">＋</button>
         </div>
       </div>`;
   }).join('');
@@ -315,6 +357,11 @@ function renderProducts() {
 function stepProduct(key, delta) {
   const p = allProducts().find(x => x.key === key);
   let line = cart.find(c => c.key === key);
+  const curQty = line ? line.count : 0;
+  if (delta > 0) {
+    const si = stockInfo(key);
+    if (si && curQty + 1 > si.remaining) { showToast(`⚠️ ${p.name} 只剩 ${si.remaining} ${p.unit}`); return; }
+  }
   if (!line) {
     if (delta < 0) return;
     line = { key, name:p.name, unit:p.unit, price:p.price, count:0 };
@@ -382,17 +429,36 @@ function closeManage() {
   document.getElementById('manage-overlay').classList.remove('open');
   renderProducts();
 }
+function stockRowHtml(key) {
+  const d = dailyStock[key] || {};
+  return `
+    <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-soft);width:100%;margin-top:6px">
+      今日備貨
+      <input type="number" min="0" placeholder="不限" value="${d.stock || ''}"
+        style="width:60px;padding:5px 6px;border:1px solid var(--rule);border-radius:4px;font-family:inherit;font-size:14px;text-align:right"
+        onchange="saveStock('${key}', this.value)">
+      ${d.stock ? `（已售 ${d.sold||0}，剩 ${Math.max(0, d.stock-(d.sold||0))}）` : ''}
+    </div>`;
+}
+function saveStock(key, value) {
+  const n = Math.max(0, Math.floor(Number(value)) || 0);
+  if (!db) return;
+  db.ref('settings/posDaily/' + key + '/stock').set(n)
+    .then(() => showToast('✅ 已更新備貨量'))
+    .catch(e => showToast('⚠️ 更新失敗：' + e.message));
+}
 function renderBaseManageList() {
   const el = document.getElementById('base-manage-list');
   if (!el) return;
   el.innerHTML = baseProducts.map(p => `
-    <div class="cart-row">
+    <div class="cart-row" style="flex-wrap:wrap">
       <div class="cart-row-name">${p.name}（${p.unit}）</div>
       <div style="display:flex;align-items:center;gap:4px;font-size:16px">
         $<input type="number" min="1" value="${p.price}"
           style="width:64px;padding:5px 6px;border:1px solid var(--rule);border-radius:4px;font-family:inherit;font-size:16px;text-align:right"
           onchange="saveBasePrice('${p.key}', this.value)">
       </div>
+      ${stockRowHtml(p.key)}
     </div>`).join('');
 }
 function saveBasePrice(key, value) {
@@ -410,10 +476,11 @@ function renderManageList() {
     return;
   }
   el.innerHTML = presets.map(p => `
-    <div class="cart-row">
+    <div class="cart-row" style="flex-wrap:wrap">
       <div class="cart-row-name">${p.name}</div>
       <div class="cart-row-amt">$${p.price}</div>
       <button class="cart-row-del" onclick="deletePreset('${p.key}')">✕</button>
+      ${stockRowHtml(p.key)}
     </div>`).join('');
 }
 function addPreset() {
@@ -432,6 +499,37 @@ function addPreset() {
 function deletePreset(key) {
   if (!db) return;
   db.ref('settings/posPresets/' + key).remove().catch(e => showToast('⚠️ 刪除失敗：' + e.message));
+}
+
+// ── 今日進度／收攤報表 ──
+function openReport() {
+  renderReport();
+  document.getElementById('report-overlay').classList.add('open');
+}
+function closeReport() {
+  document.getElementById('report-overlay').classList.remove('open');
+}
+function renderReport() {
+  const rows = allProducts()
+    .map(p => ({ name: p.name, unit: p.unit, sold: (dailyStock[p.key] && dailyStock[p.key].sold) || 0, price: p.price }))
+    .filter(r => r.sold > 0)
+    .map(r => ({ ...r, amount: r.sold * r.price }))
+    .sort((a, b) => b.sold - a.sold);
+  const el = document.getElementById('report-list');
+  el.innerHTML = rows.length ? rows.map(r => `
+    <div class="cart-row">
+      <div class="cart-row-name">${r.name} × ${r.sold} ${r.unit}</div>
+      <div class="cart-row-amt">$${r.amount}</div>
+    </div>`).join('') : '<div class="cart-empty">今天還沒有賣出任何品項</div>';
+  document.getElementById('report-total').textContent = `$${rows.reduce((s, r) => s + r.amount, 0)}`;
+}
+function confirmCloseDay() {
+  if (!db) return;
+  if (!confirm('確定要收攤歸零嗎？今天的備貨量與銷售紀錄將會清空，明天要重新設定備貨量。')) return;
+  db.ref('settings/posDaily').remove().then(() => {
+    showToast('✅ 已收攤，庫存歸零');
+    closeReport();
+  }).catch(e => showToast('⚠️ 重置失敗：' + e.message));
 }
 
 // ── Step 2：開發票 ──
@@ -541,6 +639,35 @@ function closeScan() {
   document.getElementById('scan-overlay').classList.remove('open');
 }
 
+// 用 Firebase transaction 原子扣庫存，避免兩邊攤位同時賣到最後一份
+async function reserveStock(items) {
+  const touched = [];
+  for (const it of items) {
+    if (!it.key || !db) continue;
+    const res = await db.ref('settings/posDaily/' + it.key).transaction(cur => {
+      const stock = (cur && cur.stock) || 0;
+      const sold = (cur && cur.sold) || 0;
+      if (stock > 0 && sold + it.count > stock) return; // 中止交易，不寫入
+      return { stock, sold: sold + it.count };
+    });
+    if (!res.committed) {
+      await releaseStock(touched);
+      return { ok: false, key: it.key };
+    }
+    touched.push({ key: it.key, count: it.count });
+  }
+  return { ok: true, touched };
+}
+async function releaseStock(touched) {
+  if (!db || !touched) return;
+  for (const t of touched) {
+    await db.ref('settings/posDaily/' + t.key).transaction(cur => {
+      if (!cur) return cur;
+      return { stock: cur.stock || 0, sold: Math.max(0, (cur.sold || 0) - t.count) };
+    });
+  }
+}
+
 async function submitInvoice() {
   document.getElementById('inv-err').classList.remove('show');
 
@@ -573,6 +700,15 @@ async function submitInvoice() {
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = '開立中…';
+
+  const reserve = await reserveStock(cart.filter(c => c.key));
+  if (!reserve.ok) {
+    const p = allProducts().find(x => x.key === reserve.key);
+    showInvErr(`⚠️ ${p ? p.name : '品項'}庫存不足，請調整數量後再試`);
+    btn.disabled = false; btn.textContent = '確認開立';
+    return;
+  }
+
   try {
     const r = await fetch(GUANGMAO.issueUrl, {
       method: 'POST',
@@ -601,9 +737,11 @@ async function submitInvoice() {
       document.getElementById('success-overlay').classList.add('open');
     } else {
       showInvErr('❌ 開立失敗：' + (json.message || json.RtnMsg || JSON.stringify(json)));
+      await releaseStock(reserve.touched);
     }
   } catch (e) {
     showInvErr('❌ 開立失敗：' + e.message);
+    await releaseStock(reserve.touched);
   } finally {
     btn.disabled = false; btn.textContent = '確認開立';
   }
