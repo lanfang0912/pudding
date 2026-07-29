@@ -162,7 +162,7 @@ function json(data, status = 200) {
   });
 }
 
-async function handleSendEmail(request, env) {
+async function handleSendEmail(request, env, ctx) {
   if (request.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS_HEADERS });
   if (request.method !== 'POST') return json({ success: false, error: 'Method not allowed' }, 405);
 
@@ -197,10 +197,23 @@ async function handleSendEmail(request, env) {
     const { ok, status, data } = await sendEmail({ from, to: [email.to], subject: email.subject, text: email.text });
     if (!ok) return json({ success: false, error: data.message || data.error || 'Resend error', details: data }, status || 502);
 
-    // 新訂單時通知店家
-    if (type === 'customer-confirmation' && env.OWNER_EMAIL) {
-      const ownerEmail = buildOwnerNotificationEmail(order);
-      sendEmail({ from, to: [env.OWNER_EMAIL], subject: ownerEmail.subject, text: ownerEmail.text }).catch(() => {});
+    // 新訂單時通知店家（OWNER_EMAIL 可用逗號或分號分隔多個收件人）
+    if (type === 'customer-confirmation') {
+      const ownerEmails = (env.OWNER_EMAIL || '').split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+      if (ownerEmails.length > 0) {
+        const ownerEmail = buildOwnerNotificationEmail(order);
+        const notifyOwner = sendEmail({ from, to: ownerEmails, subject: ownerEmail.subject, text: ownerEmail.text })
+          .then((result) => {
+            if (!result.ok) console.error('店家通知信寄送失敗:', result.status, result.data);
+          })
+          .catch((err) => console.error('店家通知信寄送發生例外:', err));
+        // 用 waitUntil 確保 Worker 回傳 response 後這個非同步呼叫仍會執行完成，
+        // 否則 Cloudflare 可能在 fetch 尚未完成時就直接終止它。
+        if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(notifyOwner);
+        else await notifyOwner;
+      } else {
+        console.error('未設定 OWNER_EMAIL，略過店家新訂單通知');
+      }
     }
 
     return json({ success: true, id: data.id || '' });
@@ -212,9 +225,9 @@ async function handleSendEmail(request, env) {
 // ── Worker entry ──────────────────────────────────────────────────────
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
-    if (pathname === '/api/send-email') return handleSendEmail(request, env);
+    if (pathname === '/api/send-email') return handleSendEmail(request, env, ctx);
     return env.ASSETS.fetch(request);
   },
 };
