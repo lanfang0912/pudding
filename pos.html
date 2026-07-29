@@ -169,8 +169,8 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
       <input class="form-ctrl" id="inv-taxid" placeholder="12345678" maxlength="8" inputmode="numeric">
     </div>
     <div class="form-group" id="row-taxid-name" style="display:none">
-      <label class="form-label">買方公司名稱</label>
-      <input class="form-ctrl" id="inv-taxid-name" placeholder="請填公司名稱">
+      <label class="form-label">買方公司名稱（選填）</label>
+      <input class="form-ctrl" id="inv-taxid-name" placeholder="選填，不填則以統編顯示">
     </div>
 
     <div class="form-group">
@@ -486,7 +486,6 @@ async function submitInvoice() {
   if (carrierType === 'CQ0001' && !/^[A-Z]{2}[0-9]{14}$/.test(carrierNum)) { showInvErr('⚠️ 自然人憑證格式錯誤（2碼英文＋14碼數字）'); return; }
   if (carrierType === 'donation' && !/^\d{3,7}$/.test(npoId)) { showInvErr('⚠️ 愛心碼格式錯誤（3~7位數字）'); return; }
   if (carrierType === 'taxid' && !/^\d{8}$/.test(taxId)) { showInvErr('⚠️ 統編格式錯誤（8碼數字）'); return; }
-  if (carrierType === 'taxid' && !taxIdName) { showInvErr('⚠️ 打統編時需填入買方公司名稱'); return; }
 
   const items = cart.map(c => ({ name:c.name, count:c.count, unit:c.unit, price:c.price, amount:c.price * c.count }));
   const totalAmount = cartTotal();

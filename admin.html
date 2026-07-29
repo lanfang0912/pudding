@@ -5794,9 +5794,6 @@ async function submitInvoice() {
   if (carrierType === 'taxid' && !/^\d{8}$/.test(taxId)) {
     showToast('⚠️ 統編格式錯誤（8碼數字）'); return;
   }
-  if (carrierType === 'taxid' && !taxIdName) {
-    showToast('⚠️ 打統編時需填入買方公司名稱'); return;
-  }
 
   // 組品項
   // 若有小數數量（混裝訂單），amego 不接受非整數 Quantity，改用整筆金額
@@ -6096,8 +6093,8 @@ async function voidInvoice(id) {
         </div>
         <div class="form-row full">
           <div class="form-group">
-            <label class="form-label">買方公司名稱</label>
-            <input class="form-ctrl" id="inv-taxid-name" placeholder="請填公司名稱（必填）">
+            <label class="form-label">買方公司名稱（選填）</label>
+            <input class="form-ctrl" id="inv-taxid-name" placeholder="選填，不填則以統編顯示">
           </div>
         </div>
       </div>
