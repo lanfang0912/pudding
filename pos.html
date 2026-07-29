@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>初白時光｜擺攤 POS</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;--green:#4a7a4a;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -78,6 +79,19 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 .success-btn{padding:14px 32px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:inherit;font-size:14px;letter-spacing:2px;cursor:pointer;}
 
 .manual-row{margin-top:14px;}
+
+.input-with-btn{display:flex;gap:8px;}
+.input-with-btn input{flex:1;}
+.scan-btn{flex-shrink:0;padding:0 16px;border:1px solid var(--caramel);color:var(--caramel);background:var(--paper-warm);border-radius:4px;font-family:inherit;font-size:13px;cursor:pointer;white-space:nowrap;}
+
+.scan-overlay{position:fixed;inset:0;background:#000;z-index:400;display:none;flex-direction:column;}
+.scan-overlay.open{display:flex;}
+.scan-hdr{background:var(--ink);color:var(--paper);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+.scan-video-wrap{flex:1;position:relative;overflow:hidden;background:#000;}
+.scan-video-wrap video{width:100%;height:100%;object-fit:cover;}
+.scan-frame{position:absolute;left:12%;right:12%;top:38%;bottom:38%;border:2px solid var(--caramel);border-radius:6px;box-shadow:0 0 0 2000px rgba(0,0,0,.4);pointer-events:none;}
+.scan-status{padding:14px 18px;color:var(--paper);font-size:13px;text-align:center;background:#000;}
+.scan-cancel{background:none;border:1px solid var(--paper);color:var(--paper);border-radius:4px;padding:7px 16px;font-family:inherit;font-size:13px;cursor:pointer;}
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:20px;font-size:12px;z-index:300;opacity:0;pointer-events:none;transition:opacity .2s;}
 .toast.show{opacity:1;}
 </style>
@@ -139,7 +153,10 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
     </div>
     <div class="form-group" id="row-carrier-num" style="display:none">
       <label class="form-label" id="row-carrier-num-label">載具號碼</label>
-      <input class="form-ctrl" id="inv-carrier-num" placeholder="手機條碼：/XXXXXXX">
+      <div class="input-with-btn">
+        <input class="form-ctrl" id="inv-carrier-num" placeholder="手機條碼：/XXXXXXX">
+        <button type="button" class="scan-btn" id="scan-btn" style="display:none" onclick="openScan()">📷 掃描</button>
+      </div>
     </div>
     <div class="form-group" id="row-npo" style="display:none">
       <label class="form-label">愛心碼</label>
@@ -189,6 +206,19 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
       <button class="add-btn" onclick="addPreset()">新增</button>
     </div>
   </div>
+</div>
+
+<!-- 掃描手機條碼 -->
+<div class="scan-overlay" id="scan-overlay">
+  <div class="scan-hdr">
+    <span>📷 掃描手機條碼</span>
+    <button class="scan-cancel" onclick="closeScan()">取消</button>
+  </div>
+  <div class="scan-video-wrap">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <div class="scan-frame"></div>
+  </div>
+  <div class="scan-status" id="scan-status">請將條碼對準框內</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -357,17 +387,66 @@ function setCarrier(type) {
     el.classList.toggle('active', el.dataset.type === type));
   document.getElementById('row-email').style.display        = type === 'email' ? '' : 'none';
   document.getElementById('row-carrier-num').style.display   = (type === '3J0002' || type === 'CQ0001') ? '' : 'none';
+  document.getElementById('scan-btn').style.display          = type === '3J0002' ? '' : 'none';
   document.getElementById('row-npo').style.display           = type === 'donation' ? '' : 'none';
   document.getElementById('row-taxid').style.display         = type === 'taxid' ? '' : 'none';
   document.getElementById('row-taxid-name').style.display    = type === 'taxid' ? '' : 'none';
   const label = document.getElementById('row-carrier-num-label');
   label.textContent = type === 'CQ0001' ? '自然人憑證（2碼英文＋14碼數字）' : '手機條碼（/XXXXXXX）';
+  if (type === '3J0002') openScan();
 }
 
 function showInvErr(msg) {
   const el = document.getElementById('inv-err');
   el.textContent = msg;
   el.classList.add('show');
+}
+
+// ── 掃描手機條碼（Code 39）──
+let zxingReader = null;
+
+function setScanStatus(msg) {
+  document.getElementById('scan-status').textContent = msg;
+}
+
+async function openScan() {
+  if (typeof ZXing === 'undefined') {
+    showInvErr('⚠️ 掃描功能載入失敗，請改用手動輸入');
+    return;
+  }
+  document.getElementById('scan-overlay').classList.add('open');
+  setScanStatus('請將條碼對準框內');
+
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_39]);
+  zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+
+  try {
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    await zxingReader.decodeFromVideoDevice(backCam ? backCam.deviceId : undefined, 'scan-video', (result, err) => {
+      if (result) {
+        const text = result.getText().trim();
+        if (/^\/[0-9A-Z+\-.]{7}$/.test(text)) {
+          document.getElementById('inv-carrier-num').value = text;
+          closeScan();
+          showToast(`✅ 已掃描：${text}`);
+        } else {
+          setScanStatus(`格式不符：${text}，請重新對準`);
+        }
+      }
+    });
+  } catch (e) {
+    setScanStatus('⚠️ 無法開啟相機，請確認已允許相機權限，或改用手動輸入');
+  }
+}
+
+function closeScan() {
+  if (zxingReader) {
+    zxingReader.reset();
+    zxingReader = null;
+  }
+  document.getElementById('scan-overlay').classList.remove('open');
 }
 
 async function submitInvoice() {
