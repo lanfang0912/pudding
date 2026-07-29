@@ -3,6 +3,7 @@ const {
   buildOwnerNotificationEmail,
   buildResendPayload,
   buildShipmentEmail,
+  getBrandConfig,
 } = require('../lib/email');
 
 function parseBody(req) {
@@ -17,9 +18,9 @@ function setCors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-function selectEmail(type, order) {
-  if (type === 'customer-confirmation') return buildCustomerConfirmationEmail(order);
-  if (type === 'shipment') return buildShipmentEmail(order);
+function selectEmail(type, order, brand) {
+  if (type === 'customer-confirmation') return buildCustomerConfirmationEmail(order, brand);
+  if (type === 'shipment') return buildShipmentEmail(order, brand);
   throw new Error('Unsupported email type');
 }
 
@@ -47,7 +48,8 @@ async function handler(req, res, deps = {}) {
     const { type, order } = parseBody(req);
     if (!order || typeof order !== 'object') throw new Error('Missing order');
 
-    const email = selectEmail(type, order);
+    const brand = getBrandConfig(env);
+    const email = selectEmail(type, order, brand);
     if (!email.to || !email.to.includes('@')) throw new Error('Missing recipient email');
 
     const payload = buildResendPayload({ from, email });

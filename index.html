@@ -1579,6 +1579,7 @@ footer {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="product-model.js"></script>
+<script src="firebase-config.js"></script>
 <script>
 // ─── CONFIG ───
 const MAX = 20; // UI 按鈕上限，實際可訂量由後台每日設定控制
@@ -1621,13 +1622,7 @@ function addDaysToDate(dateStr, n){
 const inv = {};
 let totalSold = 77;
 
-// ─── FIREBASE ───
-const FB_CONFIG = {
-  apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
-  authDomain: 'whitedessert.firebaseapp.com',
-  databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'whitedessert',
-};
+// ─── FIREBASE ───（FB_CONFIG 定義在 firebase-config.js）
 let db = null;
 try {
   firebase.initializeApp(FB_CONFIG);

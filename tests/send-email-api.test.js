@@ -95,3 +95,43 @@ test('sends shipment email through resend', async () => {
   assert.match(payload.subject, /面交通知/);
   assert.doesNotMatch(payload.text, /黑貓|宅急便/);
 });
+
+test('uses default brand name when no brand env vars are set', async () => {
+  const res = createRes();
+  const calls = [];
+  await handler({ method: 'POST', body: { type: 'shipment', order } }, res, {
+    env: { RESEND_API_KEY: 'test_key', RESEND_FROM_EMAIL: 'white dessert <notice@example.com>' },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return { ok: true, status: 200, json: async () => ({}), text: async () => '{}' };
+    },
+  });
+  const payload = JSON.parse(calls[0].options.body);
+  assert.match(payload.subject, /^初白時光 面交通知｜/);
+  assert.match(payload.text, /初白時光｜悠藍自得有限公司/);
+});
+
+test('overrides brand name/company/LINE id via env vars for resale template use', async () => {
+  const res = createRes();
+  const calls = [];
+  await handler({ method: 'POST', body: { type: 'shipment', order } }, res, {
+    env: {
+      RESEND_API_KEY: 'test_key',
+      RESEND_FROM_EMAIL: 'other shop <notice@example.com>',
+      BRAND_NAME: '甜點小舖',
+      COMPANY_NAME: '測試有限公司',
+      SUPPORT_LINE_ID: '@testshop',
+      FOOD_SAFETY_REG_NO: 'X-000000000-00000-0',
+    },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return { ok: true, status: 200, json: async () => ({}), text: async () => '{}' };
+    },
+  });
+  const payload = JSON.parse(calls[0].options.body);
+  assert.match(payload.subject, /^甜點小舖 面交通知｜/);
+  assert.match(payload.text, /甜點小舖｜測試有限公司/);
+  assert.match(payload.text, /LINE：@testshop/);
+  assert.match(payload.text, /食安登錄字號：X-000000000-00000-0/);
+  assert.doesNotMatch(payload.text, /初白時光|悠藍自得/);
+});

@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="product-model.js"></script>
+<script src="firebase-config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;}
@@ -1383,12 +1384,7 @@ const CLOUDINARY_PRESET = 'n8n835025';
 let db = null;
 let auth = null;
 try {
-  firebase.initializeApp({
-    apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
-    authDomain: 'whitedessert.firebaseapp.com',
-    databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
-    projectId: 'whitedessert',
-  });
+  firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
   auth = firebase.auth();
 } catch(e) {

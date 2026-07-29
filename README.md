@@ -71,3 +71,20 @@ AMEGO_APP_KEY="..."
 ```
 
 Only set these up on whichever platform (Vercel or Cloudflare) is actually handling that traffic for a given deployment — running both against the same LINE/TCAT/Amego accounts at once is unnecessary and makes it easy to lose track of which copy of the code is live.
+
+### Reusing this as a template for a different business
+
+Two things are still hardcoded per-business and need to change before this repo can be reused for someone else's shop:
+
+**Firebase project** — `firebase-config.js` (loaded by `index.html`, `admin.html`, `pos.html`, `survey.html`) holds the Firebase project config. Copy `firebase-config.example.js` to `firebase-config.js` and fill in your own Firebase project's values (Firebase Console → Project settings → General → Your apps). These values are meant to be public — Firebase's actual security boundary is its Realtime Database / Storage security rules, not hiding this config — so it's fine for `firebase-config.js` to be committed.
+
+**Brand text in emails** — `lib/email.js` / `_worker.js` build the customer confirmation, shipment, and owner-notification email text. The shop name, company name, food safety registration number, and support LINE ID default to this business's values but can be overridden with environment variables (set wherever `RESEND_API_KEY` is set — see "Email environment variables" above):
+
+```sh
+BRAND_NAME="你的店名"
+COMPANY_NAME="你的公司名稱"
+FOOD_SAFETY_REG_NO="你的食安登錄字號"
+SUPPORT_LINE_ID="@你的LINE官方帳號"
+```
+
+Not yet templated: product names/prices and some page copy in `index.html` / `admin.html` / `pos.html` (store name in page titles, bank transfer account display, POS default sender info) are still this business's literal text, not read from any config. Product data and some site branding (`db.ref('products')`, `db.ref('settings/design')`) already flow through Firebase and are editable from the admin panel without code changes.
