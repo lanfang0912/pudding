@@ -1470,6 +1470,7 @@ function startFirebaseListener(){
     snap.forEach(child => { orders.push(child.val()); });
     orders.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
     renderStats(); renderTable(); renderDaily(); renderSchedule(); renderIngAll();
+    if(accLoaded) renderAccOverall();
     autoSyncToGCal();
     const totalBoxes = orders
       .filter(o => o.source !== 'yixin' && o.status !== 'pending')
