@@ -446,6 +446,7 @@ function saveStock(key, value) {
 function renderBaseManageList() {
   const el = document.getElementById('base-manage-list');
   if (!el) return;
+  if (el.contains(document.activeElement)) return; // 打字中，避免即時同步把輸入框整個換掉、游標跑掉
   el.innerHTML = baseProducts.map(p => `
     <div class="cart-row" style="flex-wrap:wrap">
       <div class="cart-row-name">${p.name}（${p.unit}）</div>
@@ -467,6 +468,7 @@ function saveBasePrice(key, value) {
 }
 function renderManageList() {
   const el = document.getElementById('manage-list');
+  if (el.contains(document.activeElement)) return; // 打字中，避免即時同步把輸入框整個換掉、游標跑掉
   if (!presets.length) {
     el.innerHTML = '<div class="cart-empty">尚未新增常用品項</div>';
     return;
