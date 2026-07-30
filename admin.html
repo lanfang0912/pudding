@@ -2699,10 +2699,29 @@ function renderIngList(){
     </table>`;
 }
 
-// ── 配方設定 ──
+// ── 配方設定：口味清單依商品清單（recipeKey）動態算出，不再寫死 3 口味 ──
+// 既有 3 口味沿用原本的短標籤／顏色；之後新增的口味（如可麗露）沒有對應項目時，退回顯示商品名稱＋中性色
+const FLAVOR_LABEL_BY_KEY = { original:'原味', matcha:'抹茶', cocoa:'可可' };
+const FLAVOR_COLOR_BY_KEY = { original:'var(--caramel)', matcha:'var(--matcha)', cocoa:'var(--cocoa)' };
+function getRecipeFlavors(){
+  const seen = new Set();
+  const flavors = [];
+  products.forEach(p => {
+    const key = p.recipeKey || (p.type === 'pudding_box' ? p.stockKey : '');
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    flavors.push({
+      id: key,
+      label: FLAVOR_LABEL_BY_KEY[key] || p.name || key,
+      color: FLAVOR_COLOR_BY_KEY[key] || 'var(--ink-mid)',
+    });
+  });
+  return flavors;
+}
+
 function renderIngRecipe(){
   const el = document.getElementById('ing-recipe');
-  const flavors = [{id:'original',label:'原味',color:'var(--caramel)'},{id:'matcha',label:'抹茶',color:'var(--matcha)'},{id:'cocoa',label:'可可',color:'var(--cocoa)'}];
+  const flavors = getRecipeFlavors();
   const ingKeys = Object.keys(ingData);
 
   if(isMobile()){
@@ -2752,7 +2771,7 @@ function renderIngRecipe(){
 }
 
 function saveRecipe(){
-  const flavors = ['original','matcha','cocoa'];
+  const flavors = getRecipeFlavors().map(f => f.id);
   const ingKeys = Object.keys(ingData);
   const newRecipe = {};
   flavors.forEach(f => {
