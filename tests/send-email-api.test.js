@@ -135,3 +135,49 @@ test('overrides brand name/company/LINE id via env vars for resale template use'
   assert.match(payload.text, /食安登錄字號：X-000000000-00000-0/);
   assert.doesNotMatch(payload.text, /初白時光|悠藍自得/);
 });
+
+test('prefers Firebase settings/design over env var brand fallbacks', async () => {
+  const res = createRes();
+  const calls = [];
+  await handler({ method: 'POST', body: { type: 'shipment', order } }, res, {
+    env: {
+      RESEND_API_KEY: 'test_key',
+      RESEND_FROM_EMAIL: 'other shop <notice@example.com>',
+      FIREBASE_DATABASE_URL: 'https://example-default-rtdb.asia-southeast1.firebasedatabase.app',
+      BRAND_NAME: '環境變數店名（不該用到）',
+    },
+    fetchImpl: async (url, options) => {
+      if (String(url).includes('settings/design.json')) {
+        return { ok: true, json: async () => ({ footerBrand: 'Firebase 店名', companyName: 'Firebase 公司', lineId: '@firebaseid' }) };
+      }
+      calls.push({ url, options });
+      return { ok: true, status: 200, json: async () => ({}), text: async () => '{}' };
+    },
+  });
+  const payload = JSON.parse(calls[0].options.body);
+  assert.match(payload.subject, /^Firebase 店名 面交通知｜/);
+  assert.match(payload.text, /Firebase 店名｜Firebase 公司/);
+  assert.match(payload.text, /LINE：@firebaseid/);
+});
+
+test('falls back to env vars when Firebase settings fetch fails', async () => {
+  const res = createRes();
+  const calls = [];
+  await handler({ method: 'POST', body: { type: 'shipment', order } }, res, {
+    env: {
+      RESEND_API_KEY: 'test_key',
+      RESEND_FROM_EMAIL: 'other shop <notice@example.com>',
+      FIREBASE_DATABASE_URL: 'https://example-default-rtdb.asia-southeast1.firebasedatabase.app',
+      BRAND_NAME: '備援店名',
+    },
+    fetchImpl: async (url, options) => {
+      if (String(url).includes('settings/design.json')) {
+        throw new Error('network error');
+      }
+      calls.push({ url, options });
+      return { ok: true, status: 200, json: async () => ({}), text: async () => '{}' };
+    },
+  });
+  const payload = JSON.parse(calls[0].options.body);
+  assert.match(payload.subject, /^備援店名 面交通知｜/);
+});

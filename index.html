@@ -1313,18 +1313,18 @@ footer {
         <div class="payment-title">匯款帳號</div>
         <div class="payment-row">
           <div class="payment-row-label">銀行</div>
-          <div class="payment-row-value">永豐銀行 宜蘭分行（807）</div>
+          <div class="payment-row-value" id="pay-bank-name">永豐銀行 宜蘭分行（807）</div>
         </div>
         <div class="payment-row">
           <div class="payment-row-label">帳號</div>
-          <div class="payment-row-value">120-018-0008291-3</div>
+          <div class="payment-row-value" id="pay-bank-account">120-018-0008291-3</div>
         </div>
         <div class="payment-row">
           <div class="payment-row-label">戶名</div>
-          <div class="payment-row-value">悠藍自得有限公司</div>
+          <div class="payment-row-value" id="pay-account-name">悠藍自得有限公司</div>
         </div>
         <div class="payment-warning">
-          ⚠ 請於 <strong>24 小時內完成匯款</strong>，並將收據截圖傳送至 LINE（@281huzeg）確認。<br>
+          ⚠ 請於 <strong>24 小時內完成匯款</strong>，並將收據截圖傳送至 LINE（<span id="pay-line-id">@281huzeg</span>）確認。<br>
           確認匯款後才會安排出貨 / 面交，請勿於付款前前往取貨。<br>
           逾時未付款將自動取消訂單，名額開放給其他顧客。
         </div>
@@ -1538,32 +1538,33 @@ footer {
 <footer>
   <div class="footer-inner">
     <div>
+      <img id="site-footer-logo" src="" alt="" style="display:none;max-height:40px;max-width:160px;object-fit:contain;margin-bottom:6px">
       <div class="footer-brand" id="site-footer-brand">初白時光</div>
-      <div class="footer-brand-en">悠藍自得有限公司</div>
+      <div class="footer-brand-en" id="site-footer-brand-en">悠藍自得有限公司</div>
       <p class="footer-tagline" id="site-footer-tagline">手工製作 · 無添加<br>冷藏保存 5 天<br>宜蘭出發，用心送達</p>
     </div>
     <div>
       <div class="footer-col-title">品牌資訊</div>
       <div class="footer-info-row">
         <span class="footer-info-label">公司名稱</span>
-        <span>悠藍自得有限公司</span>
+        <span id="site-footer-company">悠藍自得有限公司</span>
       </div>
        <div class="footer-info-row">
         <span class="footer-info-label">統一編號</span>
-        <span>93555969</span>
+        <span id="site-footer-taxid">93555969</span>
       </div>
       <div class="footer-info-row">
         <span class="footer-info-label">食安登錄</span>
-        <span>G-202263818-00000-5</span>
+        <span id="site-footer-foodsafety">G-202263818-00000-5</span>
       </div>
       <div class="footer-info-row">
         <span class="footer-info-label">產品責任</span>
-        <span>已投保產品責任險</span>
+        <span id="site-footer-liability">已投保產品責任險</span>
       </div>
       <div class="footer-badge">✓ &nbsp;合法食品業者登錄</div>
-      <a href="https://line.me/R/ti/p/@281huzeg" target="_blank" class="line-btn">
+      <a href="https://line.me/R/ti/p/@281huzeg" target="_blank" class="line-btn" id="site-footer-line-link">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
-        加入 LINE &nbsp;@281huzeg
+        加入 LINE &nbsp;<span id="site-footer-line-id">@281huzeg</span>
       </a>
       <a href="survey.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:10px 18px;border:1px solid var(--rule);border-radius:2px;font-size:12px;color:var(--ink-soft);text-decoration:none;letter-spacing:1px;transition:all .2s;" onmouseover="this.style.borderColor='var(--caramel)';this.style.color='var(--caramel)'" onmouseout="this.style.borderColor='var(--rule)';this.style.color='var(--ink-soft)'">
         📝 &nbsp;填寫品嚐回饋問卷
@@ -1571,7 +1572,7 @@ footer {
     </div>
   </div>
   <div class="footer-bottom">
-    © 初白時光 · 悠藍自得有限公司 &nbsp;·&nbsp; 一個高三生的還款計劃進行中 🍮
+    © <span id="site-footer-copyright-brand">初白時光</span> · <span id="site-footer-copyright-company">悠藍自得有限公司</span> &nbsp;·&nbsp; 一個高三生的還款計劃進行中 🍮
   </div>
 </footer>
 
@@ -1645,6 +1646,30 @@ try {
     if (d.heroQuote)    { const el = document.getElementById('site-hero-quote');    if(el) el.innerHTML = d.heroQuote.replace(/\n/g,'<br>'); }
     if (d.footerBrand)  { const el = document.getElementById('site-footer-brand');  if(el) el.textContent = d.footerBrand; }
     if (d.footerTagline){ const el = document.getElementById('site-footer-tagline');if(el) el.innerHTML = d.footerTagline.replace(/\n/g,'<br>'); }
+    // 商家資料（公司名稱 / 統編 / 食安 / 匯款帳戶 / LINE 官方帳號）
+    const setText = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
+    if (d.logoUrl) {
+      const logo = document.getElementById('site-footer-logo');
+      const brandText = document.getElementById('site-footer-brand');
+      if (logo) { logo.src = d.logoUrl; logo.style.display = 'block'; }
+      if (brandText) brandText.style.display = 'none';
+    }
+    setText('site-footer-brand-en', d.companyName);
+    setText('site-footer-company', d.companyName);
+    setText('site-footer-taxid', d.taxId);
+    setText('site-footer-foodsafety', d.foodSafetyRegNo);
+    setText('site-footer-liability', d.productLiabilityText);
+    setText('site-footer-copyright-brand', d.footerBrand);
+    setText('site-footer-copyright-company', d.companyName);
+    setText('pay-bank-name', d.bankName);
+    setText('pay-bank-account', d.bankAccount);
+    setText('pay-account-name', d.companyName);
+    setText('pay-line-id', d.lineId);
+    setText('site-footer-line-id', d.lineId);
+    if (d.lineId) {
+      const lineLink = document.getElementById('site-footer-line-link');
+      if (lineLink) lineLink.href = `https://line.me/R/ti/p/${d.lineId}`;
+    }
     // 品牌故事
     const applyTitle = (id, val) => { const el=document.getElementById(id); if(el&&val) el.textContent=val; };
     const applyBody  = (id, val) => {

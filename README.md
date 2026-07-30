@@ -74,11 +74,17 @@ Only set these up on whichever platform (Vercel or Cloudflare) is actually handl
 
 ### Reusing this as a template for a different business
 
-Two things are still hardcoded per-business and need to change before this repo can be reused for someone else's shop:
-
 **Firebase project** — `firebase-config.js` (loaded by `index.html`, `admin.html`, `pos.html`, `survey.html`) holds the Firebase project config. Copy `firebase-config.example.js` to `firebase-config.js` and fill in your own Firebase project's values (Firebase Console → Project settings → General → Your apps). These values are meant to be public — Firebase's actual security boundary is its Realtime Database / Storage security rules, not hiding this config — so it's fine for `firebase-config.js` to be committed.
 
-**Brand text in emails** — `lib/email.js` / `_worker.js` build the customer confirmation, shipment, and owner-notification email text. The shop name, company name, food safety registration number, and support LINE ID default to this business's values but can be overridden with environment variables (set wherever `RESEND_API_KEY` is set — see "Email environment variables" above):
+**Business info (company name, tax ID, food safety reg no, bank account, LINE ID, logo)** — editable entirely from the admin panel, no code or environment variables needed. Log into `admin.html` → 網站設計 (Site Design) → 商家資料 (Business Info) section. This writes to Firebase at `settings/design`, the same place that already drives the site's product data and other branding text (品牌故事, 頁尾, etc.) — `index.html` reads it live, and the logo upload reuses the existing Cloudinary image upload already used for products. Uploading a logo there replaces the text shop name shown in the footer.
+
+The email-sending backends (`lib/email.js` / `_worker.js` / `api/send-email.js`) read the *same* `settings/design` data at send time (via the Firebase Realtime Database REST API, no SDK needed), so the business info entered in the admin panel is reflected in customer/owner emails too — not just the website. This requires one additional environment variable so the backend knows which Firebase project to read from:
+
+```sh
+FIREBASE_DATABASE_URL="https://YOUR_PROJECT-default-rtdb.YOUR_REGION.firebasedatabase.app"
+```
+
+If `FIREBASE_DATABASE_URL` isn't set, or the fetch fails, email content falls back to these environment variables, and finally to this business's hardcoded defaults:
 
 ```sh
 BRAND_NAME="你的店名"
@@ -87,4 +93,9 @@ FOOD_SAFETY_REG_NO="你的食安登錄字號"
 SUPPORT_LINE_ID="@你的LINE官方帳號"
 ```
 
-Not yet templated: product names/prices and some page copy in `index.html` / `admin.html` / `pos.html` (store name in page titles, bank transfer account display, POS default sender info) are still this business's literal text, not read from any config. Product data and some site branding (`db.ref('products')`, `db.ref('settings/design')`) already flow through Firebase and are editable from the admin panel without code changes.
+**Not yet templated** — these are still this business's literal hardcoded text/values, not read from any config yet:
+- Page `<title>` tags and some page copy in `index.html` / `admin.html` / `pos.html`
+- `TCAT.sender` in `admin.html` (name/phone/zip/address used when creating 黑貓 shipments) and the hardcoded `tcat-proxy.lanfang-hsu.workers.dev` endpoint URLs used by the admin panel for shipping/invoicing calls
+- `seed-march-expenses.html` — a one-off data-migration script specific to this business's own historical records; delete it rather than templating it when packaging for resale
+
+Product data (`db.ref('products')`) and most site branding/copy (`db.ref('settings/design')`: hero text, brand story, footer tagline) already flow through Firebase and are editable from the admin panel without touching code.

@@ -43,13 +43,27 @@ const DEFAULT_BRAND = {
   lineId: '@281huzeg',
 };
 
-function getBrandConfig(env) {
+// 商家資料的權威來源是後台「網站設計」頁面寫入的 Firebase settings/design
+// （跟網站本身讀的是同一份），環境變數只在讀不到 Firebase 設定時當備援。
+async function fetchBusinessSettings(databaseUrl) {
+  if (!databaseUrl) return null;
+  try {
+    const res = await fetch(`${databaseUrl.replace(/\/$/, '')}/settings/design.json`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+async function getBrandConfig(env) {
   env = env || {};
+  const settings = (await fetchBusinessSettings(env.FIREBASE_DATABASE_URL)) || {};
   return {
-    name: env.BRAND_NAME || DEFAULT_BRAND.name,
-    company: env.COMPANY_NAME || DEFAULT_BRAND.company,
-    foodSafetyRegNo: env.FOOD_SAFETY_REG_NO || DEFAULT_BRAND.foodSafetyRegNo,
-    lineId: env.SUPPORT_LINE_ID || DEFAULT_BRAND.lineId,
+    name: settings.footerBrand || env.BRAND_NAME || DEFAULT_BRAND.name,
+    company: settings.companyName || env.COMPANY_NAME || DEFAULT_BRAND.company,
+    foodSafetyRegNo: settings.foodSafetyRegNo || env.FOOD_SAFETY_REG_NO || DEFAULT_BRAND.foodSafetyRegNo,
+    lineId: settings.lineId || env.SUPPORT_LINE_ID || DEFAULT_BRAND.lineId,
   };
 }
 
@@ -194,7 +208,7 @@ async function handleSendEmail(request, env, ctx) {
     const { type, order } = await request.json();
     if (!order || typeof order !== 'object') throw new Error('Missing order');
 
-    const brand = getBrandConfig(env);
+    const brand = await getBrandConfig(env);
     let email;
     if (type === 'customer-confirmation') email = buildCustomerConfirmationEmail(order, brand);
     else if (type === 'shipment')         email = buildShipmentEmail(order, brand);

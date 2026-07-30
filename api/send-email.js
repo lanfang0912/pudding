@@ -48,7 +48,7 @@ async function handler(req, res, deps = {}) {
     const { type, order } = parseBody(req);
     if (!order || typeof order !== 'object') throw new Error('Missing order');
 
-    const brand = getBrandConfig(env);
+    const brand = await getBrandConfig(env, fetchImpl);
     const email = selectEmail(type, order, brand);
     if (!email.to || !email.to.includes('@')) throw new Error('Missing recipient email');
 
