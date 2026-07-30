@@ -2521,13 +2521,16 @@ function calcDemand(){
   const pending = orders.filter(o => o.status !== 'shipped' && o.status !== 'cancelled');
   const demand = {}; // {ingId: totalAmount}
   Object.keys(ingData).forEach(id => demand[id] = 0);
+  const flavors = getRecipeFlavors();
 
   pending.forEach(o => {
-    ['original','matcha','cocoa'].forEach(flavor => {
-      const qty = flavor==='original'? (o.orig||0) : flavor==='matcha'? (o.matcha||0) : (o.cocoa||0);
+    flavors.forEach(flavor => {
+      const qty = flavorQtyOnOrder(o, flavor);
       if(!qty) return;
-      const recipe = (recipeData[flavor] || {});
+      const recipe = (recipeData[flavor.id] || {});
       Object.entries(recipe).forEach(([ingId, amt]) => {
+        // 6/10：布丁「每盒6杯 ÷ 食譜10杯」換算比例；之後其他產品線有真實訂單量時，
+        // 需依各自的 unitCups/配方批量另外處理，目前新口味 qty 皆為 0 不受影響
         const use = amt * qty * 6 / 10;
         // 全蛋代替模式：蛋黃用量合併到洗選蛋
         const targetId = (eggSubstitute && ingId === 'egg_yolk') ? 'egg' : ingId;
@@ -2575,23 +2578,24 @@ function renderIngAlerts(){
   Object.keys(ingData).forEach(id => rollingStock[id] = ingData[id].stock||0);
 
   const alerts = [];
+  const flavors = getRecipeFlavors();
 
   allProdDates.forEach(pd => {
-    const boxes = {orig:0, matcha:0, cocoa:0};
+    const boxesByFlavor = {};
+    flavors.forEach(f => boxesByFlavor[f.id] = 0);
     pending.forEach(o => {
       const offset = o.delivery==='面交' ? -1 : -2;
       const d = new Date(o.date); d.setDate(d.getDate()+offset);
       if(d.toISOString().slice(0,10)===pd){
-        boxes.orig   += o.orig   || 0;
-        boxes.matcha += o.matcha || 0;
-        boxes.cocoa  += o.cocoa  || 0;
+        flavors.forEach(f => { boxesByFlavor[f.id] += flavorQtyOnOrder(o, f); });
       }
     });
     const dayDemand = {};
     Object.keys(ingData).forEach(id => dayDemand[id]=0);
-    [['original',boxes.orig],['matcha',boxes.matcha],['cocoa',boxes.cocoa]].forEach(([f,q])=>{
+    flavors.forEach(f => {
+      const q = boxesByFlavor[f.id];
       if(!q) return;
-      Object.entries(recipeData[f]||{}).forEach(([id,amt])=>{
+      Object.entries(recipeData[f.id]||{}).forEach(([id,amt])=>{
         const use = amt*q*6/10;
         const targetId = (eggSubstitute && id==='egg_yolk') ? 'egg' : id;
         dayDemand[targetId]=(dayDemand[targetId]||0)+use;
@@ -2607,7 +2611,8 @@ function renderIngAlerts(){
         }));
       const d = new Date(pd);
       const wd=['日','一','二','三','四','五','六'];
-      alerts.push({ dateLabel:`${d.getMonth()+1}/${d.getDate()}（週${wd[d.getDay()]}）`, shortages, totalBoxes:boxes.orig+boxes.matcha+boxes.cocoa });
+      const totalBoxes = Object.values(boxesByFlavor).reduce((a,b)=>a+b,0);
+      alerts.push({ dateLabel:`${d.getMonth()+1}/${d.getDate()}（週${wd[d.getDay()]}）`, shortages, totalBoxes });
     }
     Object.keys(dayDemand).forEach(id => { rollingStock[id]=Math.max(0,(rollingStock[id]||0)-(dayDemand[id]||0)); });
   });
@@ -2714,9 +2719,16 @@ function getRecipeFlavors(){
       id: key,
       label: FLAVOR_LABEL_BY_KEY[key] || p.name || key,
       color: FLAVOR_COLOR_BY_KEY[key] || 'var(--ink-mid)',
+      legacyField: p.legacyField || '',
     });
   });
   return flavors;
+}
+
+// 訂單目前仍用 orig/matcha/cocoa 這幾個攤平欄位記錄口味數量（見 Phase 3 之後才會改成通用的 flavorCounts）
+// 沒有 legacyField 對應的口味（例如尚未串接下單表單的新品項）視為 0，不影響既有三口味計算
+function flavorQtyOnOrder(o, flavor){
+  return flavor.legacyField ? (o[flavor.legacyField] || 0) : 0;
 }
 
 function renderIngRecipe(){
@@ -3606,11 +3618,11 @@ function delOrder(id, name){
 // ── 計算單筆訂單需耗食材 ──
 function calcOrderIngredients(o){
   const result = {};
-  const flavors = {original: o.orig||0, matcha: o.matcha||0, cocoa: o.cocoa||0};
-  Object.entries(flavors).forEach(([flavor, boxes]) => {
-    if(!boxes || !recipeData[flavor]) return;
+  getRecipeFlavors().forEach(flavor => {
+    const boxes = flavorQtyOnOrder(o, flavor);
+    if(!boxes || !recipeData[flavor.id]) return;
     const factor = boxes * 6 / 10;
-    Object.entries(recipeData[flavor]).forEach(([ing, amt]) => {
+    Object.entries(recipeData[flavor.id]).forEach(([ing, amt]) => {
       const key = (eggSubstitute && ing === 'egg_yolk') ? 'egg' : ing;
       result[key] = (result[key] || 0) + amt * factor;
     });
