@@ -3606,8 +3606,25 @@ async function delOrder(id, name){
   } else {
     if(!confirm(`確定要刪除「${name}」的訂單嗎？\n此操作無法復原。`)) return;
   }
+
+  if (o && o.source === 'pos' && Array.isArray(o.posItems) && o.posItems.length) {
+    if (confirm('這筆商品是真的沒有賣出去嗎？\n是的話會把「今日備貨」的庫存與營收扣回去；如果商品其實已經賣掉了，請按「取消」（庫存不變）。')) {
+      await releasePosStock(o.posItems);
+    }
+  }
+
   db.ref('orders/'+id).remove();
   showToast('🗑 訂單已刪除');
+}
+
+async function releasePosStock(items){
+  for (const it of items) {
+    if (!it.key) continue;
+    await db.ref('settings/posDaily/' + it.key).transaction(cur => {
+      if (!cur) return cur;
+      return { stock: cur.stock || 0, sold: Math.max(0, (cur.sold || 0) - (it.count || 0)) };
+    });
+  }
 }
 
 // ── 計算單筆訂單需耗食材 ──
