@@ -1952,6 +1952,48 @@ function chgBag(d){
 }
 
 // ─── CALENDAR ───
+// 判斷某一天是否可以訂購（跟 renderCal 內的規則保持一致：3 天後、
+// 配送方式限制、庫存/當日總量），用來找「第一個可訂日期」讓日曆自動跳過去
+function canBookDate(dt){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const minD=new Date(today); minD.setDate(minD.getDate()+3);
+  if(dt<minD) return false;
+  if(order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1)) return false;
+  if(order.deliveryMode === 'pickup-taipei' && !(dt.getDay() === 1 || dt.getDay() === 2)) return false;
+
+  const COMBO_QTYS = {};
+  (MIX_PRODUCT?.components || []).forEach(c => {
+    COMBO_QTYS[c.stockKey] = (COMBO_QTYS[c.stockKey] || 0) + (Number(c.cups || 0) * order.comboQty / 6);
+  });
+  const sel = order.isCombo ? Object.keys(COMBO_QTYS) : Object.keys(order.flavors);
+  const activeQtys = order.isCombo ? COMBO_QTYS : order.flavors;
+  if(sel.length===0) return false;
+
+  const ds=fmt(dt);
+  for(const fid of sel){
+    if(getStock(ds,fid) < (activeQtys[fid]||1)) return false;
+  }
+  const totalNeeded = Object.values(activeQtys).reduce((a,b)=>a+b,0);
+  if(getProdDayTotal(ds) < totalNeeded) return false;
+  return true;
+}
+
+function findFirstBookableDate(maxDays){
+  const start = new Date(); start.setHours(0,0,0,0);
+  for(let i=0; i<=maxDays; i++){
+    const dt = new Date(start); dt.setDate(dt.getDate()+i);
+    if(canBookDate(dt)) return dt;
+  }
+  return null;
+}
+
+// 開日曆時，如果還沒選日期，就把月份跳到第一個有可訂日期的月份，
+// 不會幫客人直接選定日期，只是讓客人打開來就看得到可以點的日子
+function jumpCalendarToFirstAvailable(){
+  const dt = findFirstBookableDate(90);
+  if(dt){ calY = dt.getFullYear(); calM = dt.getMonth(); }
+}
+
 function renderCal(){
   const months=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
   document.getElementById('cal-label').textContent = `${calY} 年 ${months[calM]}`;
@@ -2039,6 +2081,7 @@ function nextMonth(){ calM++; if(calM>11){calM=0;calY++;} renderCal(); }
 function goTo(n){
   if(n===2){
     if(!order.isCombo && !Object.keys(order.flavors).length){ toast('請至少選擇一種口味 🍮','error'); return; }
+    if(!order.date) jumpCalendarToFirstAvailable();
     renderCal();
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
