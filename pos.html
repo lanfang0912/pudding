@@ -667,7 +667,7 @@ async function releaseStock(touched) {
 }
 
 // 開票成功後，順便補一筆訂單紀錄，讓後台「還差電腦」的營收累計自動算進擺攤收入
-function logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo, carrierType }) {
+function logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo, carrierType, cartItems }) {
   if (!db) return;
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
@@ -689,6 +689,8 @@ function logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo,
     invoiceNo,
     invoiceDate: now.toISOString().slice(0, 10),
     invoiceCarrierType: carrierType,
+    // 有 key 的品項（布丁/常用品項）才有庫存追蹤，後台刪單時要靠這個知道扣哪個品項的庫存
+    posItems: (cartItems || []).filter(c => c.key).map(c => ({ key: c.key, name: c.name, count: c.count })),
   }).catch(e => console.warn('POS 訂單紀錄寫入失敗:', e));
 }
 
@@ -764,7 +766,7 @@ async function submitInvoice() {
                      || json.invoice_number || json.InvoiceNumber || json.InvoiceNo || json.invoiceNo || '（已開立，號碼請至 amego 後台查詢）';
       document.getElementById('success-no').textContent = `發票號碼：${invoiceNo}`;
       document.getElementById('success-carrier').textContent = _carrierLabel(carrierType);
-      logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo, carrierType });
+      logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo, carrierType, cartItems: cart });
       closeInvoiceStep();
       document.getElementById('success-overlay').classList.add('open');
     } else {
