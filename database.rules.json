@@ -3,7 +3,7 @@
     "orders": {
       ".read": "auth != null && auth.token.email == 'admin@wd.tw'",
       "$orderId": {
-        ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || (!data.exists() && newData.child('id').val() == $orderId && newData.hasChildren(['id','ts','name','phone','email','date','delivery','address','total','status']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('phone').isString() && newData.child('phone').val().length > 0 && newData.child('phone').val().length <= 30 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('date').isString() && newData.child('date').val().length <= 20 && newData.child('delivery').val().matches(/^(宅配|面交)$/) && newData.child('address').isString() && newData.child('address').val().length <= 200 && newData.child('total').isNumber() && newData.child('total').val() >= 0 && newData.child('total').val() <= 20000 && newData.child('status').val() == 'pending')"
+        ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || (!data.exists() && newData.child('id').val() == $orderId && newData.hasChildren(['id','ts','name','phone','email','date','delivery','address','total','status']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('phone').isString() && newData.child('phone').val().length > 0 && newData.child('phone').val().length <= 30 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('date').isString() && newData.child('date').val().length <= 20 && newData.child('delivery').val().matches(/^(宅配|面交)$/) && newData.child('address').isString() && newData.child('address').val().length <= 200 && newData.child('total').isNumber() && newData.child('total').val() >= 0 && newData.child('total').val() <= 20000 && newData.child('status').val() == 'pending') || (!data.exists() && newData.child('id').val() == $orderId && newData.child('source').val() == 'pos' && newData.child('status').val() == 'paid' && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('email').isString() && newData.child('email').val().length <= 120 && newData.child('ts').isString() && newData.child('total').isNumber() && newData.child('total').val() > 0 && newData.child('total').val() <= 20000)"
       }
     },
     "settings": {
@@ -20,6 +20,12 @@
         ".read": true,
         "$flavorId": {
           ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || (newData.hasChildren(['name','price']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 40 && newData.child('price').isNumber() && newData.child('price').val() > 0 && newData.child('price').val() <= 5000)"
+        }
+      },
+      "posDaily": {
+        ".read": true,
+        "$flavorId": {
+          ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !newData.exists() || ((!newData.hasChild('stock') || (newData.child('stock').isNumber() && newData.child('stock').val() >= 0 && newData.child('stock').val() <= 9999)) && (!newData.hasChild('sold') || (newData.child('sold').isNumber() && newData.child('sold').val() >= 0 && newData.child('sold').val() <= 9999)))"
         }
       },
       "$other":        { ".read": "auth != null && auth.token.email == 'admin@wd.tw'", ".write": "auth != null && auth.token.email == 'admin@wd.tw'" }
