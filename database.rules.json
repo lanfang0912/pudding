@@ -24,6 +24,7 @@
       },
       "posDaily": {
         ".read": true,
+        ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !newData.exists()",
         "$flavorId": {
           ".write": "(auth != null && auth.token.email == 'admin@wd.tw') || !newData.exists() || ((!newData.hasChild('stock') || (newData.child('stock').isNumber() && newData.child('stock').val() >= 0 && newData.child('stock').val() <= 9999)) && (!newData.hasChild('sold') || (newData.child('sold').isNumber() && newData.child('sold').val() >= 0 && newData.child('sold').val() <= 9999)))"
         }
