@@ -36,8 +36,40 @@ function normalizeOrder(order) {
   };
 }
 
-function buildCustomerConfirmationEmail(rawOrder) {
+const DEFAULT_BRAND = {
+  name: '初白時光',
+  company: '悠藍自得有限公司',
+  foodSafetyRegNo: 'G-202263818-00000-5',
+  lineId: '@281huzeg',
+};
+
+// 商家資料的權威來源是後台「網站設計」頁面寫入的 Firebase settings/design
+// （跟網站本身讀的是同一份），環境變數只在讀不到 Firebase 設定時當備援。
+async function fetchBusinessSettings(databaseUrl) {
+  if (!databaseUrl) return null;
+  try {
+    const res = await fetch(`${databaseUrl.replace(/\/$/, '')}/settings/design.json`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+async function getBrandConfig(env) {
+  env = env || {};
+  const settings = (await fetchBusinessSettings(env.FIREBASE_DATABASE_URL)) || {};
+  return {
+    name: settings.footerBrand || env.BRAND_NAME || DEFAULT_BRAND.name,
+    company: settings.companyName || env.COMPANY_NAME || DEFAULT_BRAND.company,
+    foodSafetyRegNo: settings.foodSafetyRegNo || env.FOOD_SAFETY_REG_NO || DEFAULT_BRAND.foodSafetyRegNo,
+    lineId: settings.lineId || env.SUPPORT_LINE_ID || DEFAULT_BRAND.lineId,
+  };
+}
+
+function buildCustomerConfirmationEmail(rawOrder, rawBrand) {
   const o = normalizeOrder(rawOrder);
+  const brand = rawBrand || DEFAULT_BRAND;
   const isPickup = o.delivery === '面交';
   const dateText = formatDate(o.date);
   const lines = [
@@ -66,15 +98,16 @@ function buildCustomerConfirmationEmail(rawOrder) {
   lines.push(
     '',
     '我們確認匯款後會再安排製作與通知。',
-    '如有任何問題請加 LINE：@281huzeg',
+    `如有任何問題請加 LINE：${brand.lineId}`,
     '',
-    '初白時光｜悠藍自得有限公司'
+    `${brand.name}｜${brand.company}`
   );
-  return { to: o.email, subject: `初白時光 訂購確認｜${o.id}`, text: lines.join('\n') };
+  return { to: o.email, subject: `${brand.name} 訂購確認｜${o.id}`, text: lines.join('\n') };
 }
 
-function buildShipmentEmail(rawOrder) {
+function buildShipmentEmail(rawOrder, rawBrand) {
   const o = normalizeOrder(rawOrder);
+  const brand = rawBrand || DEFAULT_BRAND;
   const isPickup = o.delivery === '面交';
   const dateText = formatDate(o.date);
   const timeText = o.time && o.time !== '未指定' ? o.time : '待確認';
@@ -82,11 +115,11 @@ function buildShipmentEmail(rawOrder) {
     ? `已為您保留，請於 ${dateText}${timeText !== '待確認' ? ` ${timeText}` : ''} 至面交地點領取。`
     : `已交給黑貓宅急便，預計 ${dateText} 送達！`;
   const lines = [
-    isPickup ? '初白時光 面交通知' : '初白時光 出貨通知',
+    isPickup ? `${brand.name} 面交通知` : `${brand.name} 出貨通知`,
     '',
     `${o.name} 您好，`,
     '',
-    '您訂購的初白時光手工布丁',
+    `您訂購的${brand.name}手工布丁`,
     handoff,
     '',
     '━━━━━━━━━━━━━━━━━━━━',
@@ -105,16 +138,16 @@ function buildShipmentEmail(rawOrder) {
     '',
     '━━━━━━━━━━━━━━━━━━━━',
     '收到後請盡快冷藏，保存期限 5 天。',
-    '如有任何問題請加 LINE：@281huzeg',
+    `如有任何問題請加 LINE：${brand.lineId}`,
     '━━━━━━━━━━━━━━━━━━━━',
     '',
     '感謝你的支持，希望你喜歡這份布丁',
-    '初白時光｜悠藍自得有限公司',
-    '食安登錄字號：G-202263818-00000-5'
+    `${brand.name}｜${brand.company}`,
+    `食安登錄字號：${brand.foodSafetyRegNo}`
   );
   return {
     to: o.email,
-    subject: isPickup ? `初白時光 面交通知｜${o.id}` : `初白時光 出貨通知｜${o.id}`,
+    subject: isPickup ? `${brand.name} 面交通知｜${o.id}` : `${brand.name} 出貨通知｜${o.id}`,
     text: lines.join('\n'),
   };
 }
@@ -175,9 +208,10 @@ async function handleSendEmail(request, env, ctx) {
     const { type, order } = await request.json();
     if (!order || typeof order !== 'object') throw new Error('Missing order');
 
+    const brand = await getBrandConfig(env);
     let email;
-    if (type === 'customer-confirmation') email = buildCustomerConfirmationEmail(order);
-    else if (type === 'shipment')         email = buildShipmentEmail(order);
+    if (type === 'customer-confirmation') email = buildCustomerConfirmationEmail(order, brand);
+    else if (type === 'shipment')         email = buildShipmentEmail(order, brand);
     else throw new Error('Unsupported email type');
 
     if (!email.to || !email.to.includes('@')) throw new Error('Missing recipient email');

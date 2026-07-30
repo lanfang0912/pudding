@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="product-model.js"></script>
+<script src="firebase-config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;}
@@ -771,6 +772,28 @@ tr.done-row td{opacity:.45;}
         <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">頁尾說明（Enter 換行）<textarea id="d-footerTagline" rows="3" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">手工製作 · 無添加
 冷藏保存 5 天
 宜蘭出發，用心送達</textarea></label>
+        <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">
+          Logo（有上傳的話，頁尾會改顯示 logo 而不是品牌名稱文字）
+          <div style="display:flex;align-items:center;gap:12px">
+            <img id="d-logo-preview" src="" alt="" style="width:48px;height:48px;object-fit:contain;border:1px solid var(--rule);border-radius:4px;background:var(--paper);display:none">
+            <input type="file" accept="image/*" onchange="uploadLogoImage(this.files)" style="font-size:12px">
+            <button type="button" onclick="clearLogo()" style="padding:6px 12px;border:1px solid var(--rule);background:var(--paper);border-radius:2px;cursor:pointer;font-size:12px;color:var(--ink-soft)">清除</button>
+          </div>
+          <input type="hidden" id="d-logoUrl" value="">
+          <div id="logo-upload-status" style="font-size:11px;color:var(--ink-soft)"></div>
+        </div>
+      </div>
+
+      <!-- 商家資料 -->
+      <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--ink-soft);text-transform:uppercase;padding:6px 10px;background:var(--paper-dark);border-radius:2px;margin-bottom:12px">商家資料</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">公司名稱<input type="text" id="d-companyName" value="悠藍自得有限公司" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">統一編號<input type="text" id="d-taxId" value="93555969" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">食安登錄字號<input type="text" id="d-foodSafetyRegNo" value="G-202263818-00000-5" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">產品責任說明<input type="text" id="d-productLiabilityText" value="已投保產品責任險" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">LINE 官方帳號 ID（含 @）<input type="text" id="d-lineId" value="@281huzeg" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">匯款銀行<input type="text" id="d-bankName" value="永豐銀行 宜蘭分行（807）" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">匯款帳號<input type="text" id="d-bankAccount" value="120-018-0008291-3" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
       </div>
 
       <div style="display:flex;gap:12px">
@@ -1383,12 +1406,7 @@ const CLOUDINARY_PRESET = 'n8n835025';
 let db = null;
 let auth = null;
 try {
-  firebase.initializeApp({
-    apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
-    authDomain: 'whitedessert.firebaseapp.com',
-    databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
-    projectId: 'whitedessert',
-  });
+  firebase.initializeApp(FB_CONFIG);
   db = firebase.database();
   auth = firebase.auth();
 } catch(e) {
@@ -1628,6 +1646,14 @@ function loadDesign(){
     if(d.heroQuote)    document.getElementById('d-heroQuote').value    = d.heroQuote;
     if(d.footerBrand)  document.getElementById('d-footerBrand').value  = d.footerBrand;
     if(d.footerTagline)document.getElementById('d-footerTagline').value= d.footerTagline;
+    if(d.logoUrl)      { document.getElementById('d-logoUrl').value = d.logoUrl; renderLogoPreview(); }
+    if(d.companyName)         document.getElementById('d-companyName').value         = d.companyName;
+    if(d.taxId)               document.getElementById('d-taxId').value               = d.taxId;
+    if(d.foodSafetyRegNo)     document.getElementById('d-foodSafetyRegNo').value      = d.foodSafetyRegNo;
+    if(d.productLiabilityText)document.getElementById('d-productLiabilityText').value = d.productLiabilityText;
+    if(d.lineId)              document.getElementById('d-lineId').value              = d.lineId;
+    if(d.bankName)            document.getElementById('d-bankName').value            = d.bankName;
+    if(d.bankAccount)         document.getElementById('d-bankAccount').value         = d.bankAccount;
     if(d.order){
       const o = d.order;
       const so = (id,val) => { if(val) document.getElementById(id).value = val; };
@@ -1655,6 +1681,14 @@ function saveDesign(){
     heroQuote:    g('d-heroQuote'),
     footerBrand:  g('d-footerBrand'),
     footerTagline:g('d-footerTagline'),
+    logoUrl:      g('d-logoUrl'),
+    companyName:         g('d-companyName'),
+    taxId:               g('d-taxId'),
+    foodSafetyRegNo:     g('d-foodSafetyRegNo'),
+    productLiabilityText:g('d-productLiabilityText'),
+    lineId:              g('d-lineId'),
+    bankName:            g('d-bankName'),
+    bankAccount:         g('d-bankAccount'),
     order: {
       label: g('d-order-label'),
       title: g('d-order-title'),
@@ -1909,6 +1943,50 @@ function clearProductImage(){
   document.getElementById('prod-image').value = '';
   document.getElementById('prod-image-status').textContent = '';
   renderProductImagePreview();
+}
+
+function renderLogoPreview(){
+  const url = document.getElementById('d-logoUrl')?.value.trim();
+  const prev = document.getElementById('d-logo-preview');
+  if(!prev) return;
+  if(!url){
+    prev.style.display = 'none';
+    prev.removeAttribute('src');
+    return;
+  }
+  prev.src = url;
+  prev.style.display = 'block';
+}
+
+async function uploadLogoImage(files){
+  const file = files && files[0];
+  if(!file) return;
+  const status = document.getElementById('logo-upload-status');
+  if(file.size > 5 * 1024 * 1024){
+    status.textContent = 'Logo 圖片請小於 5MB';
+    return;
+  }
+  status.textContent = '上傳中…';
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_PRESET);
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {method:'POST', body:fd});
+    if(!res.ok) throw new Error('Cloudinary 上傳失敗');
+    const json = await res.json();
+    document.getElementById('d-logoUrl').value = json.secure_url;
+    renderLogoPreview();
+    status.textContent = '已上傳，記得按下方「儲存」';
+  } catch(e) {
+    status.textContent = '上傳失敗，請稍後再試';
+    console.warn(e);
+  }
+}
+
+function clearLogo(){
+  document.getElementById('d-logoUrl').value = '';
+  document.getElementById('logo-upload-status').textContent = '';
+  renderLogoPreview();
 }
 
 function setProductStatus(id, status){

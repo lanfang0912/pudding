@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script src="firebase-config.js"></script>
 <style>
 :root{--ink:#1a1208;--ink-mid:#4a3820;--ink-soft:#8a7060;--paper:#faf7f2;--paper-warm:#f5f0e8;--paper-dark:#ede5d5;--caramel:#c4832a;--matcha:#5a7a48;--cocoa:#6b3e26;--rule:#d8ccb8;--red:#b83232;--blue:#2a5c8a;--green:#4a7a4a;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -267,13 +268,7 @@ const DEFAULT_BASE_PRODUCTS = {
 };
 const BASE_ORDER = ['original', 'matcha', 'cocoa'];
 
-// ── 常用品項 + 基本品項：存在 Firebase，兩邊攤位共用同步 ──
-const FB_CONFIG = {
-  apiKey: 'AIzaSyBa7puZRH8Aopj2_Qf2X7zsDg-LON4ZsBw',
-  authDomain: 'whitedessert.firebaseapp.com',
-  databaseURL: 'https://whitedessert-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'whitedessert',
-};
+// ── 常用品項 + 基本品項：存在 Firebase，兩邊攤位共用同步 ──（FB_CONFIG 定義在 firebase-config.js）
 let db = null;
 try {
   firebase.initializeApp(FB_CONFIG);
