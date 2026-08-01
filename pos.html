@@ -131,7 +131,10 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 
 <div class="bottom-bar">
   <div class="bottom-total">合計　<span id="cart-total">$0</span></div>
-  <button class="next-btn" id="next-btn" disabled onclick="openInvoiceStep()">下一步：開發票</button>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+    <button class="next-btn" id="next-btn" disabled onclick="openInvoiceStep()">下一步：開發票</button>
+    <span id="no-invoice-link" style="font-size:11px;color:var(--paper-dark);text-decoration:underline;cursor:pointer" onclick="submitNoInvoice()">只記帳，不開發票</span>
+  </div>
 </div>
 
 <!-- Step 2: invoice form -->
@@ -405,6 +408,9 @@ function renderCart() {
   const total = cartTotal();
   document.getElementById('cart-total').textContent = `$${total}`;
   document.getElementById('next-btn').disabled = total <= 0;
+  const noInvLink = document.getElementById('no-invoice-link');
+  noInvLink.style.opacity = total <= 0 ? '.4' : '1';
+  noInvLink.style.pointerEvents = total <= 0 ? 'none' : 'auto';
 }
 
 function showToast(msg) {
@@ -683,15 +689,44 @@ function logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo,
     address: '',
     code: '',
     total: totalAmount,
-    note: '🧾 擺攤｜' + items.map(i => `${i.name}×${i.count}`).join('、'),
+    note: (invoiceNo ? '🧾 擺攤｜' : '💰 擺攤（未開發票）｜') + items.map(i => `${i.name}×${i.count}`).join('、'),
     status: 'paid',
     source: 'pos',
     invoiceNo,
-    invoiceDate: now.toISOString().slice(0, 10),
+    invoiceDate: invoiceNo ? now.toISOString().slice(0, 10) : '',
     invoiceCarrierType: carrierType,
     // 有 key 的品項（布丁/常用品項）才有庫存追蹤，後台刪單時要靠這個知道扣哪個品項的庫存
     posItems: (cartItems || []).filter(c => c.key).map(c => ({ key: c.key, name: c.name, count: c.count })),
   }).catch(e => console.warn('POS 訂單紀錄寫入失敗:', e));
+}
+
+// 不開發票，只記一筆帳（跳過整個開票流程，直接扣庫存＋記營收）
+async function submitNoInvoice() {
+  if (!cart.length) return;
+  if (!confirm(`確定要直接記帳、不開發票嗎？\n合計 $${cartTotal()}`)) return;
+
+  const items = cart.map(c => ({ name: c.name, count: c.count, unit: c.unit, price: c.price, amount: c.price * c.count }));
+  const totalAmount = cartTotal();
+  const orderId = `POS-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+  let reserve;
+  try {
+    reserve = await reserveStock(cart.filter(c => c.key));
+  } catch (e) {
+    showToast('⚠️ 庫存檢查失敗：' + e.message);
+    return;
+  }
+  if (!reserve.ok) {
+    const p = allProducts().find(x => x.key === reserve.key);
+    showToast(`⚠️ ${p ? p.name : '品項'}庫存不足，請調整數量後再試`);
+    return;
+  }
+
+  logPosOrder(orderId, { buyerName: '', email: '', items, totalAmount, invoiceNo: '', carrierType: '', cartItems: cart });
+  showToast(`✅ 已記帳：$${totalAmount}`);
+  cart = [];
+  renderProducts();
+  renderCart();
 }
 
 async function submitInvoice() {
