@@ -105,7 +105,7 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
 
 <div class="topbar">
   <div class="topbar-title">初白時光 <span>擺攤 POS</span></div>
-  <div class="topbar-sub">現場開立雲端發票・不用列印</div>
+  <div class="topbar-sub">現場開立雲端發票・不用列印　<span id="stall-label" style="text-decoration:underline;cursor:pointer" onclick="setStallName()"></span></div>
 </div>
 
 <div class="wrap">
@@ -327,6 +327,21 @@ function stockInfo(key) {
 }
 
 function allProducts() { return baseProducts.concat(presets); }
+
+// ── 攤位名稱：存在這台裝置上，用來標記這台賣出的訂單是哪一邊 ──
+let stallName = localStorage.getItem('pos_stall_name') || '';
+function renderStallLabel() {
+  const el = document.getElementById('stall-label');
+  el.textContent = stallName ? `📍 ${stallName}（點擊修改）` : '📍 設定攤位名稱';
+}
+function setStallName() {
+  const name = prompt('攤位名稱（例如：A攤／校門口，方便之後區分是哪邊賣的，選填）：', stallName);
+  if (name === null) return;
+  stallName = name.trim();
+  localStorage.setItem('pos_stall_name', stallName);
+  renderStallLabel();
+}
+renderStallLabel();
 
 let cart = []; // { name, unit, price, count }
 let carrierType = 'email';
@@ -689,9 +704,10 @@ function logPosOrder(orderId, { buyerName, email, items, totalAmount, invoiceNo,
     address: '',
     code: '',
     total: totalAmount,
-    note: (invoiceNo ? '🧾 擺攤｜' : '💰 擺攤（未開發票）｜') + items.map(i => `${i.name}×${i.count}`).join('、'),
+    note: (stallName ? `[${stallName}] ` : '') + (invoiceNo ? '🧾 擺攤｜' : '💰 擺攤（未開發票）｜') + items.map(i => `${i.name}×${i.count}`).join('、'),
     status: 'paid',
     source: 'pos',
+    posStall: stallName || '',
     invoiceNo,
     invoiceDate: invoiceNo ? now.toISOString().slice(0, 10) : '',
     invoiceCarrierType: carrierType,
