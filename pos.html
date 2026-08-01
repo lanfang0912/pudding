@@ -133,7 +133,7 @@ body{background:var(--paper);font-family:'Noto Serif TC',serif;color:var(--ink);
   <div class="bottom-total">合計　<span id="cart-total">$0</span></div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
     <button class="next-btn" id="next-btn" disabled onclick="openInvoiceStep()">下一步：開發票</button>
-    <span id="no-invoice-link" style="font-size:15px;color:var(--paper-dark);text-decoration:underline;cursor:pointer;padding:4px 2px" onclick="submitNoInvoice()">只記帳，不開發票</span>
+    <button type="button" id="no-invoice-link" style="font-size:14px;color:var(--paper);background:transparent;border:1px solid var(--paper-dark);border-radius:4px;padding:7px 14px;font-family:inherit;cursor:pointer" onclick="submitNoInvoice()">只記帳，不開發票</button>
   </div>
 </div>
 
@@ -409,8 +409,8 @@ function renderCart() {
   document.getElementById('cart-total').textContent = `$${total}`;
   document.getElementById('next-btn').disabled = total <= 0;
   const noInvLink = document.getElementById('no-invoice-link');
+  noInvLink.disabled = total <= 0;
   noInvLink.style.opacity = total <= 0 ? '.4' : '1';
-  noInvLink.style.pointerEvents = total <= 0 ? 'none' : 'auto';
 }
 
 function showToast(msg) {
