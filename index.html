@@ -1188,7 +1188,7 @@ footer {
     <div class="step-page" id="page-2">
       <div class="sec-label">Step 02</div>
       <div class="sec-title">選擇收貨日期</div>
-      <div class="sec-sub" id="cal-sub">請選擇 3 天後以上的日期 · 週日不收送貨 · 已售完日期無法選取</div>
+      <div class="sec-sub" id="cal-sub">請選擇 3 天後至 30 天內的日期 · 週日不收送貨 · 已售完日期無法選取</div>
 
       <div class="cal-nav">
         <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
@@ -1573,6 +1573,9 @@ footer {
   </div>
   <div class="footer-bottom">
     © <span id="site-footer-copyright-brand">初白時光</span> · <span id="site-footer-copyright-company">悠藍自得有限公司</span> &nbsp;·&nbsp; 一個高三生的還款計劃進行中 🍮
+    <br>
+    <a href="terms.html" style="color:inherit;">服務條款與退換貨政策</a> &nbsp;·&nbsp;
+    <a href="payment-guarantee.html" style="color:inherit;">預收款履約保證揭露</a>
   </div>
 </footer>
 
@@ -1584,6 +1587,7 @@ footer {
 <script>
 // ─── CONFIG ───
 const MAX = 20; // UI 按鈕上限，實際可訂量由後台每日設定控制
+const MAX_BOOKING_DAYS = 30; // 收貨日期僅開放訂購當日起 30 天內，避免構成 LINE Pay 遞延性交易
 let maxPerDay = { orig: 3, matcha: 3, cocoa: 3, total: 9 };
 let prodOverrides = {}; // 製作日單獨設定
 let storeProducts = ProductModel.activeProducts(null);
@@ -1749,7 +1753,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '宅配',
     address: null,
     time: '未指定',
-    calendarHelp: '請選擇 3 天後以上的日期 · 週日、一不收送貨 · 已售完日期無法選取',
+    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 週日、一不收送貨 · 已售完日期無法選取',
   },
   pickup: {
     type: 'pickup',
@@ -1758,7 +1762,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '面交',
     address: '宜蘭凱旋國小',
     time: '未指定',
-    calendarHelp: '請選擇 3 天後以上的日期 · 面交不限星期 · 已售完日期無法選取',
+    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 面交不限星期 · 已售完日期無法選取',
   },
   'pickup-taipei': {
     type: 'pickup',
@@ -1767,7 +1771,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '面交',
     address: '肯德基台北承德店（台北市大同區承德路一段38號）',
     time: '14:00-21:00',
-    calendarHelp: '請選擇 3 天後以上的日期 · 台北面交限週一、週二 14:00-21:00 · 已售完日期無法選取',
+    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 台北面交限週一、週二 14:00-21:00 · 已售完日期無法選取',
   },
 };
 
@@ -1957,7 +1961,8 @@ function chgBag(d){
 function canBookDate(dt){
   const today=new Date(); today.setHours(0,0,0,0);
   const minD=new Date(today); minD.setDate(minD.getDate()+3);
-  if(dt<minD) return false;
+  const maxD=new Date(today); maxD.setDate(maxD.getDate()+MAX_BOOKING_DAYS);
+  if(dt<minD || dt>maxD) return false;
   if(order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1)) return false;
   if(order.deliveryMode === 'pickup-taipei' && !(dt.getDay() === 1 || dt.getDay() === 2)) return false;
 
@@ -1990,7 +1995,7 @@ function findFirstBookableDate(maxDays){
 // 開日曆時，如果還沒選日期，就把月份跳到第一個有可訂日期的月份，
 // 不會幫客人直接選定日期，只是讓客人打開來就看得到可以點的日子
 function jumpCalendarToFirstAvailable(){
-  const dt = findFirstBookableDate(90);
+  const dt = findFirstBookableDate(MAX_BOOKING_DAYS);
   if(dt){ calY = dt.getFullYear(); calM = dt.getMonth(); }
 }
 
@@ -2008,6 +2013,15 @@ function renderCal(){
   const days=new Date(calY,calM+1,0).getDate();
   const today=new Date(); today.setHours(0,0,0,0);
   const minD=new Date(today); minD.setDate(minD.getDate()+3);
+  const maxD=new Date(today); maxD.setDate(maxD.getDate()+MAX_BOOKING_DAYS);
+
+  const nextBtn = document.querySelector('.cal-nav-btn[onclick="nextMonth()"]');
+  if(nextBtn){
+    const beyondMax = new Date(calY, calM+1, 1) > maxD;
+    nextBtn.disabled = beyondMax;
+    nextBtn.style.opacity = beyondMax ? 0.3 : 1;
+    nextBtn.style.cursor = beyondMax ? 'not-allowed' : 'pointer';
+  }
 
   for(let i=0;i<first;i++) h+=`<div class="cal-day empty"></div>`;
 
@@ -2021,7 +2035,7 @@ function renderCal(){
   for(let d=1;d<=days;d++){
     const dt=new Date(calY,calM,d);
     const ds=fmt(dt);
-    const past=dt<minD;
+    const past=dt<minD||dt>maxD;
     const isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1);
     const isTaipeiPickupBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay() === 1 || dt.getDay() === 2);
     const isBlocked = isDeliveryBlocked || isTaipeiPickupBlocked;
@@ -2075,7 +2089,12 @@ function reserve(ds,fid,q){ inv[ds+'_'+fid]=(inv[ds+'_'+fid]||0)+q; }
 
 function selDate(s){ order.date=s; renderCal(); }
 function prevMonth(){ calM--; if(calM<0){calM=11;calY--;} renderCal(); }
-function nextMonth(){ calM++; if(calM>11){calM=0;calY++;} renderCal(); }
+function nextMonth(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const maxD=new Date(today); maxD.setDate(maxD.getDate()+MAX_BOOKING_DAYS);
+  if(new Date(calY, calM+1, 1) > maxD) return;
+  calM++; if(calM>11){calM=0;calY++;} renderCal();
+}
 
 // ─── NAV ───
 function goTo(n){
