@@ -404,6 +404,17 @@ tr.done-row td{opacity:.45;}
         🗓 同步到 Google Calendar
       </button>
     </div>
+    <div style="padding:14px 28px 0">
+      <div style="border:1px solid var(--rule);border-radius:4px;padding:16px 18px">
+        <div style="font-family:'DM Serif Display',serif;font-size:16px;margin-bottom:2px">🎪 擺攤日期</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:12px">標記週末（或其他）擺攤的日期，之後可用來調整那一週的生產排程</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input class="form-ctrl" id="market-date-input" type="date" style="max-width:180px">
+          <button class="btn-save" onclick="addMarketDate()">＋ 新增擺攤日</button>
+        </div>
+        <div id="market-dates-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>
     <div class="schedule-wrap" id="sch-content"></div>
   </div>
 
@@ -1156,6 +1167,7 @@ let products = ProductModel.normalizeProducts(null);
 let productsRaw = {};
 let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
 let prodOverrides = {};
+let marketDates = {};
 const ADMIN_EMAIL = 'admin@wd.tw';
 let _schedMakeMap = {}, _schedShipMap = {}, _schedMeetMap = {};
 
@@ -1464,6 +1476,10 @@ function startFirebaseListener(){
   db.ref('settings/prodOverrides').on('value', snap => {
     prodOverrides = snap.val() || {};
     renderSchedule();
+  });
+  db.ref('settings/marketDates').on('value', snap => {
+    marketDates = snap.val() || {};
+    renderMarketDates();
   });
   db.ref('orders').on('value', snap => {
     orders = [];
@@ -4375,6 +4391,42 @@ function buildRecipeCalcHtml(dateKey, make){
 }
 
 // ── schedule ──
+// ── 擺攤日期設定 ──
+function renderMarketDates(){
+  const el = document.getElementById('market-dates-list');
+  if(!el) return;
+  const dates = Object.keys(marketDates).filter(d => marketDates[d]).sort();
+  if(!dates.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚未設定擺攤日期</div>';
+    return;
+  }
+  const days = ['日','一','二','三','四','五','六'];
+  const today = new Date().toISOString().slice(0,10);
+  el.innerHTML = dates.map(d => {
+    const dt = new Date(d);
+    const label = `${dt.getMonth()+1}/${dt.getDate()}（週${days[dt.getDay()]}）`;
+    const past = d < today;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--rule);border-radius:14px;font-size:12px;${past?'opacity:.45':''}">
+      🎪 ${label}
+      <span style="cursor:pointer;color:var(--ink-soft)" onclick="removeMarketDate('${d}')">✕</span>
+    </span>`;
+  }).join('');
+}
+
+function addMarketDate(){
+  const input = document.getElementById('market-date-input');
+  const date = input.value;
+  if(!date){ showToast('請先選擇日期'); return; }
+  db.ref('settings/marketDates/'+date).set(true).then(() => {
+    input.value = '';
+    showToast('✓ 已新增擺攤日期');
+  });
+}
+
+function removeMarketDate(date){
+  db.ref('settings/marketDates/'+date).remove();
+}
+
 function renderSchedule(){
   const MAX = 36;
 
