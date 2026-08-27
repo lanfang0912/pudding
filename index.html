@@ -1151,17 +1151,17 @@ footer {
           <div class="delivery-opt selected" id="opt-delivery" onclick="setDelivery('delivery')">
             <div class="delivery-opt-icon">🚚</div>
             <div class="delivery-opt-title">黑貓冷藏宅配</div>
-            <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>週二至週六收送（週日、一不到貨）</div>
+            <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>固定每週五收貨</div>
           </div>
           <div class="delivery-opt" id="opt-pickup" onclick="setDelivery('pickup')">
             <div class="delivery-opt-icon">🤝</div>
             <div class="delivery-opt-title">宜蘭面交</div>
-            <div class="delivery-opt-sub">免運費 · 不限星期<br>📍 宜蘭凱旋國小</div>
+            <div class="delivery-opt-sub">免運費 · 固定每週五<br>📍 宜蘭凱旋國小</div>
           </div>
           <div class="delivery-opt" id="opt-pickup-taipei" onclick="setDelivery('pickup-taipei')">
             <div class="delivery-opt-icon">🏙️</div>
             <div class="delivery-opt-title">台北面交</div>
-            <div class="delivery-opt-sub">免運費 · 週一、週二 14:00-21:00<br>📍 肯德基台北承德店（承德路一段38號）</div>
+            <div class="delivery-opt-sub">免運費 · 固定每週五 14:00-21:00<br>📍 肯德基台北承德店（承德路一段38號）</div>
           </div>
         </div>
       </div>
@@ -1188,7 +1188,7 @@ footer {
     <div class="step-page" id="page-2">
       <div class="sec-label">Step 02</div>
       <div class="sec-title">選擇收貨日期</div>
-      <div class="sec-sub" id="cal-sub">請選擇 3 天後至 30 天內的日期 · 週日不收送貨 · 已售完日期無法選取</div>
+      <div class="sec-sub" id="cal-sub">固定每週五收貨・訂購請於當週週一前完成（收單截止）・已售完日期無法選取</div>
 
       <div class="cal-nav">
         <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
@@ -1753,7 +1753,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '宅配',
     address: null,
     time: '未指定',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 週日、一不收送貨 · 已售完日期無法選取',
+    calendarHelp: '固定每週五收貨・訂購請於當週週一前完成（收單截止）・已售完日期無法選取',
   },
   pickup: {
     type: 'pickup',
@@ -1762,16 +1762,16 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '面交',
     address: '宜蘭凱旋國小',
     time: '未指定',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 面交不限星期 · 已售完日期無法選取',
+    calendarHelp: '固定每週五面交・訂購請於當週週一前完成（收單截止）・已售完日期無法選取',
   },
   'pickup-taipei': {
     type: 'pickup',
-    summary: '🏙️ 台北面交（肯德基台北承德店，週一、週二 14:00-21:00）',
-    emailLabel: '台北面交（肯德基台北承德店，週一、週二 14:00-21:00）',
+    summary: '🏙️ 台北面交（肯德基台北承德店，週五 14:00-21:00）',
+    emailLabel: '台北面交（肯德基台北承德店，週五 14:00-21:00）',
     firebaseDelivery: '面交',
     address: '肯德基台北承德店（台北市大同區承德路一段38號）',
     time: '14:00-21:00',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 台北面交限週一、週二 14:00-21:00 · 已售完日期無法選取',
+    calendarHelp: '固定每週五面交 14:00-21:00・訂購請於當週週一前完成（收單截止）・已售完日期無法選取',
   },
 };
 
@@ -1956,15 +1956,23 @@ function chgBag(d){
 }
 
 // ─── CALENDAR ───
-// 判斷某一天是否可以訂購（跟 renderCal 內的規則保持一致：3 天後、
-// 配送方式限制、庫存/當日總量），用來找「第一個可訂日期」讓日曆自動跳過去
+// 固定排程：每週五收貨／取貨（三種收貨方式皆同），且需在當週週一（收單截止日）
+// 之前下單，才來得及配合週三做布丁、週四蛋糕日等製作排程
+function isScheduledDeliveryDay(dt){
+  if(dt.getDay() !== 5) return false;
+  const cutoff = new Date(dt); cutoff.setDate(cutoff.getDate()-4); // 當週週一，收單截止日
+  const today = new Date(); today.setHours(0,0,0,0);
+  return today <= cutoff;
+}
+
+// 判斷某一天是否可以訂購（跟 renderCal 內的規則保持一致：固定排程週五、
+// 30 天內、庫存/當日總量），用來找「第一個可訂日期」讓日曆自動跳過去
 function canBookDate(dt){
   const today=new Date(); today.setHours(0,0,0,0);
   const minD=new Date(today); minD.setDate(minD.getDate()+3);
   const maxD=new Date(today); maxD.setDate(maxD.getDate()+MAX_BOOKING_DAYS);
   if(dt<minD || dt>maxD) return false;
-  if(order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1)) return false;
-  if(order.deliveryMode === 'pickup-taipei' && !(dt.getDay() === 1 || dt.getDay() === 2)) return false;
+  if(!isScheduledDeliveryDay(dt)) return false;
 
   const COMBO_QTYS = {};
   (MIX_PRODUCT?.components || []).forEach(c => {
@@ -2036,9 +2044,7 @@ function renderCal(){
     const dt=new Date(calY,calM,d);
     const ds=fmt(dt);
     const past=dt<minD||dt>maxD;
-    const isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay() === 0 || dt.getDay() === 1);
-    const isTaipeiPickupBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay() === 1 || dt.getDay() === 2);
-    const isBlocked = isDeliveryBlocked || isTaipeiPickupBlocked;
+    const isBlocked = !isScheduledDeliveryDay(dt);
     let canBook=!past&&!isBlocked&&sel.length>0;
     let dots=[];
 
@@ -2108,10 +2114,9 @@ function goTo(n){
     const dt = new Date(order.date + 'T00:00:00');
     const _today = new Date(); _today.setHours(0,0,0,0);
     const _minD = new Date(_today); _minD.setDate(_minD.getDate()+3);
-    const _isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay()===0||dt.getDay()===1);
-    const _isTaipeiBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay()===1||dt.getDay()===2);
+    const _isBlocked = !isScheduledDeliveryDay(dt);
     const _totalNeeded = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
-    if(dt < _minD || _isDeliveryBlocked || _isTaipeiBlocked || getProdDayTotal(order.date) < _totalNeeded){
+    if(dt < _minD || _isBlocked || getProdDayTotal(order.date) < _totalNeeded){
       order.date = null; renderCal(); toast('所選日期已無法預訂，請重新選擇 📅','error'); return;
     }
   }
