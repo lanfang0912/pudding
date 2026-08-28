@@ -1197,26 +1197,38 @@ footer {
       <div class="sec-title">選擇收貨日期</div>
       <div class="sec-sub" id="cal-sub">固定每週五收貨・訂購請於當週週一前完成（收單截止）・已售完日期無法選取</div>
 
-      <div class="cal-nav">
-        <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
-        <div class="cal-month-label" id="cal-label"></div>
-        <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+      <div id="taipei-cal-wrap">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
+          <div class="cal-month-label" id="cal-label"></div>
+          <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+        </div>
+
+        <div class="cal-grid" id="cal-grid"></div>
+
+        <div class="cal-legend">
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--caramel)"></div>原味有貨</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--matcha)"></div>抹茶有貨</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cocoa)"></div>可可有貨</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ccc"></div>已售完</div>
+        </div>
       </div>
 
-      <div class="cal-grid" id="cal-grid"></div>
-
-      <div class="cal-legend">
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--caramel)"></div>原味有貨</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--matcha)"></div>抹茶有貨</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cocoa)"></div>可可有貨</div>
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ccc"></div>已售完</div>
+      <div id="taipei-contact-note" style="display:none;border:1px solid var(--rule);border-radius:4px;padding:24px 20px;text-align:center">
+        <div style="font-size:13px;color:var(--ink-mid);line-height:1.9;margin-bottom:16px">
+          台北面交採不定期預約，暫不開放線上直接選日期下單。<br>
+          請先透過 LINE 私訊我們確認日期與品項，我們會協助您完成訂購。
+        </div>
+        <a href="https://line.me/R/ti/p/@281huzeg" target="_blank" id="taipei-line-btn" class="line-btn">
+          加入 LINE 私訊詢問
+        </a>
       </div>
 
       <hr class="divider">
 
       <div class="btn-row">
         <button class="btn-ghost" onclick="goTo(1)">← 返回</button>
-        <button class="btn-primary" onclick="goTo(3)">下一步：填寫資料 →</button>
+        <button class="btn-primary" id="page2-next-btn" onclick="goTo(3)">下一步：填寫資料 →</button>
       </div>
     </div>
 
@@ -1689,6 +1701,8 @@ try {
     if (d.lineId) {
       const lineLink = document.getElementById('site-footer-line-link');
       if (lineLink) lineLink.href = `https://line.me/R/ti/p/${d.lineId}`;
+      const taipeiLineBtn = document.getElementById('taipei-line-btn');
+      if (taipeiLineBtn) taipeiLineBtn.href = `https://line.me/R/ti/p/${d.lineId}`;
     }
     // 品牌故事
     const applyTitle = (id, val) => { const el=document.getElementById(id); if(el&&val) el.textContent=val; };
@@ -1875,10 +1889,23 @@ function setDelivery(mode){
   document.getElementById('opt-delivery').classList.toggle('selected', mode==='delivery');
   document.getElementById('opt-pickup').classList.toggle('selected', mode==='pickup');
   document.getElementById('opt-pickup-taipei').classList.toggle('selected', mode==='pickup-taipei');
-  const taipeiNote = document.getElementById('taipei-note');
-  if(taipeiNote) taipeiNote.style.display = mode==='pickup-taipei' ? 'block' : 'none';
+  applyTaipeiVisibility(mode);
   updateDeliveryForm();
   if(order.isCombo) updateComboCard();
+}
+
+// 台北面交是不定期私訊預約，不開放線上自助選日期下單：
+// 隱藏日曆、改顯示 LINE 私訊按鈕，並把「下一步」按鈕收起來
+function applyTaipeiVisibility(mode){
+  const isTaipei = mode === 'pickup-taipei';
+  const taipeiNote = document.getElementById('taipei-note');
+  if(taipeiNote) taipeiNote.style.display = isTaipei ? 'block' : 'none';
+  const calWrap = document.getElementById('taipei-cal-wrap');
+  if(calWrap) calWrap.style.display = isTaipei ? 'none' : '';
+  const contactNote = document.getElementById('taipei-contact-note');
+  if(contactNote) contactNote.style.display = isTaipei ? 'block' : 'none';
+  const nextBtn = document.getElementById('page2-next-btn');
+  if(nextBtn) nextBtn.style.display = isTaipei ? 'none' : '';
 }
 
 function updateDeliveryForm(){
@@ -2128,8 +2155,11 @@ function nextMonth(){
 function goTo(n){
   if(n===2){
     if(!order.isCombo && !Object.keys(order.flavors).length){ toast('請至少選擇一種口味 🍮','error'); return; }
-    if(!order.date) jumpCalendarToFirstAvailable();
-    renderCal();
+    applyTaipeiVisibility(order.deliveryMode);
+    if(order.deliveryMode !== 'pickup-taipei'){
+      if(!order.date) jumpCalendarToFirstAvailable();
+      renderCal();
+    }
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
   if(n===3 && order.date){
@@ -2469,8 +2499,7 @@ function resetOrder(){
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
   document.getElementById('opt-pickup-taipei').classList.remove('selected');
-  const taipeiNote = document.getElementById('taipei-note');
-  if(taipeiNote) taipeiNote.style.display = 'none';
+  applyTaipeiVisibility('delivery');
   updateDeliveryForm();
   document.getElementById('success-page').style.display='none';
   ['f-name','f-phone','f-address','f-email','f-phone2','f-note','f-transfer-date','f-transfer-code'].forEach(id=>{ document.getElementById(id).value=''; });
