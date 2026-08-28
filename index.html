@@ -1161,8 +1161,15 @@ footer {
           <div class="delivery-opt" id="opt-pickup-taipei" onclick="setDelivery('pickup-taipei')">
             <div class="delivery-opt-icon">🏙️</div>
             <div class="delivery-opt-title">台北面交</div>
-            <div class="delivery-opt-sub">免運費 · 週一、週二 14:00-21:00<br>📍 肯德基台北承德店（承德路一段38號）</div>
+            <div class="delivery-opt-sub">免運費 · 不定期面交（原則週一、週二）<br>📍 肯德基台北承德店（承德路一段38號）</div>
           </div>
+        </div>
+        <div id="taipei-note" style="display:none;margin-top:14px;border:1px solid var(--rule);border-radius:4px;padding:14px 16px;font-size:12px;color:var(--ink-mid);line-height:1.9">
+          <div style="font-weight:600;color:var(--caramel);margin-bottom:6px">台北面交說明</div>
+          台北地區目前提供不定期面交服務，原則上安排於週一、週二。<br>
+          如需台北面交，請於下單前先私訊確認日期與品項；我們會依當週訂單與製作安排，確認是否開放面交。<br>
+          部分需冷藏保存的品項，會依製作日期調整可面交時段；蛋糕、可麗露等品項則較彈性。<br>
+          📍面交日期、地點以當週公告／私訊確認為準。
         </div>
       </div>
 
@@ -1775,12 +1782,12 @@ const DELIVERY_METHODS = {
   },
   'pickup-taipei': {
     type: 'pickup',
-    summary: '🏙️ 台北面交（肯德基台北承德店，週一、週二 14:00-21:00）',
-    emailLabel: '台北面交（肯德基台北承德店，週一、週二 14:00-21:00）',
+    summary: '🏙️ 台北面交（肯德基台北承德店，原則週一、週二 14:00-21:00，實際以私訊確認為準）',
+    emailLabel: '台北面交（肯德基台北承德店，原則週一、週二 14:00-21:00，實際以私訊確認為準）',
     firebaseDelivery: '面交',
     address: '肯德基台北承德店（台北市大同區承德路一段38號）',
     time: '14:00-21:00',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 台北面交限週一、週二 14:00-21:00 · 已售完日期無法選取',
+    calendarHelp: '台北面交為不定期服務，原則週一、週二・請先私訊確認日期與品項・已售完日期無法選取',
   },
 };
 
@@ -1868,6 +1875,8 @@ function setDelivery(mode){
   document.getElementById('opt-delivery').classList.toggle('selected', mode==='delivery');
   document.getElementById('opt-pickup').classList.toggle('selected', mode==='pickup');
   document.getElementById('opt-pickup-taipei').classList.toggle('selected', mode==='pickup-taipei');
+  const taipeiNote = document.getElementById('taipei-note');
+  if(taipeiNote) taipeiNote.style.display = mode==='pickup-taipei' ? 'block' : 'none';
   updateDeliveryForm();
   if(order.isCombo) updateComboCard();
 }
@@ -2460,6 +2469,8 @@ function resetOrder(){
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
   document.getElementById('opt-pickup-taipei').classList.remove('selected');
+  const taipeiNote = document.getElementById('taipei-note');
+  if(taipeiNote) taipeiNote.style.display = 'none';
   updateDeliveryForm();
   document.getElementById('success-page').style.display='none';
   ['f-name','f-phone','f-address','f-email','f-phone2','f-note','f-transfer-date','f-transfer-code'].forEach(id=>{ document.getElementById(id).value=''; });
