@@ -444,6 +444,25 @@ tr.done-row td{opacity:.45;}
             <div class="form-group"><label class="form-label">名稱</label><input class="form-ctrl" id="prod-name" placeholder="焦糖布丁"></div>
             <div class="form-group"><label class="form-label">Emoji</label><input class="form-ctrl" id="prod-emoji" placeholder="🍮"></div>
           </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label class="form-label">快選 Emoji（點一下自動填入上面欄位）</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" onclick="pickProductEmoji('🍮')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍮</button>
+                <button type="button" onclick="pickProductEmoji('🍵')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍵</button>
+                <button type="button" onclick="pickProductEmoji('🍫')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍫</button>
+                <button type="button" onclick="pickProductEmoji('🎁')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🎁</button>
+                <button type="button" onclick="pickProductEmoji('🧊')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🧊</button>
+                <button type="button" onclick="pickProductEmoji('🥐')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🥐</button>
+                <button type="button" onclick="pickProductEmoji('🍰')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍰</button>
+                <button type="button" onclick="pickProductEmoji('🧁')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🧁</button>
+                <button type="button" onclick="pickProductEmoji('🍪')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍪</button>
+                <button type="button" onclick="pickProductEmoji('🥧')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🥧</button>
+                <button type="button" onclick="pickProductEmoji('🍩')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍩</button>
+                <button type="button" onclick="pickProductEmoji('🧈')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🧈</button>
+              </div>
+            </div>
+          </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">類型</label>
               <select class="form-ctrl" id="prod-type" onchange="updateProductFormMode()">
@@ -1813,6 +1832,11 @@ function renderProducts(){
       </div>
     </div>`;
   }).join('');
+}
+
+function pickProductEmoji(e){
+  const input = document.getElementById('prod-emoji');
+  if(input) input.value = e;
 }
 
 function updateProductFormMode(){
