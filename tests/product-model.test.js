@@ -18,10 +18,13 @@ function test(name, fn) {
 
 test('normalizes seeded products in active sort order', () => {
   const products = normalizeProducts(null);
-  assert.deepStrictEqual(products.map(p => p.id), ['original', 'matcha', 'cocoa', 'pudding_mix', 'insulated_bag']);
+  assert.deepStrictEqual(products.map(p => p.id), [
+    'original', 'matcha', 'cocoa', 'pudding_mix',
+    'canele', 'pudding_cake_vanilla', 'pudding_cake_chocolate', 'insulated_bag',
+  ]);
   assert.strictEqual(products[0].productionMode, 'scheduled');
   assert.strictEqual(products[3].type, 'pudding_mix');
-  assert.strictEqual(products[4].productionMode, 'none');
+  assert.strictEqual(products.find(p => p.id === 'insulated_bag').productionMode, 'none');
 });
 
 test('builds order item snapshots for box selections', () => {

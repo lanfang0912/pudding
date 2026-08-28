@@ -404,6 +404,17 @@ tr.done-row td{opacity:.45;}
         🗓 同步到 Google Calendar
       </button>
     </div>
+    <div style="padding:14px 28px 0">
+      <div style="border:1px solid var(--rule);border-radius:4px;padding:16px 18px">
+        <div style="font-family:'DM Serif Display',serif;font-size:16px;margin-bottom:2px">🎪 擺攤日期</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:12px">標記週末（或其他）擺攤的日期，之後可用來調整那一週的生產排程</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input class="form-ctrl" id="market-date-input" type="date" style="max-width:180px">
+          <button class="btn-save" onclick="addMarketDate()">＋ 新增擺攤日</button>
+        </div>
+        <div id="market-dates-list" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>
     <div class="schedule-wrap" id="sch-content"></div>
   </div>
 
@@ -432,6 +443,25 @@ tr.done-row td{opacity:.45;}
           <div class="form-row">
             <div class="form-group"><label class="form-label">名稱</label><input class="form-ctrl" id="prod-name" placeholder="焦糖布丁"></div>
             <div class="form-group"><label class="form-label">Emoji</label><input class="form-ctrl" id="prod-emoji" placeholder="🍮"></div>
+          </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label class="form-label">快選 Emoji（點一下自動填入上面欄位）</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" onclick="pickProductEmoji('🍮')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍮</button>
+                <button type="button" onclick="pickProductEmoji('🍵')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍵</button>
+                <button type="button" onclick="pickProductEmoji('🍫')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍫</button>
+                <button type="button" onclick="pickProductEmoji('🎁')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🎁</button>
+                <button type="button" onclick="pickProductEmoji('🧊')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🧊</button>
+                <button type="button" onclick="pickProductEmoji('🥐')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🥐</button>
+                <button type="button" onclick="pickProductEmoji('🍰')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍰</button>
+                <button type="button" onclick="pickProductEmoji('🧁')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🧁</button>
+                <button type="button" onclick="pickProductEmoji('🍪')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍪</button>
+                <button type="button" onclick="pickProductEmoji('🥧')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🥧</button>
+                <button type="button" onclick="pickProductEmoji('🍩')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🍩</button>
+                <button type="button" onclick="pickProductEmoji('🧈')" style="font-size:18px;padding:4px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--paper-warm);cursor:pointer">🧈</button>
+              </div>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">類型</label>
@@ -1156,6 +1186,24 @@ let products = ProductModel.normalizeProducts(null);
 let productsRaw = {};
 let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
 let prodOverrides = {};
+let marketDates = {};
+
+// 台北面交（肯德基台北承德店）跟宜蘭面交都存成 delivery:'面交'，
+// 只能靠地址分辨
+function isTaipeiOrder(o){
+  return o.delivery === '面交' && (o.address||'').includes('台北');
+}
+
+// 固定製作日：宅配／宜蘭面交固定每週三做主批，一律回推到最近的週三；
+// 台北面交為了新鮮度，改成獨立回推到最近的週日另做一批
+function prodDateFor(o){
+  const dateStr = o.date;
+  const target = isTaipeiOrder(o) ? 0 : 3; // 0=週日，3=週三
+  const d = new Date(dateStr);
+  const back = (d.getDay() - target + 7) % 7;
+  d.setDate(d.getDate() - back);
+  return d.toISOString().slice(0,10);
+}
 const ADMIN_EMAIL = 'admin@wd.tw';
 let _schedMakeMap = {}, _schedShipMap = {}, _schedMeetMap = {};
 
@@ -1464,6 +1512,10 @@ function startFirebaseListener(){
   db.ref('settings/prodOverrides').on('value', snap => {
     prodOverrides = snap.val() || {};
     renderSchedule();
+  });
+  db.ref('settings/marketDates').on('value', snap => {
+    marketDates = snap.val() || {};
+    renderMarketDates();
   });
   db.ref('orders').on('value', snap => {
     orders = [];
@@ -1780,6 +1832,11 @@ function renderProducts(){
       </div>
     </div>`;
   }).join('');
+}
+
+function pickProductEmoji(e){
+  const input = document.getElementById('prod-emoji');
+  if(input) input.value = e;
 }
 
 function updateProductFormMode(){
@@ -2555,11 +2612,8 @@ function renderIngAlerts(){
   if(completedUntil) startDate.setDate(startDate.getDate() + 1);
   const startStr = startDate.toISOString().slice(0,10);
 
-  const allProdDates = [...new Set(pending.map(o=>{
-    const offset = o.delivery==='面交' ? -1 : -2;
-    const d = new Date(o.date); d.setDate(d.getDate()+offset);
-    return d.toISOString().slice(0,10);
-  }))].filter(pd => pd >= startStr).sort();
+  const allProdDates = [...new Set(pending.map(o => prodDateFor(o)))]
+    .filter(pd => pd >= startStr).sort();
 
   const urgentSet = new Set(allProdDates.filter(pd => {
     const d = new Date(pd); d.setHours(0,0,0,0);
@@ -2580,9 +2634,7 @@ function renderIngAlerts(){
   allProdDates.forEach(pd => {
     const boxes = {orig:0, matcha:0, cocoa:0};
     pending.forEach(o => {
-      const offset = o.delivery==='面交' ? -1 : -2;
-      const d = new Date(o.date); d.setDate(d.getDate()+offset);
-      if(d.toISOString().slice(0,10)===pd){
+      if(prodDateFor(o) === pd){
         boxes.orig   += o.orig   || 0;
         boxes.matcha += o.matcha || 0;
         boxes.cocoa  += o.cocoa  || 0;
@@ -3096,10 +3148,7 @@ function renderInvCalendar(overrides){
   // 從訂單推算製作日
   orders.forEach(o => {
     if(!o.date || o.status === 'cancelled') return;
-    const d = new Date(o.date);
-    const offset = o.delivery === '面交' ? -1 : -2;
-    d.setDate(d.getDate() + offset);
-    prodDates.add(d.toISOString().slice(0,10));
+    prodDates.add(prodDateFor(o));
   });
 
   // 加入已有 override 的日期
@@ -3124,10 +3173,7 @@ function renderInvCalendar(overrides){
   const booked = {}; // prodDate → {orig, matcha, cocoa, total}
   orders.forEach(o => {
     if(!o.date || o.status === 'cancelled') return;
-    const d = new Date(o.date);
-    const offset = o.delivery === '面交' ? -1 : -2;
-    d.setDate(d.getDate() + offset);
-    const pd = d.toISOString().slice(0,10);
+    const pd = prodDateFor(o);
     if(!booked[pd]) booked[pd] = {orig:0, matcha:0, cocoa:0};
     booked[pd].orig   += o.orig   || 0;
     booked[pd].matcha += o.matcha || 0;
@@ -4375,12 +4421,48 @@ function buildRecipeCalcHtml(dateKey, make){
 }
 
 // ── schedule ──
+// ── 擺攤日期設定 ──
+function renderMarketDates(){
+  const el = document.getElementById('market-dates-list');
+  if(!el) return;
+  const dates = Object.keys(marketDates).filter(d => marketDates[d]).sort();
+  if(!dates.length){
+    el.innerHTML = '<div style="font-size:12px;color:var(--ink-soft)">尚未設定擺攤日期</div>';
+    return;
+  }
+  const days = ['日','一','二','三','四','五','六'];
+  const today = new Date().toISOString().slice(0,10);
+  el.innerHTML = dates.map(d => {
+    const dt = new Date(d);
+    const label = `${dt.getMonth()+1}/${dt.getDate()}（週${days[dt.getDay()]}）`;
+    const past = d < today;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--rule);border-radius:14px;font-size:12px;${past?'opacity:.45':''}">
+      🎪 ${label}
+      <span style="cursor:pointer;color:var(--ink-soft)" onclick="removeMarketDate('${d}')">✕</span>
+    </span>`;
+  }).join('');
+}
+
+function addMarketDate(){
+  const input = document.getElementById('market-date-input');
+  const date = input.value;
+  if(!date){ showToast('請先選擇日期'); return; }
+  db.ref('settings/marketDates/'+date).set(true).then(() => {
+    input.value = '';
+    showToast('✓ 已新增擺攤日期');
+  });
+}
+
+function removeMarketDate(date){
+  db.ref('settings/marketDates/'+date).remove();
+}
+
 function renderSchedule(){
   const MAX = 36;
 
   // 從訂單動態建立排程
-  // 邏輯：客戶收到日(date) → 出貨日(date-1) → 製作日(date-2)
-  // 面交：直接在 date 當天面交，不需要出貨日/製作日
+  // 邏輯：客戶收到日(date) → 製作日固定回推到最近的週三（見 prodDateFor）
+  // 宅配另外還有出貨日(date-1，交給黑貓的那天)；面交當天直接面交
 
   const makeMap = {};  // 製作日 → {orig, matcha, cocoa, shipNote}
   const shipMap = {};  // 出貨日 → [顧客名稱+地址]
@@ -4405,9 +4487,9 @@ function renderSchedule(){
   active.forEach(o => {
     const receiveDate = o.date;
     const isPickup = o.delivery === '面交';
+    const makeDate = prodDateFor(o);
 
     if(isPickup){
-      // 面交：當天面交，前一天晚上製作
       if(!meetMap[receiveDate]) meetMap[receiveDate] = [];
       meetMap[receiveDate].push({
         id: o.id,
@@ -4421,19 +4503,9 @@ function renderSchedule(){
         cocoa:  o.cocoa  || 0,
         comboItems: o.comboItems || null,
       });
-      // 製作日 = 面交日前一天
-      const makeDate = addDays(receiveDate, -1);
-      if(makeDate){
-        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
-        makeMap[makeDate].orig   += o.orig   || 0;
-        makeMap[makeDate].matcha += o.matcha || 0;
-        makeMap[makeDate].cocoa  += o.cocoa  || 0;
-      }
     } else {
-      // 宅配：出貨日 = receiveDate-1，製作日 = receiveDate-2
+      // 宅配：出貨日 = receiveDate-1（交給黑貓的那天）
       const shipDate = addDays(receiveDate, -1);
-      const makeDate = addDays(receiveDate, -2);
-
       if(shipDate){
         if(!shipMap[shipDate]) shipMap[shipDate] = [];
         shipMap[shipDate].push({
@@ -4450,12 +4522,12 @@ function renderSchedule(){
           comboItems: o.comboItems || null,
         });
       }
-      if(makeDate){
-        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
-        makeMap[makeDate].orig   += o.orig   || 0;
-        makeMap[makeDate].matcha += o.matcha || 0;
-        makeMap[makeDate].cocoa  += o.cocoa  || 0;
-      }
+    }
+    if(makeDate){
+      if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
+      makeMap[makeDate].orig   += o.orig   || 0;
+      makeMap[makeDate].matcha += o.matcha || 0;
+      makeMap[makeDate].cocoa  += o.cocoa  || 0;
     }
   });
 
@@ -4500,10 +4572,7 @@ function renderSchedule(){
 
     // 生產區 - 對應訂單明細（含 checkbox）
     const makeOrderRows = make ? active
-      .filter(o => {
-        if(o.delivery === '面交') return addDays(o.date, -1) === date;
-        return addDays(o.date, -2) === date;
-      })
+      .filter(o => prodDateFor(o) === date)
       .map(o => {
         const done = o.made === true;
         const combo = isComboOrder(o);
@@ -4514,17 +4583,11 @@ function renderSchedule(){
         </li>`;
       }).join('') : '';
 
-    const doneCount = make ? active.filter(o => {
-      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
-      return mDate === date && o.made;
-    }).length : 0;
-    const totalCount = make ? active.filter(o => {
-      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
-      return mDate === date;
-    }).length : 0;
+    const doneCount = make ? active.filter(o => prodDateFor(o) === date && o.made).length : 0;
+    const totalCount = make ? active.filter(o => prodDateFor(o) === date).length : 0;
 
     const prodHtml = make ? `<div>
-      <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
+      <h4>製作日 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
       ${(()=>{
         const ov=prodOverrides[date]||{};
         const mt=ov.total!=null?ov.total:(maxPerDay.total??9);
