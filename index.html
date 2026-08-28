@@ -1623,11 +1623,12 @@ function addDaysToDate(dateStr, n){
   return d.toISOString().slice(0,10);
 }
 
-// 固定製作日：布丁固定每週三做，不論宅配／面交／哪個通路，
-// 一律回推到最近的週三，這樣同一批布丁的訂單才會歸到同一個製作日
-function prodDateFor(dateStr){
+// 固定製作日：宅配／宜蘭面交固定每週三做主批，一律回推到最近的週三；
+// 台北面交為了新鮮度，改成獨立回推到最近的週日另做一批
+function prodDateFor(dateStr, mode){
   const dow = new Date(dateStr).getDay();
-  const back = (dow - 3 + 7) % 7;
+  const target = mode === 'pickup-taipei' ? 0 : 3; // 0=週日，3=週三
+  const back = (dow - target + 7) % 7;
   return addDaysToDate(dateStr, -back);
 }
 
@@ -2097,7 +2098,7 @@ function getStock(ds, fid){
 
 // 總量檢查（製作日當天所有口味合計）
 function getProdDayTotal(ds){
-  const prodDate = prodDateFor(ds);
+  const prodDate = prodDateFor(ds, order.deliveryMode);
   const override = prodOverrides[prodDate];
   const maxTotal = override && override.total != null ? override.total : (maxPerDay.total ?? 9);
   const used = (inv[prodDate+'_original']||0) + (inv[prodDate+'_matcha']||0) + (inv[prodDate+'_cocoa']||0);
