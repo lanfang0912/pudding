@@ -1168,6 +1168,15 @@ let productsRaw = {};
 let maxPerDay = {orig:3, matcha:3, cocoa:3, total:9};
 let prodOverrides = {};
 let marketDates = {};
+
+// 固定製作日：布丁固定每週三做，不論宅配／面交／哪個通路，
+// 一律回推到最近的週三，這樣同一批布丁的訂單才會歸到同一個製作日
+function prodDateFor(dateStr){
+  const d = new Date(dateStr);
+  const back = (d.getDay() - 3 + 7) % 7;
+  d.setDate(d.getDate() - back);
+  return d.toISOString().slice(0,10);
+}
 const ADMIN_EMAIL = 'admin@wd.tw';
 let _schedMakeMap = {}, _schedShipMap = {}, _schedMeetMap = {};
 
@@ -2571,11 +2580,8 @@ function renderIngAlerts(){
   if(completedUntil) startDate.setDate(startDate.getDate() + 1);
   const startStr = startDate.toISOString().slice(0,10);
 
-  const allProdDates = [...new Set(pending.map(o=>{
-    const offset = o.delivery==='面交' ? -1 : -2;
-    const d = new Date(o.date); d.setDate(d.getDate()+offset);
-    return d.toISOString().slice(0,10);
-  }))].filter(pd => pd >= startStr).sort();
+  const allProdDates = [...new Set(pending.map(o => prodDateFor(o.date)))]
+    .filter(pd => pd >= startStr).sort();
 
   const urgentSet = new Set(allProdDates.filter(pd => {
     const d = new Date(pd); d.setHours(0,0,0,0);
@@ -2596,9 +2602,7 @@ function renderIngAlerts(){
   allProdDates.forEach(pd => {
     const boxes = {orig:0, matcha:0, cocoa:0};
     pending.forEach(o => {
-      const offset = o.delivery==='面交' ? -1 : -2;
-      const d = new Date(o.date); d.setDate(d.getDate()+offset);
-      if(d.toISOString().slice(0,10)===pd){
+      if(prodDateFor(o.date) === pd){
         boxes.orig   += o.orig   || 0;
         boxes.matcha += o.matcha || 0;
         boxes.cocoa  += o.cocoa  || 0;
@@ -3112,10 +3116,7 @@ function renderInvCalendar(overrides){
   // 從訂單推算製作日
   orders.forEach(o => {
     if(!o.date || o.status === 'cancelled') return;
-    const d = new Date(o.date);
-    const offset = o.delivery === '面交' ? -1 : -2;
-    d.setDate(d.getDate() + offset);
-    prodDates.add(d.toISOString().slice(0,10));
+    prodDates.add(prodDateFor(o.date));
   });
 
   // 加入已有 override 的日期
@@ -3140,10 +3141,7 @@ function renderInvCalendar(overrides){
   const booked = {}; // prodDate → {orig, matcha, cocoa, total}
   orders.forEach(o => {
     if(!o.date || o.status === 'cancelled') return;
-    const d = new Date(o.date);
-    const offset = o.delivery === '面交' ? -1 : -2;
-    d.setDate(d.getDate() + offset);
-    const pd = d.toISOString().slice(0,10);
+    const pd = prodDateFor(o.date);
     if(!booked[pd]) booked[pd] = {orig:0, matcha:0, cocoa:0};
     booked[pd].orig   += o.orig   || 0;
     booked[pd].matcha += o.matcha || 0;
@@ -4431,8 +4429,8 @@ function renderSchedule(){
   const MAX = 36;
 
   // 從訂單動態建立排程
-  // 邏輯：客戶收到日(date) → 出貨日(date-1) → 製作日(date-2)
-  // 面交：直接在 date 當天面交，不需要出貨日/製作日
+  // 邏輯：客戶收到日(date) → 製作日固定回推到最近的週三（見 prodDateFor）
+  // 宅配另外還有出貨日(date-1，交給黑貓的那天)；面交當天直接面交
 
   const makeMap = {};  // 製作日 → {orig, matcha, cocoa, shipNote}
   const shipMap = {};  // 出貨日 → [顧客名稱+地址]
@@ -4457,9 +4455,9 @@ function renderSchedule(){
   active.forEach(o => {
     const receiveDate = o.date;
     const isPickup = o.delivery === '面交';
+    const makeDate = prodDateFor(receiveDate);
 
     if(isPickup){
-      // 面交：當天面交，前一天晚上製作
       if(!meetMap[receiveDate]) meetMap[receiveDate] = [];
       meetMap[receiveDate].push({
         id: o.id,
@@ -4473,19 +4471,9 @@ function renderSchedule(){
         cocoa:  o.cocoa  || 0,
         comboItems: o.comboItems || null,
       });
-      // 製作日 = 面交日前一天
-      const makeDate = addDays(receiveDate, -1);
-      if(makeDate){
-        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
-        makeMap[makeDate].orig   += o.orig   || 0;
-        makeMap[makeDate].matcha += o.matcha || 0;
-        makeMap[makeDate].cocoa  += o.cocoa  || 0;
-      }
     } else {
-      // 宅配：出貨日 = receiveDate-1，製作日 = receiveDate-2
+      // 宅配：出貨日 = receiveDate-1（交給黑貓的那天）
       const shipDate = addDays(receiveDate, -1);
-      const makeDate = addDays(receiveDate, -2);
-
       if(shipDate){
         if(!shipMap[shipDate]) shipMap[shipDate] = [];
         shipMap[shipDate].push({
@@ -4502,12 +4490,12 @@ function renderSchedule(){
           comboItems: o.comboItems || null,
         });
       }
-      if(makeDate){
-        if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
-        makeMap[makeDate].orig   += o.orig   || 0;
-        makeMap[makeDate].matcha += o.matcha || 0;
-        makeMap[makeDate].cocoa  += o.cocoa  || 0;
-      }
+    }
+    if(makeDate){
+      if(!makeMap[makeDate]) makeMap[makeDate] = {orig:0, matcha:0, cocoa:0};
+      makeMap[makeDate].orig   += o.orig   || 0;
+      makeMap[makeDate].matcha += o.matcha || 0;
+      makeMap[makeDate].cocoa  += o.cocoa  || 0;
     }
   });
 
@@ -4552,10 +4540,7 @@ function renderSchedule(){
 
     // 生產區 - 對應訂單明細（含 checkbox）
     const makeOrderRows = make ? active
-      .filter(o => {
-        if(o.delivery === '面交') return addDays(o.date, -1) === date;
-        return addDays(o.date, -2) === date;
-      })
+      .filter(o => prodDateFor(o.date) === date)
       .map(o => {
         const done = o.made === true;
         const combo = isComboOrder(o);
@@ -4566,17 +4551,11 @@ function renderSchedule(){
         </li>`;
       }).join('') : '';
 
-    const doneCount = make ? active.filter(o => {
-      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
-      return mDate === date && o.made;
-    }).length : 0;
-    const totalCount = make ? active.filter(o => {
-      const mDate = o.delivery==='面交' ? addDays(o.date,-1) : addDays(o.date,-2);
-      return mDate === date;
-    }).length : 0;
+    const doneCount = make ? active.filter(o => prodDateFor(o.date) === date && o.made).length : 0;
+    const totalCount = make ? active.filter(o => prodDateFor(o.date) === date).length : 0;
 
     const prodHtml = make ? `<div>
-      <h4>今晚製作・供明日出貨 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
+      <h4>製作日 ${totalCount>0?`<span style="font-size:11px;font-weight:400;color:${doneCount===totalCount?'var(--matcha)':'var(--ink-soft)'}">${doneCount}／${totalCount} 完成</span>`:''}</h4>
       ${(()=>{
         const ov=prodOverrides[date]||{};
         const mt=ov.total!=null?ov.total:(maxPerDay.total??9);
