@@ -1145,20 +1145,26 @@ footer {
 
       <div class="flavor-grid" id="flavor-grid"></div>
 
+      <div id="simple-products-section" style="display:none;margin-bottom:20px;">
+        <div class="sec-label" style="margin-bottom:10px;">其他甜點</div>
+        <div class="flavor-grid" id="simple-grid"></div>
+      </div>
+
       <div style="margin-bottom:20px;">
         <div class="sec-label" style="margin-bottom:10px;">配送方式</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
           <div class="delivery-opt selected" id="opt-delivery" onclick="setDelivery('delivery')">
             <div class="delivery-opt-icon">🚚</div>
             <div class="delivery-opt-title">黑貓冷藏宅配</div>
-            <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>週二至週六收送（週日、一不到貨）</div>
+            <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>每週一收單，週五配送到府</div>
           </div>
           <div class="delivery-opt" id="opt-pickup" onclick="setDelivery('pickup')">
             <div class="delivery-opt-icon">🤝</div>
             <div class="delivery-opt-title">宜蘭面交</div>
-            <div class="delivery-opt-sub">免運費 · 不限星期<br>📍 宜蘭凱旋國小</div>
+            <div class="delivery-opt-sub">免運費 · 每週五、六、日可取<br>📍 宜蘭凱旋國小</div>
           </div>
-          <div class="delivery-opt" id="opt-pickup-taipei" onclick="setDelivery('pickup-taipei')">
+          <!-- 台北面交：先暫停開放，保留程式碼與設定，之後要恢復只需拿掉這個 display:none -->
+          <div class="delivery-opt" id="opt-pickup-taipei" onclick="setDelivery('pickup-taipei')" style="display:none">
             <div class="delivery-opt-icon">🏙️</div>
             <div class="delivery-opt-title">台北面交</div>
             <div class="delivery-opt-sub">免運費 · 週一、週二 14:00-21:00<br>📍 肯德基台北承德店（承德路一段38號）</div>
@@ -1190,6 +1196,16 @@ footer {
       <div class="sec-title">選擇收貨日期</div>
       <div class="sec-sub" id="cal-sub">請選擇 3 天後至 30 天內的日期 · 週日不收送貨 · 已售完日期無法選取</div>
 
+      <div id="cycle-date-info" style="display:none;border:1.5px solid var(--rule);border-radius:4px;padding:20px;text-align:center;margin-bottom:20px">
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">📅 本次收貨日期</div>
+        <div id="cycle-date-text" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink)"></div>
+      </div>
+
+      <div id="cycle-date-picker" style="display:none;margin-bottom:20px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="cycle-date-options"></div>
+      </div>
+
+      <div id="calendar-wrap">
       <div class="cal-nav">
         <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
         <div class="cal-month-label" id="cal-label"></div>
@@ -1203,6 +1219,7 @@ footer {
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--matcha)"></div>抹茶有貨</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cocoa)"></div>可可有貨</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ccc"></div>已售完</div>
+      </div>
       </div>
 
       <hr class="divider">
@@ -1289,7 +1306,7 @@ footer {
 
       <div class="btn-row">
         <button class="btn-ghost" onclick="goTo(2)">← 返回</button>
-        <button class="btn-primary" onclick="requireLineOrGoTo4()">下一步：確認訂單 →</button>
+        <button class="btn-primary" onclick="goTo(4)">下一步：確認訂單 →</button>
       </div>
     </div>
     </div>
@@ -1385,6 +1402,9 @@ footer {
   let lineUserId = '';
   let lineDisplayName = '';
   let liffReady = false;
+  // 訂單已送出、但客人尚未綁定 LINE 時，暫存訂單編號與通知訊息，
+  // 等綁定完成（或略過）後才顯示成功頁。
+  let pendingLineOrder = null;
 
   function lineToast(message) {
     if(window.__orderReady && typeof toast === 'function') toast(message, 'error');
@@ -1392,12 +1412,25 @@ footer {
   }
 
   function saveLinePromptState() {
+    // 只有在會整頁跳轉去 LINE 登入時才需要存，讓返回頁面後能接續完成訂單。
+    if(!pendingLineOrder) return;
     sessionStorage.setItem('linePromptPending', '1');
-    sessionStorage.setItem('lineSavedOrder', JSON.stringify(order));
-    const formIds = ['name','phone','address','email','phone2','note','inv-carrier','inv-num','inv-npo','inv-taxid','inv-taxname'];
-    const formState = {};
-    formIds.forEach(k=>{ const el=document.getElementById('f-'+k); if(el) formState[k]=el.value; });
-    sessionStorage.setItem('lineSavedForm', JSON.stringify(formState));
+    sessionStorage.setItem('linePendingOrder', JSON.stringify(pendingLineOrder));
+  }
+
+  function completeLineBoundOrder() {
+    const overlay = document.getElementById('line-prompt-overlay');
+    if(overlay) overlay.style.display = 'none';
+    const pending = pendingLineOrder;
+    pendingLineOrder = null;
+    if(!pending) return;
+    if(db) db.ref('orders/' + pending.num).update({ lineId: lineUserId }).catch(()=>{});
+    fetch('https://tcat-proxy.lanfang-hsu.workers.dev/sendLine', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ userId: lineUserId, message: pending.message }),
+    }).catch(()=>{});
+    showSuccess(pending.num);
   }
 
   function finishLineBinding(profile) {
@@ -1405,35 +1438,22 @@ footer {
     lineDisplayName = profile.displayName;
     updateLineLoginUI();
 
-    if(!sessionStorage.getItem('linePromptPending')) return;
+    // 從 LIFF 登入整頁跳轉回來：還原剛才送出、等待綁定的訂單。
+    if(sessionStorage.getItem('linePromptPending')){
+      const saved = JSON.parse(sessionStorage.getItem('linePendingOrder') || 'null');
+      sessionStorage.removeItem('linePromptPending');
+      sessionStorage.removeItem('linePendingOrder');
+      if(saved) pendingLineOrder = saved;
+    }
+
+    if(!pendingLineOrder) return;
 
     const resume = () => {
-      if(!window.__orderReady || typeof goTo !== 'function') {
+      if(!window.__orderReady || typeof completeLineBoundOrder !== 'function') {
         setTimeout(resume, 50);
         return;
       }
-
-      sessionStorage.removeItem('linePromptPending');
-      const savedOrder = JSON.parse(sessionStorage.getItem('lineSavedOrder') || 'null');
-      const savedForm  = JSON.parse(sessionStorage.getItem('lineSavedForm')  || 'null');
-      sessionStorage.removeItem('lineSavedOrder');
-      sessionStorage.removeItem('lineSavedForm');
-      if(savedOrder){
-        Object.assign(order, savedOrder);
-      }
-      if(savedForm){
-        ['name','phone','address','email','phone2','note'].forEach(k=>{
-          const el = document.getElementById('f-'+k);
-          if(el && savedForm[k] != null) el.value = savedForm[k];
-        });
-        ['inv-carrier','inv-num','inv-npo','inv-taxid','inv-taxname'].forEach(k=>{
-          const el = document.getElementById('f-'+k);
-          if(el && savedForm[k] != null) el.value = savedForm[k];
-        });
-      }
-      const overlay = document.getElementById('line-prompt-overlay');
-      if(overlay) overlay.style.display = 'none';
-      goTo(4);
+      completeLineBoundOrder();
     };
 
     resume();
@@ -1507,7 +1527,7 @@ footer {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/></svg>
       使用 LINE 登入綁定
     </button>
-    <button onclick="dismissLinePrompt()" style="width:100%;padding:10px;background:transparent;border:1px solid #ddd;border-radius:8px;font-size:13px;color:#999;font-family:inherit;cursor:pointer">略過，繼續下一步</button>
+    <button onclick="dismissLinePrompt()" style="width:100%;padding:10px;background:transparent;border:1px solid #ddd;border-radius:8px;font-size:13px;color:#999;font-family:inherit;cursor:pointer">略過，完成訂購</button>
   </div>
 </div>
 
@@ -1593,6 +1613,7 @@ let prodOverrides = {}; // 製作日單獨設定
 let storeProducts = ProductModel.activeProducts(null);
 let FLAVORS = [];
 let MIX_PRODUCT = null;
+let SIMPLE_PRODUCTS = [];
 
 function productToFlavor(p){
   const stockClass = {original:'original', matcha:'matcha', cocoa:'cocoa'}[p.stockKey] || 'original';
@@ -1608,13 +1629,29 @@ function productToFlavor(p){
   };
 }
 
+// 獨立商品（非布丁盒裝/三拼、不進生產排程），例如蛋糕、堅果、杏仁瓦片。
+// 保冷袋（insulated_bag）已有自己的加購 UI，這裡排除避免重複顯示。
+function productToSimple(p){
+  return {
+    id: p.id,
+    zh: p.name,
+    en: p.description || '',
+    icon: p.emoji || '🍰',
+    imageUrl: p.imageUrl || '',
+    price: p.price,
+    unit: p.unit || '個',
+  };
+}
+
 function applyStoreProducts(rawProducts){
   storeProducts = ProductModel.activeProducts(rawProducts || null);
   FLAVORS = storeProducts.filter(p => p.type === 'pudding_box').map(productToFlavor);
   MIX_PRODUCT = storeProducts.find(p => p.type === 'pudding_mix') || null;
+  SIMPLE_PRODUCTS = storeProducts.filter(p => p.type !== 'pudding_box' && p.type !== 'pudding_mix' && p.id !== 'insulated_bag').map(productToSimple);
   if(!FLAVORS.length) FLAVORS = ProductModel.activeProducts(null).filter(p => p.type === 'pudding_box').map(productToFlavor);
   if(!MIX_PRODUCT) MIX_PRODUCT = ProductModel.activeProducts(null).find(p => p.type === 'pudding_mix');
   renderFlavors();
+  renderSimpleProducts();
 }
 // ── 工具：日期加減 ──
 function addDaysToDate(dateStr, n){
@@ -1753,7 +1790,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '宅配',
     address: null,
     time: '未指定',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 週日、一不收送貨 · 已售完日期無法選取',
+    calendarHelp: '每週一為收單截止日，統一於週五宅配到府',
   },
   pickup: {
     type: 'pickup',
@@ -1762,7 +1799,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '面交',
     address: '宜蘭凱旋國小',
     time: '未指定',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 面交不限星期 · 已售完日期無法選取',
+    calendarHelp: '每週一為收單截止日，可選擇當週週五、週六或週日面交',
   },
   'pickup-taipei': {
     type: 'pickup',
@@ -1783,7 +1820,7 @@ function isPickupMode(){
   return getDeliveryMethod().type === 'pickup';
 }
 
-const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'', insulatedBag:0 };
+const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'', insulatedBag:0, simpleItems:{} };
 window.__orderReady = true;
 
 let calY, calM;
@@ -1851,6 +1888,36 @@ function renderFlavors(){
   const lsBtn = document.getElementById('combo-ls-btn');
   if(lsBtn) lsBtn.className = 'low-sugar-btn' + (order.comboLowSugar ? ' active' : '');
   if(combo) updateComboCard();
+}
+
+// ─── 其他甜點（獨立商品，非布丁排程）───
+function renderSimpleProducts(){
+  const section = document.getElementById('simple-products-section');
+  if(section) section.style.display = SIMPLE_PRODUCTS.length ? 'block' : 'none';
+  document.getElementById('simple-grid').innerHTML = SIMPLE_PRODUCTS.map(sp=>{
+    const q = order.simpleItems[sp.id] || 0;
+    return `
+    <div class="flavor-card">
+      ${sp.imageUrl ? `<img src="${escHtml(sp.imageUrl)}" alt="${escHtml(sp.zh)}" class="flavor-photo" loading="lazy">` : `<span class="flavor-icon">${sp.icon}</span>`}
+      <div class="flavor-name-zh">${sp.zh}</div>
+      <div class="flavor-name-en">${sp.en}</div>
+      <div class="flavor-price">NT$ ${sp.price.toLocaleString()}</div>
+      <div class="flavor-price-sub">/ ${sp.unit}</div>
+      <div class="qty-row" style="max-height:none;opacity:1;">
+        <button class="qty-btn" onclick="chgSimple('${sp.id}',-1)">−</button>
+        <div class="qty-display" id="qv-sp-${sp.id}">${q}</div>
+        <button class="qty-btn" onclick="chgSimple('${sp.id}',1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function chgSimple(id, d){
+  const next = Math.max(0, Math.min(MAX, (order.simpleItems[id] || 0) + d));
+  if(next) order.simpleItems[id] = next;
+  else delete order.simpleItems[id];
+  const el = document.getElementById('qv-sp-'+id);
+  if(el) el.textContent = next;
 }
 
 function setDelivery(mode){
@@ -1937,22 +2004,54 @@ function toggleLowSugar(id){
 }
 
 function chg(id,d){
+  // 收單不限制數量：每個口味各自最多到 MAX（僅為 UI 按鈕上限），彼此互不影響。
   const newVal = (order.flavors[id]||1) + d;
-  if(newVal < 1){
-    order.flavors[id] = 1;
-  } else {
-    const otherTotal = Object.entries(order.flavors)
-      .filter(([k]) => k !== id)
-      .reduce((s,[,v]) => s+v, 0);
-    const cap = maxPerDay.total ?? 9;
-    order.flavors[id] = Math.min(newVal, Math.max(1, cap - otherTotal));
-  }
+  order.flavors[id] = Math.max(1, Math.min(MAX, newVal));
   document.getElementById('qv-'+id).textContent = order.flavors[id];
 }
 
 function chgBag(d){
   order.insulatedBag = Math.max(0, (order.insulatedBag||0) + d);
   document.getElementById('bag-qty').textContent = order.insulatedBag;
+}
+
+// ─── 固定週期收貨日（宅配 / 宜蘭面交）───
+// 每週一為收單截止日：本週一（或今天，若今天就是週一）之後的週五統一出貨。
+// 宜蘭面交在同一批次的週五、週六、週日都可以取貨。
+function getCycleFriday(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = today.getDay(); // 0=日 ... 6=六
+  const mondayOffset = (1 - dow + 7) % 7; // 0 表示今天就是週一
+  today.setDate(today.getDate() + mondayOffset + 4);
+  return today;
+}
+
+function renderCycleDateInfo(){
+  const ds = fmt(getCycleFriday());
+  order.date = ds;
+  document.getElementById('cycle-date-text').textContent = fmtDisplay(ds);
+}
+
+function renderCyclePickupOptions(){
+  const fri = getCycleFriday();
+  const options = [0,1,2].map(n=>{
+    const dt = new Date(fri); dt.setDate(dt.getDate()+n);
+    return fmt(dt);
+  });
+  if(!options.includes(order.date)) order.date = options[0];
+  const labels = ['週五','週六','週日'];
+  document.getElementById('cycle-date-options').innerHTML = options.map((ds,i)=>{
+    const sel = order.date === ds;
+    return `<div class="delivery-opt${sel?' selected':''}" style="text-align:center" onclick="selectCycleDate('${ds}')">
+      <div class="delivery-opt-title">${labels[i]}</div>
+      <div class="delivery-opt-sub">${fmtDisplay(ds)}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectCycleDate(ds){
+  order.date = ds;
+  renderCyclePickupOptions();
 }
 
 // ─── CALENDAR ───
@@ -2099,19 +2198,37 @@ function nextMonth(){
 // ─── NAV ───
 function goTo(n){
   if(n===2){
-    if(!order.isCombo && !Object.keys(order.flavors).length){ toast('請至少選擇一種口味 🍮','error'); return; }
-    if(!order.date) jumpCalendarToFirstAvailable();
-    renderCal();
+    if(!order.isCombo && !Object.keys(order.flavors).length && !Object.keys(order.simpleItems).length){ toast('請至少選擇一種口味或商品 🍮','error'); return; }
+    document.getElementById('cal-sub').textContent = getDeliveryMethod().calendarHelp;
+    const cycleInfo = document.getElementById('cycle-date-info');
+    const cyclePicker = document.getElementById('cycle-date-picker');
+    const calWrap = document.getElementById('calendar-wrap');
+    if(order.deliveryMode === 'pickup-taipei'){
+      cycleInfo.style.display = 'none';
+      cyclePicker.style.display = 'none';
+      calWrap.style.display = 'block';
+      if(!order.date) jumpCalendarToFirstAvailable();
+      renderCal();
+    } else if(order.deliveryMode === 'pickup'){
+      cycleInfo.style.display = 'none';
+      cyclePicker.style.display = 'block';
+      calWrap.style.display = 'none';
+      renderCyclePickupOptions();
+    } else {
+      cycleInfo.style.display = 'block';
+      cyclePicker.style.display = 'none';
+      calWrap.style.display = 'none';
+      renderCycleDateInfo();
+    }
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
-  if(n===3 && order.date){
+  if(n===3 && order.date && order.deliveryMode === 'pickup-taipei'){
     const dt = new Date(order.date + 'T00:00:00');
     const _today = new Date(); _today.setHours(0,0,0,0);
     const _minD = new Date(_today); _minD.setDate(_minD.getDate()+3);
-    const _isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay()===0||dt.getDay()===1);
-    const _isTaipeiBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay()===1||dt.getDay()===2);
+    const _isTaipeiBlocked = !(dt.getDay()===1||dt.getDay()===2);
     const _totalNeeded = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
-    if(dt < _minD || _isDeliveryBlocked || _isTaipeiBlocked || getProdDayTotal(order.date) < _totalNeeded){
+    if(dt < _minD || _isTaipeiBlocked || getProdDayTotal(order.date) < _totalNeeded){
       order.date = null; renderCal(); toast('所選日期已無法預訂，請重新選擇 📅','error'); return;
     }
   }
@@ -2147,19 +2264,23 @@ function goTo(n){
 
 // ─── SUMMARY ───
 function currentOrderItems(){
+  const simpleItems = ProductModel.buildOrderItemsFromSelection({
+    products: storeProducts,
+    quantities: order.simpleItems,
+  });
   if(order.isCombo){
     return ProductModel.buildOrderItemsFromSelection({
       products: storeProducts,
       mixProductId: MIX_PRODUCT?.id || 'pudding_mix',
       mixQty: order.comboQty,
       mixLowSugar: order.comboLowSugar,
-    });
+    }).concat(simpleItems);
   }
   return ProductModel.buildOrderItemsFromSelection({
     products: storeProducts,
     quantities: order.flavors,
     lowSugar: order.lowSugar,
-  });
+  }).concat(simpleItems);
 }
 
 function renderSummary(){
@@ -2185,6 +2306,15 @@ function renderSummary(){
       const lsTag = order.lowSugar[fid] ? ' <span style="font-size:11px;color:var(--caramel);font-weight:600">（減糖）</span>' : '';
       rows+=`<div class="summary-row"><span class="summary-row-label">${f.icon} ${f.zh} × ${q} 盒${lsTag}</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
     }
+  }
+
+  for(const spId of Object.keys(order.simpleItems)){
+    const sp = SIMPLE_PRODUCTS.find(x=>x.id===spId);
+    if(!sp) continue;
+    const q = order.simpleItems[spId];
+    const sub = q*sp.price;
+    total += sub;
+    rows += `<div class="summary-row"><span class="summary-row-label">${sp.icon} ${sp.zh} × ${q} ${sp.unit}</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
   }
 
   // Shipping
@@ -2307,6 +2437,15 @@ async function submitOrder(){
   if(order.insulatedBag > 0){
     flavorLines += `\n🧊 保冷袋 ×${order.insulatedBag} 個 = NT$${bagCost}`;
   }
+  for(const spId of Object.keys(order.simpleItems)){
+    const sp = SIMPLE_PRODUCTS.find(x=>x.id===spId);
+    if(!sp) continue;
+    const q = order.simpleItems[spId];
+    const sub = q*sp.price;
+    total += sub;
+    const line = `${sp.icon} ${sp.zh} × ${q} ${sp.unit} = NT$${sub}`;
+    flavorLines = flavorLines ? `${flavorLines}\n${line}` : line;
+  }
 
   // 顯示送出中
   const btn = document.getElementById('submit-btn');
@@ -2385,14 +2524,16 @@ async function submitOrder(){
     return;
   }
 
-  // LINE 訂購確認通知
+  // LINE 訂購確認通知：已綁定就直接發送；尚未綁定則在訂單完成後才詢問是否綁定。
+  const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${method.emailLabel}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
   if(lineUserId){
-    const lineMsg = `🍮 white dessert 訂購確認\n${order.name} 您好！\n\n已收到您的訂單 ${num}\n品項：${flavorLines.replace(/\n/g,' | ')}\n總金額：NT$${total}\n配送：${method.emailLabel}\n預計收貨：${fmtDisplay(order.date)}\n\n請於 24 小時內完成匯款，我們確認後會再通知您 🙏`;
     fetch('https://tcat-proxy.lanfang-hsu.workers.dev/sendLine', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ userId: lineUserId, message: lineMsg }),
     }).catch(()=>{});
+  } else {
+    pendingLineOrder = { num, message: lineMsg };
   }
 
   sendSiteEmail('customer-confirmation', {
@@ -2410,22 +2551,23 @@ async function submitOrder(){
     transferCode,
     note: order.note || '',
   }).then(() => {
-    showSuccess(num);
+    showSuccessOrLinePrompt(num);
   }).catch((err) => {
     console.warn('email error:', err);
-    showSuccess(num);
+    showSuccessOrLinePrompt(num);
   });
 }
 
-function requireLineOrGoTo4(){
-  if(lineUserId){ goTo(4); return; }
-  const overlay = document.getElementById('line-prompt-overlay');
-  overlay.style.display = 'flex';
+function showSuccessOrLinePrompt(num){
+  if(lineUserId || !pendingLineOrder){ showSuccess(num); return; }
+  document.getElementById('line-prompt-overlay').style.display = 'flex';
 }
 
 function dismissLinePrompt(){
   document.getElementById('line-prompt-overlay').style.display = 'none';
-  goTo(4);
+  const pending = pendingLineOrder;
+  pendingLineOrder = null;
+  if(pending) showSuccess(pending.num);
 }
 
 function showSuccess(num){
@@ -2437,8 +2579,8 @@ function showSuccess(num){
 }
 
 function resetOrder(){
-  Object.assign(order,{flavors:{},lowSugar:{},isCombo:false,comboQty:1,comboLowSugar:false,date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0});
-  lineUserId = ''; lineDisplayName = ''; updateLineLoginUI();
+  Object.assign(order,{flavors:{},lowSugar:{},isCombo:false,comboQty:1,comboLowSugar:false,date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0,simpleItems:{}});
+  lineUserId = ''; lineDisplayName = ''; pendingLineOrder = null; updateLineLoginUI();
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
   document.getElementById('opt-pickup-taipei').classList.remove('selected');
@@ -2450,6 +2592,7 @@ function resetOrder(){
   document.getElementById('submit-btn').textContent = '✓ 確認預訂，完成下單';
   goTo(1);
   renderFlavors();
+  renderSimpleProducts();
 }
 
 // ─── TOAST ───
