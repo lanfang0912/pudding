@@ -1886,6 +1886,9 @@ function saveProduct(){
   ref.set(data).then(() => {
     showToast('✅ 商品已儲存');
     closeProductForm();
+  }).catch(err => {
+    console.error('商品儲存失敗:', err);
+    showToast('❌ 儲存失敗，尚未同步：' + (err?.message || err));
   });
 }
 
