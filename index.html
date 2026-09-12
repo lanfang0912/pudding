@@ -1196,9 +1196,8 @@ footer {
       <div class="sec-title">選擇收貨日期</div>
       <div class="sec-sub" id="cal-sub">請選擇 3 天後至 30 天內的日期 · 週日不收送貨 · 已售完日期無法選取</div>
 
-      <div id="cycle-date-info" style="display:none;border:1.5px solid var(--rule);border-radius:4px;padding:20px;text-align:center;margin-bottom:20px">
-        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">📅 本次收貨日期</div>
-        <div id="cycle-date-text" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink)"></div>
+      <div id="cycle-date-info" style="display:none;margin-bottom:20px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="cycle-date-info-options"></div>
       </div>
 
       <div id="cycle-date-picker" style="display:none;margin-bottom:20px">
@@ -1790,7 +1789,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '宅配',
     address: null,
     time: '未指定',
-    calendarHelp: '每週一為收單截止日，統一於週五宅配到府',
+    calendarHelp: '每週一為收單截止日，統一於週五宅配到府 · 可提前選擇 30 天內的批次',
   },
   pickup: {
     type: 'pickup',
@@ -1799,7 +1798,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '面交',
     address: '宜蘭凱旋國小',
     time: '未指定',
-    calendarHelp: '每週一為收單截止日，可選擇當週週五、週六或週日面交',
+    calendarHelp: '每週一為收單截止日，可選擇 30 天內任一批次的週五、週六或週日面交',
   },
   'pickup-taipei': {
     type: 'pickup',
@@ -2016,8 +2015,9 @@ function chgBag(d){
 }
 
 // ─── 固定週期收貨日（宅配 / 宜蘭面交）───
-// 每週一為收單截止日：本週一（或今天，若今天就是週一）之後的週五統一出貨。
-// 宜蘭面交在同一批次的週五、週六、週日都可以取貨。
+// 每週一為收單截止日：本週一（或今天，若今天就是週一）之後的週五為最早可選批次。
+// 客人也可以提早訂，選擇 30 天內之後幾批（每批仍是週五出貨，
+// 宜蘭面交在同一批次的週五、週六、週日都可以取貨）。
 function getCycleFriday(){
   const today = new Date(); today.setHours(0,0,0,0);
   const dow = today.getDay(); // 0=日 ... 6=六
@@ -2026,32 +2026,64 @@ function getCycleFriday(){
   return today;
 }
 
-function renderCycleDateInfo(){
-  const ds = fmt(getCycleFriday());
-  order.date = ds;
-  document.getElementById('cycle-date-text').textContent = fmtDisplay(ds);
+// 列出「最早可訂批次」起，30 天內每一批的週五日期
+function getUpcomingFridays(){
+  const maxD = new Date(); maxD.setHours(0,0,0,0); maxD.setDate(maxD.getDate() + MAX_BOOKING_DAYS);
+  const list = [];
+  const cur = getCycleFriday();
+  while(cur <= maxD){
+    list.push(fmt(cur));
+    cur.setDate(cur.getDate() + 7);
+  }
+  return list;
+}
+
+function renderDeliveryDateOptions(){
+  const options = getUpcomingFridays();
+  if(!options.includes(order.date)) order.date = options[0];
+  document.getElementById('cycle-date-info-options').innerHTML = options.map(ds=>{
+    const sel = order.date === ds;
+    return `<div class="delivery-opt${sel?' selected':''}" style="text-align:center" onclick="selectCycleDate('${ds}')">
+      <div class="delivery-opt-title">週五</div>
+      <div class="delivery-opt-sub">${fmtDisplay(ds)}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderCyclePickupOptions(){
-  const fri = getCycleFriday();
-  const options = [0,1,2].map(n=>{
-    const dt = new Date(fri); dt.setDate(dt.getDate()+n);
-    return fmt(dt);
-  });
-  if(!options.includes(order.date)) order.date = options[0];
+  const fridays = getUpcomingFridays();
   const labels = ['週五','週六','週日'];
-  document.getElementById('cycle-date-options').innerHTML = options.map((ds,i)=>{
-    const sel = order.date === ds;
-    return `<div class="delivery-opt${sel?' selected':''}" style="text-align:center" onclick="selectCycleDate('${ds}')">
-      <div class="delivery-opt-title">${labels[i]}</div>
-      <div class="delivery-opt-sub">${fmtDisplay(ds)}</div>
+  const allOptions = [];
+  fridays.forEach(fds=>{
+    const fri = new Date(fds+'T00:00:00');
+    for(let n=0;n<3;n++){
+      const dt = new Date(fri); dt.setDate(dt.getDate()+n);
+      allOptions.push(fmt(dt));
+    }
+  });
+  if(!allOptions.includes(order.date)) order.date = allOptions[0];
+  document.getElementById('cycle-date-options').innerHTML = fridays.map(fds=>{
+    const fri = new Date(fds+'T00:00:00');
+    const dayBtns = [0,1,2].map(n=>{
+      const dt = new Date(fri); dt.setDate(dt.getDate()+n);
+      const ds = fmt(dt);
+      const sel = order.date === ds;
+      return `<div class="delivery-opt${sel?' selected':''}" style="text-align:center;flex:1;min-width:100px" onclick="selectCycleDate('${ds}')">
+        <div class="delivery-opt-title">${labels[n]}</div>
+        <div class="delivery-opt-sub">${fmtDisplay(ds)}</div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px">📦 ${fmtDisplay(fds)} 這批</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${dayBtns}</div>
     </div>`;
   }).join('');
 }
 
 function selectCycleDate(ds){
   order.date = ds;
-  renderCyclePickupOptions();
+  if(order.deliveryMode === 'pickup') renderCyclePickupOptions();
+  else renderDeliveryDateOptions();
 }
 
 // ─── CALENDAR ───
@@ -2218,7 +2250,7 @@ function goTo(n){
       cycleInfo.style.display = 'block';
       cyclePicker.style.display = 'none';
       calWrap.style.display = 'none';
-      renderCycleDateInfo();
+      renderDeliveryDateOptions();
     }
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }

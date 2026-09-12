@@ -3336,8 +3336,18 @@ function fmtBoxes(boxes){
   return `${b}盒${r}杯`;
 }
 
+// 訂單裡「非布丁排程」的品項（蛋糕、堅果等獨立商品／保冷袋以外的加購品），
+// 這些不會反映在 orig/matcha/cocoa 這幾個舊欄位，要另外從 o.items 補上，
+// 不然像是只買蛋糕、沒選布丁口味的訂單，品項欄會整個是空的。
+function fmtSimpleOrderItems(o){
+  return (o.items || [])
+    .filter(it => it && it.type !== 'pudding_mix' && it.productionMode !== 'scheduled')
+    .map(it => `${it.name}×${it.qty}${it.unit||''}`);
+}
+
 // 短格式品項文字（生產/出貨清單用），三拼直接取杯數
 function fmtOrderItemsShort(o){
+  const simple = fmtSimpleOrderItems(o);
   if(o.yixinItems){
     const yi = o.yixinItems;
     return [
@@ -3348,7 +3358,7 @@ function fmtOrderItemsShort(o){
       yi.cocoaCard  ? `可卡×${yi.cocoaCard}`    : '',
       yi.matchaCard ? `抹卡×${yi.matchaCard}`   : '',
       yi.mixCard    ? `綜卡×${yi.mixCard}`      : '',
-    ].filter(Boolean).join(' ');
+    ].filter(Boolean).concat(simple).join(' ');
   }
   if(o.comboItems){
     const ci = o.comboItems;
@@ -3356,30 +3366,31 @@ function fmtOrderItemsShort(o){
       ci.origCup   ? `原×${ci.origCup}杯`   : '',
       ci.matchaCup ? `抹×${ci.matchaCup}杯` : '',
       ci.cocoaCup  ? `可×${ci.cocoaCup}杯`  : '',
-    ].filter(Boolean).join(' ');
+    ].filter(Boolean).concat(simple).join(' ');
   }
   return [
     o.orig   ? `原×${fmtWholeBoxes(o.orig)}`   : '',
     o.matcha ? `抹×${fmtWholeBoxes(o.matcha)}` : '',
     o.cocoa  ? `可×${fmtWholeBoxes(o.cocoa)}`  : '',
-  ].filter(Boolean).join(' ');
+  ].filter(Boolean).concat(simple).join(' ');
 }
 
 // 長格式品項文字（SMS / 出貨通知用），三拼直接取杯數
 function fmtOrderItemsFull(o){
+  const simple = fmtSimpleOrderItems(o);
   if(o.comboItems){
     const ci = o.comboItems;
     return [
       ci.origCup   ? `原味×${ci.origCup}杯`   : '',
       ci.matchaCup ? `抹茶×${ci.matchaCup}杯` : '',
       ci.cocoaCup  ? `可可×${ci.cocoaCup}杯`  : '',
-    ].filter(Boolean).join('、') + '（三拼）';
+    ].filter(Boolean).join('、') + '（三拼）' + (simple.length ? '、' + simple.join('、') : '');
   }
   return [
     o.orig   ? `原味×${fmtWholeBoxes(o.orig)}`   : '',
     o.matcha ? `抹茶×${fmtWholeBoxes(o.matcha)}` : '',
     o.cocoa  ? `可可×${fmtWholeBoxes(o.cocoa)}`  : '',
-  ].filter(Boolean).join('、');
+  ].filter(Boolean).concat(simple).join('、');
 }
 
 // ── table ──
