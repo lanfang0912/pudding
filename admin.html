@@ -3303,6 +3303,12 @@ function orderBoxCount(o){
 function fmtWholeBoxes(q){
   return `${Math.round(q)}盒`;
 }
+// 訂單裡「非布丁」的獨立品項（蛋糕、堅果等），標籤化顯示，補在 fhtml() 後面
+function simpleItemTags(o){
+  return fmtSimpleOrderItems(o)
+    .map(text => `<span class="flavor-tag" style="background:#f5ede0;border:1px solid var(--ink-soft);color:var(--ink-mid);font-size:10px">🍰 ${text}</span>`)
+    .join('');
+}
 function fhtml(o){
   if(o.comboItems){
     const ci = o.comboItems;
@@ -3312,7 +3318,7 @@ function fhtml(o){
       ci.cocoaCup  ? `<span class="flavor-tag tag-cocoa">可可×${ci.cocoaCup}杯</span>` : '',
     ].filter(Boolean).join('');
     const lsTag = o.comboLowSugar ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';
-    return tags + ` <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼×${comboBoxCount(o)}盒</span>` + lsTag;
+    return tags + ` <span class="flavor-tag" style="background:linear-gradient(135deg,#fef2da,#edf5e8,#f5ede9);border:1px solid var(--rule);color:var(--ink-mid);font-size:10px">🎁 三拼×${comboBoxCount(o)}盒</span>` + lsTag + simpleItemTags(o);
   }
   const ls = o.lowSugar || {};
   const lsTag = (key) => ls[key] ? `<span class="flavor-tag" style="background:rgba(196,131,42,0.1);border:1px solid var(--caramel);color:var(--caramel);font-size:10px">減糖</span>` : '';
@@ -3322,7 +3328,7 @@ function fhtml(o){
     o.cocoa  ? `<span class="flavor-tag tag-cocoa">可可×${fmtWholeBoxes(o.cocoa)}</span>${lsTag('cocoa')}`    : '',
     o.insulatedBag ? `<span class="flavor-tag" style="background:#e8f4fc;border:1px solid #7bb8d4;color:#2e7da0;font-size:10px">🧊 保冷袋×${o.insulatedBag}</span>` : '',
   ].filter(Boolean).join('');
-  return tags;
+  return tags + simpleItemTags(o);
 }
 const SB={pending:'<span class="badge badge-pending">待確認匯款</span>',paid:'<span class="badge badge-paid">已確認匯款</span>',shipped:'<span class="badge badge-shipped">已出貨</span>'};
 
