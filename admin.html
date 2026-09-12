@@ -692,8 +692,8 @@ tr.done-row td{opacity:.45;}
       <!-- Hero -->
       <div style="font-size:11px;font-weight:600;letter-spacing:2px;color:var(--ink-soft);text-transform:uppercase;padding:6px 10px;background:var(--paper-dark);border-radius:2px;margin-bottom:12px">首頁</div>
       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px">
-        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">副標題（logo 下方）<input type="text" id="d-eyebrow" value="一個高三生的還款計劃" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
-        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">引言（三行，Enter 換行）<textarea id="d-heroQuote" rows="3" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">「你有還款計劃嗎？」
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">副標題（logo 下方）<input type="text" id="d-eyebrow" value="一個高三生的圓夢計劃" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">引言（三行，Enter 換行）<textarea id="d-heroQuote" rows="3" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">「你有圓夢計劃嗎？」
 他想了一下說：「那我來賣布丁好了。」
 然後他就去廚房了。</textarea></label>
       </div>
@@ -705,7 +705,7 @@ tr.done-row td{opacity:.45;}
           <div style="padding:8px 14px;background:var(--paper-dark);font-size:11px;color:var(--ink-soft);letter-spacing:1px">段落 1</div>
           <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
             <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">標題<input type="text" id="d-s1title" value="兒子說他想買電腦" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:13px;background:var(--paper);font-family:inherit"></label>
-            <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">內文（每行一段）<textarea id="d-s1body" rows="4" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">前陣子我兒子跟我借錢。我問他：「你有還款計劃嗎？」
+            <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-soft)">內文（每行一段）<textarea id="d-s1body" rows="4" style="padding:8px 10px;border:1px solid var(--rule);border-radius:2px;font-size:12px;background:var(--paper);font-family:inherit;resize:vertical">前陣子我兒子跟我借錢。我問他：「你有圓夢計劃嗎？」
 他想了一下說：「那我來賣布丁好了。」然後他就去廚房了。
 我站在原地，想了三秒才懂——他不是在閃躲，他是在用行動回答我。
 完整的計劃是這樣的：想買電腦 → 需要錢 → 做布丁 → 賣布丁 → 還媽媽。他高三，自學生，不考大學。</textarea></label>
@@ -981,6 +981,14 @@ tr.done-row td{opacity:.45;}
         </div>
       </div>
 
+      <!-- 其他甜點（獨立商品，非布丁排程） -->
+      <div class="form-row full" id="n-simple-items">
+        <div class="form-group">
+          <label class="form-label">其他甜點</label>
+          <div class="flavor-inputs" id="n-simple-inputs" style="flex-wrap:wrap"></div>
+        </div>
+      </div>
+
       <!-- 一心品項 -->
       <div id="n-yixin-items" style="display:none">
         <div style="font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;letter-spacing:1px">單杯</div>
@@ -1076,6 +1084,14 @@ tr.done-row td{opacity:.45;}
         </div>
       </div>
       <input type="hidden" id="e-is-combo" value="0">
+
+      <!-- 其他甜點（獨立商品，非布丁排程） -->
+      <div class="form-row full" id="e-simple-items">
+        <div class="form-group">
+          <label class="form-label">其他甜點</label>
+          <div class="flavor-inputs" id="e-simple-inputs" style="flex-wrap:wrap"></div>
+        </div>
+      </div>
 
       <!-- 行銷專區品項 -->
       <div id="e-yixin-items" style="display:none">
@@ -1472,10 +1488,11 @@ function startFirebaseListener(){
     renderStats(); renderTable(); renderDaily(); renderSchedule(); renderIngAll();
     if(accLoaded) renderAccOverall();
     autoSyncToGCal();
-    const totalBoxes = orders
+    // 電腦基金進度（前台顯示）：累計營業額，涵蓋布丁與蛋糕等所有品項的訂單金額
+    const totalRevenue = orders
       .filter(o => o.source !== 'yixin' && o.status !== 'pending')
-      .reduce((a, o) => a + orderBoxCount(o), 0);
-    db.ref('stats/totalBoxes').set(totalBoxes);
+      .reduce((a, o) => a + (o.total || 0), 0);
+    db.ref('stats/totalRevenue').set(totalRevenue);
   });
   // 預載支出資料供頂部電腦基金顯示
   if(!accLoaded){
@@ -3880,6 +3897,45 @@ function toggleMeet(id, currentMet){
   });
 }
 
+// ── 其他甜點（獨立商品）：新增/編輯訂單共用 ──
+// 跟前台 SIMPLE_PRODUCTS 用同一套規則：只要不是布丁盒裝/三拼，也不是保冷袋，就算獨立商品
+function adminSimpleProducts(){
+  return products.filter(p => p.status === 'active' && p.type !== 'pudding_box' && p.type !== 'pudding_mix' && p.id !== 'insulated_bag');
+}
+function renderSimpleItemInputs(prefix, existingQty){
+  const container = document.getElementById(prefix+'-simple-inputs');
+  if(!container) return;
+  const list = adminSimpleProducts();
+  if(!list.length){
+    container.innerHTML = '<div style="font-size:11px;color:var(--ink-soft)">尚無其他甜點商品</div>';
+    return;
+  }
+  const recalcFn = prefix === 'n' ? 'nrecalc()' : 'recalc()';
+  container.innerHTML = list.map(p => {
+    const qty = (existingQty && existingQty[p.id]) || 0;
+    return `<div class="fi-group"><label class="form-label">${h(p.emoji || '🍰')} ${h(p.name)} $${p.price}</label><input class="form-ctrl" id="${prefix}-simple-${h(p.id)}" type="number" min="0" value="${qty}" oninput="${recalcFn}"></div>`;
+  }).join('');
+}
+function collectSimpleQuantities(prefix){
+  const quantities = {};
+  adminSimpleProducts().forEach(p => {
+    const el = document.getElementById(prefix+'-simple-'+p.id);
+    const qty = el ? (+el.value || 0) : 0;
+    if(qty > 0) quantities[p.id] = qty;
+  });
+  return quantities;
+}
+function simpleItemsTotal(prefix){
+  const quantities = collectSimpleQuantities(prefix);
+  return Object.entries(quantities).reduce((sum, [id, qty]) => {
+    const p = products.find(x => x.id === id);
+    return sum + (p ? p.price * qty : 0);
+  }, 0);
+}
+function simpleItemsFromForm(prefix){
+  return ProductModel.buildOrderItemsFromSelection({ products, quantities: collectSimpleQuantities(prefix) });
+}
+
 // ── 新增訂單 ──
 function setPuddingMode(mode){
   document.getElementById('n-pudding-mode').value = mode;
@@ -3909,6 +3965,7 @@ function setOrderSource(src){
   document.getElementById('src-pudding').style.cssText = `flex:1;padding:8px;border:2px solid ${isPudding?'var(--caramel)':'var(--rule)'};border-radius:6px;text-align:center;cursor:pointer;background:${isPudding?'rgba(196,131,42,0.08)':'transparent'};font-size:12px;font-weight:600;color:${isPudding?'var(--caramel)':'var(--ink-soft)'}`;
   document.getElementById('src-yixin').style.cssText = `flex:1;padding:8px;border:2px solid ${!isPudding?'#5B9AB5':'var(--rule)'};border-radius:6px;text-align:center;cursor:pointer;background:${!isPudding?'rgba(91,154,181,0.08)':'transparent'};font-size:12px;font-weight:600;color:${!isPudding?'#5B9AB5':'var(--ink-soft)'}`;
   document.getElementById('n-pudding-items').style.display = isPudding ? '' : 'none';
+  document.getElementById('n-simple-items').style.display  = isPudding ? '' : 'none';
   document.getElementById('n-yixin-items').style.display  = isPudding ? 'none' : '';
   // 一心永遠面交
   if(!isPudding){
@@ -3941,6 +3998,7 @@ function openNew(){
   document.getElementById('n-note').value='';
   document.getElementById('n-status').value='paid';
   document.getElementById('n-total').value='';
+  renderSimpleItemInputs('n', {});
   setOrderSource('pudding');
   document.getElementById('new-modal').classList.add('open');
 }
@@ -3970,6 +4028,7 @@ function nrecalc(){
       const ship = isPickup ? 0 : (boxes>=3 ? 100 : 160);
       total = orig*360 + matcha*390 + cocoa*390 + ship;
     }
+    total += simpleItemsTotal('n');
   } else {
     const g = id => +document.getElementById(id)?.value||0;
     total = g('n-yi-orig-cup')*25 + g('n-yi-cocoa-cup')*30 + g('n-yi-matcha-cup')*35
@@ -4011,7 +4070,7 @@ function saveNew(){
       orig  = +document.getElementById('n-orig').value||0;
       matcha= +document.getElementById('n-matcha').value||0;
       cocoa = +document.getElementById('n-cocoa').value||0;
-      if(orig+matcha+cocoa===0){ alert('請填寫品項數量'); return; }
+      if(orig+matcha+cocoa===0 && !Object.keys(collectSimpleQuantities('n')).length){ alert('請填寫品項數量'); return; }
     }
   } else {
     const g = id => +document.getElementById(id)?.value||0;
@@ -4044,6 +4103,10 @@ function saveNew(){
   };
   if(yixinItems) newOrder.yixinItems = yixinItems;
   if(comboItems) newOrder.comboItems = comboItems;
+  if(src === 'pudding'){
+    const simpleItems = simpleItemsFromForm('n');
+    if(simpleItems.length) newOrder.items = simpleItems;
+  }
   db.ref('orders/'+id).set(newOrder);
   closeNewModal();
   showToast('✅ 訂單已新增');
@@ -4080,7 +4143,13 @@ function openEdit(id){
   document.getElementById('e-yi-matcha-card').value= yi.matchaCard||0;
   document.getElementById('e-yi-mix-card').value   = yi.mixCard   ||0;
   document.getElementById('e-pudding-items').style.display = o.source==='yixin' ? 'none' : '';
+  document.getElementById('e-simple-items').style.display  = o.source==='yixin' ? 'none' : '';
   document.getElementById('e-yixin-items').style.display   = o.source==='yixin' ? '' : 'none';
+  const existingSimpleQty = {};
+  (o.items || []).forEach(it => {
+    if(it && it.type !== 'pudding_box' && it.type !== 'pudding_mix' && it.productId) existingSimpleQty[it.productId] = it.qty;
+  });
+  renderSimpleItemInputs('e', existingSimpleQty);
   const isCombo = !!o.comboItems;
   document.getElementById('e-is-combo').value = isCombo ? '1' : '0';
   document.getElementById('e-box-section').style.display   = isCombo ? 'none' : '';
@@ -4105,6 +4174,7 @@ function closeModal(){document.getElementById('edit-modal').classList.remove('op
 function toggleEditSource(){
   const isYixin = document.getElementById('e-source-yixin').checked;
   document.getElementById('e-pudding-items').style.display = isYixin ? 'none' : '';
+  document.getElementById('e-simple-items').style.display  = isYixin ? 'none' : '';
   document.getElementById('e-yixin-items').style.display   = isYixin ? '' : 'none';
   if(isYixin){
     document.getElementById('e-delivery').value = '面交';
@@ -4138,6 +4208,7 @@ function recalc(){
     ship  = deliv==='面交' ? 0 : (boxes>=3 ? 100 : 160);
     total = orig*360 + matcha*390 + cocoa*390 + ship;
   }
+  if(!isYixin) total += simpleItemsTotal('e');
   total += insulatedBag * 20;
   document.getElementById('e-total').value=`NT$ ${total.toLocaleString()}${ship?` (含運$${ship})`:''}`;
   return total;
@@ -4190,6 +4261,14 @@ function saveEdit(){
   };
   if(comboItems) updates.comboItems = comboItems;
   if(yixinItems) updates.yixinItems = yixinItems;
+  if(!isYixin){
+    // 保留原本訂單裡的布丁類品項（例如客人結帳時存下來的 items），
+    // 其他甜點的部分改用表單目前的數量重新產生。
+    const existingOrder = orders.find(x => x.id === eid) || {};
+    const preservedItems = (existingOrder.items || []).filter(it => it && (it.type === 'pudding_box' || it.type === 'pudding_mix'));
+    const items = preservedItems.concat(simpleItemsFromForm('e'));
+    if(items.length) updates.items = items;
+  }
   db.ref('orders/'+eid).update(updates);
   closeModal();
   showToast('✓ 訂單已儲存');
