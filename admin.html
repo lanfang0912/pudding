@@ -3336,12 +3336,14 @@ function fmtBoxes(boxes){
   return `${b}盒${r}杯`;
 }
 
-// 訂單裡「非布丁排程」的品項（蛋糕、堅果等獨立商品／保冷袋以外的加購品），
+// 訂單裡「非布丁」的品項（蛋糕、堅果等獨立商品／保冷袋以外的加購品），
 // 這些不會反映在 orig/matcha/cocoa 這幾個舊欄位，要另外從 o.items 補上，
 // 不然像是只買蛋糕、沒選布丁口味的訂單，品項欄會整個是空的。
+// 用 type 判斷（跟前台 SIMPLE_PRODUCTS 的邏輯一致），不用 productionMode——
+// 後台新增商品選「other 其他」時，生產模式預設仍是 scheduled，用它來判斷會漏掉。
 function fmtSimpleOrderItems(o){
   return (o.items || [])
-    .filter(it => it && it.type !== 'pudding_mix' && it.productionMode !== 'scheduled')
+    .filter(it => it && it.type !== 'pudding_box' && it.type !== 'pudding_mix')
     .map(it => `${it.name}×${it.qty}${it.unit||''}`);
 }
 
