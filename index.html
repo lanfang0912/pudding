@@ -1145,6 +1145,11 @@ footer {
 
       <div class="flavor-grid" id="flavor-grid"></div>
 
+      <div id="simple-products-section" style="display:none;margin-bottom:20px;">
+        <div class="sec-label" style="margin-bottom:10px;">其他甜點</div>
+        <div class="flavor-grid" id="simple-grid"></div>
+      </div>
+
       <div style="margin-bottom:20px;">
         <div class="sec-label" style="margin-bottom:10px;">配送方式</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -1596,6 +1601,7 @@ let prodOverrides = {}; // 製作日單獨設定
 let storeProducts = ProductModel.activeProducts(null);
 let FLAVORS = [];
 let MIX_PRODUCT = null;
+let SIMPLE_PRODUCTS = [];
 
 function productToFlavor(p){
   const stockClass = {original:'original', matcha:'matcha', cocoa:'cocoa'}[p.stockKey] || 'original';
@@ -1611,13 +1617,29 @@ function productToFlavor(p){
   };
 }
 
+// 獨立商品（非布丁盒裝/三拼、不進生產排程），例如蛋糕、堅果、杏仁瓦片。
+// 保冷袋（insulated_bag）已有自己的加購 UI，這裡排除避免重複顯示。
+function productToSimple(p){
+  return {
+    id: p.id,
+    zh: p.name,
+    en: p.description || '',
+    icon: p.emoji || '🍰',
+    imageUrl: p.imageUrl || '',
+    price: p.price,
+    unit: p.unit || '個',
+  };
+}
+
 function applyStoreProducts(rawProducts){
   storeProducts = ProductModel.activeProducts(rawProducts || null);
   FLAVORS = storeProducts.filter(p => p.type === 'pudding_box').map(productToFlavor);
   MIX_PRODUCT = storeProducts.find(p => p.type === 'pudding_mix') || null;
+  SIMPLE_PRODUCTS = storeProducts.filter(p => p.type !== 'pudding_box' && p.type !== 'pudding_mix' && p.id !== 'insulated_bag').map(productToSimple);
   if(!FLAVORS.length) FLAVORS = ProductModel.activeProducts(null).filter(p => p.type === 'pudding_box').map(productToFlavor);
   if(!MIX_PRODUCT) MIX_PRODUCT = ProductModel.activeProducts(null).find(p => p.type === 'pudding_mix');
   renderFlavors();
+  renderSimpleProducts();
 }
 // ── 工具：日期加減 ──
 function addDaysToDate(dateStr, n){
@@ -1786,7 +1808,7 @@ function isPickupMode(){
   return getDeliveryMethod().type === 'pickup';
 }
 
-const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'', insulatedBag:0 };
+const order = { flavors:{}, lowSugar:{}, isCombo:false, comboQty:1, comboLowSugar:false, date:null, deliveryMode:'delivery', name:'', phone:'', address:'', email:'', phone2:'', note:'', insulatedBag:0, simpleItems:{} };
 window.__orderReady = true;
 
 let calY, calM;
@@ -1854,6 +1876,36 @@ function renderFlavors(){
   const lsBtn = document.getElementById('combo-ls-btn');
   if(lsBtn) lsBtn.className = 'low-sugar-btn' + (order.comboLowSugar ? ' active' : '');
   if(combo) updateComboCard();
+}
+
+// ─── 其他甜點（獨立商品，非布丁排程）───
+function renderSimpleProducts(){
+  const section = document.getElementById('simple-products-section');
+  if(section) section.style.display = SIMPLE_PRODUCTS.length ? 'block' : 'none';
+  document.getElementById('simple-grid').innerHTML = SIMPLE_PRODUCTS.map(sp=>{
+    const q = order.simpleItems[sp.id] || 0;
+    return `
+    <div class="flavor-card">
+      ${sp.imageUrl ? `<img src="${escHtml(sp.imageUrl)}" alt="${escHtml(sp.zh)}" class="flavor-photo" loading="lazy">` : `<span class="flavor-icon">${sp.icon}</span>`}
+      <div class="flavor-name-zh">${sp.zh}</div>
+      <div class="flavor-name-en">${sp.en}</div>
+      <div class="flavor-price">NT$ ${sp.price.toLocaleString()}</div>
+      <div class="flavor-price-sub">/ ${sp.unit}</div>
+      <div class="qty-row" style="max-height:none;opacity:1;">
+        <button class="qty-btn" onclick="chgSimple('${sp.id}',-1)">−</button>
+        <div class="qty-display" id="qv-sp-${sp.id}">${q}</div>
+        <button class="qty-btn" onclick="chgSimple('${sp.id}',1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function chgSimple(id, d){
+  const next = Math.max(0, Math.min(MAX, (order.simpleItems[id] || 0) + d));
+  if(next) order.simpleItems[id] = next;
+  else delete order.simpleItems[id];
+  const el = document.getElementById('qv-sp-'+id);
+  if(el) el.textContent = next;
 }
 
 function setDelivery(mode){
@@ -2102,7 +2154,7 @@ function nextMonth(){
 // ─── NAV ───
 function goTo(n){
   if(n===2){
-    if(!order.isCombo && !Object.keys(order.flavors).length){ toast('請至少選擇一種口味 🍮','error'); return; }
+    if(!order.isCombo && !Object.keys(order.flavors).length && !Object.keys(order.simpleItems).length){ toast('請至少選擇一種口味或商品 🍮','error'); return; }
     if(!order.date) jumpCalendarToFirstAvailable();
     renderCal();
   }
@@ -2150,19 +2202,23 @@ function goTo(n){
 
 // ─── SUMMARY ───
 function currentOrderItems(){
+  const simpleItems = ProductModel.buildOrderItemsFromSelection({
+    products: storeProducts,
+    quantities: order.simpleItems,
+  });
   if(order.isCombo){
     return ProductModel.buildOrderItemsFromSelection({
       products: storeProducts,
       mixProductId: MIX_PRODUCT?.id || 'pudding_mix',
       mixQty: order.comboQty,
       mixLowSugar: order.comboLowSugar,
-    });
+    }).concat(simpleItems);
   }
   return ProductModel.buildOrderItemsFromSelection({
     products: storeProducts,
     quantities: order.flavors,
     lowSugar: order.lowSugar,
-  });
+  }).concat(simpleItems);
 }
 
 function renderSummary(){
@@ -2188,6 +2244,15 @@ function renderSummary(){
       const lsTag = order.lowSugar[fid] ? ' <span style="font-size:11px;color:var(--caramel);font-weight:600">（減糖）</span>' : '';
       rows+=`<div class="summary-row"><span class="summary-row-label">${f.icon} ${f.zh} × ${q} 盒${lsTag}</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
     }
+  }
+
+  for(const spId of Object.keys(order.simpleItems)){
+    const sp = SIMPLE_PRODUCTS.find(x=>x.id===spId);
+    if(!sp) continue;
+    const q = order.simpleItems[spId];
+    const sub = q*sp.price;
+    total += sub;
+    rows += `<div class="summary-row"><span class="summary-row-label">${sp.icon} ${sp.zh} × ${q} ${sp.unit}</span><span class="summary-row-value">NT$ ${sub.toLocaleString()}</span></div>`;
   }
 
   // Shipping
@@ -2309,6 +2374,15 @@ async function submitOrder(){
   total += bagCost;
   if(order.insulatedBag > 0){
     flavorLines += `\n🧊 保冷袋 ×${order.insulatedBag} 個 = NT$${bagCost}`;
+  }
+  for(const spId of Object.keys(order.simpleItems)){
+    const sp = SIMPLE_PRODUCTS.find(x=>x.id===spId);
+    if(!sp) continue;
+    const q = order.simpleItems[spId];
+    const sub = q*sp.price;
+    total += sub;
+    const line = `${sp.icon} ${sp.zh} × ${q} ${sp.unit} = NT$${sub}`;
+    flavorLines = flavorLines ? `${flavorLines}\n${line}` : line;
   }
 
   // 顯示送出中
@@ -2443,7 +2517,7 @@ function showSuccess(num){
 }
 
 function resetOrder(){
-  Object.assign(order,{flavors:{},lowSugar:{},isCombo:false,comboQty:1,comboLowSugar:false,date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0});
+  Object.assign(order,{flavors:{},lowSugar:{},isCombo:false,comboQty:1,comboLowSugar:false,date:null,deliveryMode:'delivery',name:'',phone:'',address:'',email:'',phone2:'',note:'',insulatedBag:0,simpleItems:{}});
   lineUserId = ''; lineDisplayName = ''; pendingLineOrder = null; updateLineLoginUI();
   document.getElementById('opt-delivery').classList.add('selected');
   document.getElementById('opt-pickup').classList.remove('selected');
@@ -2456,6 +2530,7 @@ function resetOrder(){
   document.getElementById('submit-btn').textContent = '✓ 確認預訂，完成下單';
   goTo(1);
   renderFlavors();
+  renderSimpleProducts();
 }
 
 // ─── TOAST ───
