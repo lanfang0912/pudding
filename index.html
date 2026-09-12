@@ -1156,12 +1156,12 @@ footer {
           <div class="delivery-opt selected" id="opt-delivery" onclick="setDelivery('delivery')">
             <div class="delivery-opt-icon">🚚</div>
             <div class="delivery-opt-title">黑貓冷藏宅配</div>
-            <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>週二至週六收送（週日、一不到貨）</div>
+            <div class="delivery-opt-sub">3 盒以上 NT$100 · 未滿 NT$160<br>每週一收單，週五配送到府</div>
           </div>
           <div class="delivery-opt" id="opt-pickup" onclick="setDelivery('pickup')">
             <div class="delivery-opt-icon">🤝</div>
             <div class="delivery-opt-title">宜蘭面交</div>
-            <div class="delivery-opt-sub">免運費 · 不限星期<br>📍 宜蘭凱旋國小</div>
+            <div class="delivery-opt-sub">免運費 · 每週五、六、日可取<br>📍 宜蘭凱旋國小</div>
           </div>
           <div class="delivery-opt" id="opt-pickup-taipei" onclick="setDelivery('pickup-taipei')">
             <div class="delivery-opt-icon">🏙️</div>
@@ -1195,6 +1195,16 @@ footer {
       <div class="sec-title">選擇收貨日期</div>
       <div class="sec-sub" id="cal-sub">請選擇 3 天後至 30 天內的日期 · 週日不收送貨 · 已售完日期無法選取</div>
 
+      <div id="cycle-date-info" style="display:none;border:1.5px solid var(--rule);border-radius:4px;padding:20px;text-align:center;margin-bottom:20px">
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">📅 本次收貨日期</div>
+        <div id="cycle-date-text" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink)"></div>
+      </div>
+
+      <div id="cycle-date-picker" style="display:none;margin-bottom:20px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="cycle-date-options"></div>
+      </div>
+
+      <div id="calendar-wrap">
       <div class="cal-nav">
         <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
         <div class="cal-month-label" id="cal-label"></div>
@@ -1208,6 +1218,7 @@ footer {
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--matcha)"></div>抹茶有貨</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--cocoa)"></div>可可有貨</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ccc"></div>已售完</div>
+      </div>
       </div>
 
       <hr class="divider">
@@ -1778,7 +1789,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '宅配',
     address: null,
     time: '未指定',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 週日、一不收送貨 · 已售完日期無法選取',
+    calendarHelp: '每週一為收單截止日，統一於週五宅配到府',
   },
   pickup: {
     type: 'pickup',
@@ -1787,7 +1798,7 @@ const DELIVERY_METHODS = {
     firebaseDelivery: '面交',
     address: '宜蘭凱旋國小',
     time: '未指定',
-    calendarHelp: '請選擇 3 天後至 30 天內的日期 · 面交不限星期 · 已售完日期無法選取',
+    calendarHelp: '每週一為收單截止日，可選擇當週週五、週六或週日面交',
   },
   'pickup-taipei': {
     type: 'pickup',
@@ -1992,22 +2003,54 @@ function toggleLowSugar(id){
 }
 
 function chg(id,d){
+  // 收單不限制數量：每個口味各自最多到 MAX（僅為 UI 按鈕上限），彼此互不影響。
   const newVal = (order.flavors[id]||1) + d;
-  if(newVal < 1){
-    order.flavors[id] = 1;
-  } else {
-    const otherTotal = Object.entries(order.flavors)
-      .filter(([k]) => k !== id)
-      .reduce((s,[,v]) => s+v, 0);
-    const cap = maxPerDay.total ?? 9;
-    order.flavors[id] = Math.min(newVal, Math.max(1, cap - otherTotal));
-  }
+  order.flavors[id] = Math.max(1, Math.min(MAX, newVal));
   document.getElementById('qv-'+id).textContent = order.flavors[id];
 }
 
 function chgBag(d){
   order.insulatedBag = Math.max(0, (order.insulatedBag||0) + d);
   document.getElementById('bag-qty').textContent = order.insulatedBag;
+}
+
+// ─── 固定週期收貨日（宅配 / 宜蘭面交）───
+// 每週一為收單截止日：本週一（或今天，若今天就是週一）之後的週五統一出貨。
+// 宜蘭面交在同一批次的週五、週六、週日都可以取貨。
+function getCycleFriday(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = today.getDay(); // 0=日 ... 6=六
+  const mondayOffset = (1 - dow + 7) % 7; // 0 表示今天就是週一
+  today.setDate(today.getDate() + mondayOffset + 4);
+  return today;
+}
+
+function renderCycleDateInfo(){
+  const ds = fmt(getCycleFriday());
+  order.date = ds;
+  document.getElementById('cycle-date-text').textContent = fmtDisplay(ds);
+}
+
+function renderCyclePickupOptions(){
+  const fri = getCycleFriday();
+  const options = [0,1,2].map(n=>{
+    const dt = new Date(fri); dt.setDate(dt.getDate()+n);
+    return fmt(dt);
+  });
+  if(!options.includes(order.date)) order.date = options[0];
+  const labels = ['週五','週六','週日'];
+  document.getElementById('cycle-date-options').innerHTML = options.map((ds,i)=>{
+    const sel = order.date === ds;
+    return `<div class="delivery-opt${sel?' selected':''}" style="text-align:center" onclick="selectCycleDate('${ds}')">
+      <div class="delivery-opt-title">${labels[i]}</div>
+      <div class="delivery-opt-sub">${fmtDisplay(ds)}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectCycleDate(ds){
+  order.date = ds;
+  renderCyclePickupOptions();
 }
 
 // ─── CALENDAR ───
@@ -2155,18 +2198,36 @@ function nextMonth(){
 function goTo(n){
   if(n===2){
     if(!order.isCombo && !Object.keys(order.flavors).length && !Object.keys(order.simpleItems).length){ toast('請至少選擇一種口味或商品 🍮','error'); return; }
-    if(!order.date) jumpCalendarToFirstAvailable();
-    renderCal();
+    document.getElementById('cal-sub').textContent = getDeliveryMethod().calendarHelp;
+    const cycleInfo = document.getElementById('cycle-date-info');
+    const cyclePicker = document.getElementById('cycle-date-picker');
+    const calWrap = document.getElementById('calendar-wrap');
+    if(order.deliveryMode === 'pickup-taipei'){
+      cycleInfo.style.display = 'none';
+      cyclePicker.style.display = 'none';
+      calWrap.style.display = 'block';
+      if(!order.date) jumpCalendarToFirstAvailable();
+      renderCal();
+    } else if(order.deliveryMode === 'pickup'){
+      cycleInfo.style.display = 'none';
+      cyclePicker.style.display = 'block';
+      calWrap.style.display = 'none';
+      renderCyclePickupOptions();
+    } else {
+      cycleInfo.style.display = 'block';
+      cyclePicker.style.display = 'none';
+      calWrap.style.display = 'none';
+      renderCycleDateInfo();
+    }
   }
   if(n===3 && !order.date){ toast('請選擇收貨日期 📅','error'); return; }
-  if(n===3 && order.date){
+  if(n===3 && order.date && order.deliveryMode === 'pickup-taipei'){
     const dt = new Date(order.date + 'T00:00:00');
     const _today = new Date(); _today.setHours(0,0,0,0);
     const _minD = new Date(_today); _minD.setDate(_minD.getDate()+3);
-    const _isDeliveryBlocked = order.deliveryMode === 'delivery' && (dt.getDay()===0||dt.getDay()===1);
-    const _isTaipeiBlocked = order.deliveryMode === 'pickup-taipei' && !(dt.getDay()===1||dt.getDay()===2);
+    const _isTaipeiBlocked = !(dt.getDay()===1||dt.getDay()===2);
     const _totalNeeded = order.isCombo ? order.comboQty : Object.values(order.flavors).reduce((a,b)=>a+b,0);
-    if(dt < _minD || _isDeliveryBlocked || _isTaipeiBlocked || getProdDayTotal(order.date) < _totalNeeded){
+    if(dt < _minD || _isTaipeiBlocked || getProdDayTotal(order.date) < _totalNeeded){
       order.date = null; renderCal(); toast('所選日期已無法預訂，請重新選擇 📅','error'); return;
     }
   }
