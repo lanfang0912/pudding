@@ -1481,6 +1481,12 @@ function startFirebaseListener(){
     prodOverrides = snap.val() || {};
     renderSchedule();
   });
+  // 擺攤 POS 的「常用品項」售價，估算淨利時要用來抓非布丁品項的成本
+  db.ref('settings/posPresets').on('value', snap => {
+    posPresetsData = snap.val() || {};
+    renderStats();
+    if(accLoaded) renderAccOverall();
+  });
   db.ref('orders').on('value', snap => {
     orders = [];
     snap.forEach(child => { orders.push(child.val()); });
@@ -4936,15 +4942,27 @@ function showToast(msg){
 // ══════════════════════════════════════════════════
 
 const COMPUTER_GOAL = 42900;
+const POS_PUDDING_KEYS = ['original', 'matcha', 'cocoa']; // 擺攤 POS 的布丁基本品項，成本已由食材採購記錄涵蓋
+let posPresetsData = {}; // 擺攤 POS「常用品項」售價，settings/posPresets 監聽於 startFirebaseListener()
 
 // 蛋糕、堅果這類獨立商品目前沒有配方成本資料，用粗估比例頂著算，
 // 避免淨利數字被虛報：堅果約抓賣價一半成本，其他一律抓三分之一。
+// 網站結帳的品項存在 o.items；擺攤 POS 賣的非布丁常用品項存在 o.posItems（只有 key、count，價格要另外查 posPresetsData）。
 function estimateOtherItemsCost(orderList){
-  return (orderList || []).reduce((sum, o) => sum + (o.items || []).reduce((s, it) => {
-    if(!it || it.type === 'pudding_box' || it.type === 'pudding_mix') return s;
-    const ratio = it.productId === 'nuts' ? 0.5 : (1/3);
-    return s + (it.amount || 0) * ratio;
-  }, 0), 0);
+  return (orderList || []).reduce((sum, o) => {
+    let cost = (o.items || []).reduce((s, it) => {
+      if(!it || it.type === 'pudding_box' || it.type === 'pudding_mix') return s;
+      const ratio = it.productId === 'nuts' ? 0.5 : (1/3);
+      return s + (it.amount || 0) * ratio;
+    }, 0);
+    (o.posItems || []).forEach(it => {
+      if(!it || POS_PUDDING_KEYS.includes(it.key)) return;
+      const price = posPresetsData[it.key]?.price || 0;
+      const ratio = /堅果|腰果/.test(it.name || '') ? 0.5 : (1/3);
+      cost += price * (it.count || 0) * ratio;
+    });
+    return sum + cost;
+  }, 0);
 }
 
 let accIngLog = null, accPkgLog = null, accExpLog = {};
